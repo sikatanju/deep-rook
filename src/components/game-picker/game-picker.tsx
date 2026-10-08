@@ -1,3 +1,6 @@
+import { useState } from 'react';
+
+import { useStore } from '@/app/store';
 import {
   Card,
   CardContent,
@@ -12,9 +15,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
-import { useGamePicker } from '@/hooks/use-game-picker';
 import { errorMessages } from '@/lib/chesscom/errors';
-import type { MonthKey } from '@/lib/chesscom/types';
+import type { Game, MonthKey } from '@/lib/chesscom/types';
 
 import { GameList } from './game-list';
 import { UsernameForm } from './username-form';
@@ -31,7 +33,17 @@ function monthLabel(key: MonthKey): string {
 }
 
 export function GamePicker() {
-  const { state, search, selectMonth, selectGame } = useGamePicker();
+  const { state, search, selectMonth, openGame } = useStore();
+  const [openError, setOpenError] = useState<string | null>(null);
+
+  function open(game: Game) {
+    try {
+      openGame(game);
+      setOpenError(null);
+    } catch {
+      setOpenError('That game could not be read.');
+    }
+  }
 
   return (
     <Card>
@@ -88,13 +100,12 @@ export function GamePicker() {
                   games={state.games.games}
                   username={state.profile.username}
                   selectedId={state.selected?.id}
-                  onSelect={selectGame}
+                  onSelect={open}
                 />
               )}
-              {state.selected && (
-                <p className="text-sm">
-                  Selected {state.selected.white.username} vs{' '}
-                  {state.selected.black.username}. Analysis comes next.
+              {openError && (
+                <p role="alert" className="text-destructive text-sm">
+                  {openError}
                 </p>
               )}
             </>

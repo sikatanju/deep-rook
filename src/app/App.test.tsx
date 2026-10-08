@@ -13,7 +13,7 @@ test('renders the app shell with the username form', () => {
   expect(screen.getByRole('button', { name: 'Find games' })).toBeDisabled();
 });
 
-test('lists games for a user and lets one be selected', async () => {
+test('lists games for a user and opens one in the review page', async () => {
   const json = (body: unknown) =>
     Promise.resolve(new Response(JSON.stringify(body)));
   vi.stubGlobal(
@@ -26,7 +26,7 @@ test('lists games for a user and lets one be selected', async () => {
           games: [
             {
               url: 'https://www.chess.com/game/live/1',
-              pgn: '1. e4 e5',
+              pgn: '[White "Me"]\n[Black "Rival"]\n\n1. e4 e5',
               end_time: 1735949652,
               time_control: '180',
               time_class: 'blitz',
@@ -46,8 +46,10 @@ test('lists games for a user and lets one be selected', async () => {
   await user.click(screen.getByRole('button', { name: 'Find games' }));
   const row = await screen.findByRole('button', { name: /Rival/ });
   await user.click(row);
-  expect(row).toHaveAttribute('aria-pressed', 'true');
-  expect(screen.getByText(/Analysis comes next/)).toBeInTheDocument();
+  expect(
+    await screen.findByRole('img', { name: /Chess board/ }),
+  ).toBeInTheDocument();
+  expect(screen.getByText('Rival')).toBeInTheDocument();
 });
 
 test('shows a message when the user does not exist', async () => {
