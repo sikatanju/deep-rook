@@ -1,13 +1,6 @@
+import { GamePicker } from '@/components/game-picker/game-picker';
 import { ThemeProvider } from '@/components/theme-provider';
 import { ThemeToggle } from '@/components/theme-toggle';
-import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
 
 export default function App() {
   return (
@@ -17,17 +10,7 @@ export default function App() {
           <h1 className="text-2xl font-semibold">DeepRook</h1>
           <ThemeToggle />
         </header>
-        <Card>
-          <CardHeader>
-            <CardTitle>Chess analysis, in your browser</CardTitle>
-            <CardDescription>
-              Scaffold only. The engine and board come later.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button>Analyze a game</Button>
-          </CardContent>
-        </Card>
+        <GamePicker />
       </main>
     </ThemeProvider>
   );
