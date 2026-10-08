@@ -1,13 +1,31 @@
-# Astro with Tailwind
+# DeepRook
+
+Client-side chess analysis. A static site with one client-rendered React app. No server, no SSR, no adapter.
+
+## Setup
+
+Needs Node >=22.12 (`nvm use`) and pnpm.
 
 ```sh
-pnpm create astro@latest -- --template with-tailwindcss
+pnpm install
+pnpm dev
 ```
 
-[![Open in StackBlitz](https://developer.stackblitz.com/img/open_in_stackblitz.svg)](https://stackblitz.com/github/withastro/astro/tree/latest/examples/with-tailwindcss)
-[![Open with CodeSandbox](https://assets.codesandbox.io/github/button-edit-lime.svg)](https://codesandbox.io/p/sandbox/github/withastro/astro/tree/latest/examples/with-tailwindcss)
-[![Open in GitHub Codespaces](https://github.com/codespaces/badge.svg)](https://codespaces.new/withastro/astro?devcontainer_path=.devcontainer/with-tailwindcss/devcontainer.json)
+## Scripts
 
-Astro comes with [Tailwind](https://tailwindcss.com) support out of the box. This example showcases how to style your Astro project with Tailwind.
+| Script                      | Does                                                            |
+| --------------------------- | --------------------------------------------------------------- |
+| `dev` / `build` / `preview` | Astro dev server, static build to `dist/`, preview of the build |
+| `check`                     | `astro check` (types for `.ts`, `.tsx`, `.astro`)               |
+| `lint` / `format`           | ESLint (flat config) / Prettier                                 |
+| `test`                      | Vitest + Testing Library on jsdom                               |
 
-For complete setup instructions, please see our [Tailwind Styling Guide](https://docs.astro.build/en/guides/styling/#tailwind).
+## Architecture
+
+- Astro is the HTML shell and build tool only (`output: 'static'`, no adapter). Tailwind 4 comes in through `@tailwindcss/vite`, CSS-first, no `tailwind.config.js`.
+- `src/pages/index.astro` mounts `<App client:only="react" />`, so React never renders on the server. `dist/index.html` holds only the loading fallback.
+- `src/layouts/main.astro` has an inline script that sets the `dark` class on `<html>` before first paint. `ThemeProvider` reads that class as its source of truth and persists the choice in `localStorage` under `theme`.
+- All UI and state live under `src/app` and `src/components`. shadcn/ui (Radix, `radix-nova`, neutral) generates into `src/components/ui`.
+- No client router yet. `App` is the single root, so a router can wrap it later without moving files.
+- `src/workers/` is reserved for the engine Web Worker.
+- Anything prefixed `PUBLIC_` is exposed to the browser. Keep secrets out.
