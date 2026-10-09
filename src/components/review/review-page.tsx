@@ -15,6 +15,7 @@ import { useStore, type Loaded } from '@/app/store';
 import { Board } from '@/components/board/board';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
+import { useGameAnalysis } from '@/hooks/use-game-analysis';
 import {
   fenAt,
   materialOf,
@@ -22,6 +23,7 @@ import {
   type Replay,
 } from '@/lib/chess/replay';
 
+import { EnginePanel } from './engine-panel';
 import { MoveList } from './move-list';
 import { PlayerStrip } from './player-strip';
 
@@ -104,6 +106,10 @@ function Viewer({ loaded }: { loaded: Loaded }) {
     return () => window.removeEventListener('keydown', onKey);
   }, [go, index, last, running]);
 
+  const analysis = useGameAnalysis(loaded, index);
+  const here = analysis?.positions[index];
+  const best = here && here.status !== 'failed' ? here.line?.pv[0] : undefined;
+
   const { headers, plies } = replay;
   const ply = index > 0 ? plies[index - 1] : undefined;
   const fen = fenAt(replay, index);
@@ -152,6 +158,7 @@ function Viewer({ loaded }: { loaded: Loaded }) {
             coordinates={settings.coordinates}
             lastMove={ply}
             checkOn={ply?.check ? (sideToMove === 'w' ? 'K' : 'k') : undefined}
+            arrow={best}
           />
           <div
             role="slider"
@@ -209,6 +216,7 @@ function Viewer({ loaded }: { loaded: Loaded }) {
                 .join(' · ')}
             </p>
           </div>
+          <EnginePanel analysis={analysis} index={index} fen={fen} />
           <div className="h-64 overflow-y-auto rounded-md border p-1 lg:h-80">
             <MoveList plies={plies} index={index} onSelect={(i) => go(i)} />
           </div>

@@ -2,12 +2,19 @@ import {
   createContext,
   useCallback,
   useContext,
+  useEffect,
   useState,
   type ReactNode,
 } from 'react';
 
 import { navigate } from '@/app/router';
+import { AnalysisProvider } from '@/hooks/use-game-analysis';
 import { useGamePicker } from '@/hooks/use-game-picker';
+import {
+  DEFAULT_LEVEL,
+  isAnalysisLevel,
+  type AnalysisLevel,
+} from '@/lib/analysis/levels';
 import type { Game } from '@/lib/chesscom/types';
 import { parseReplay, type Replay } from '@/lib/chess/replay';
 
@@ -23,13 +30,53 @@ export type Settings = {
   boardTheme: BoardTheme;
   coordinates: boolean;
   autoplayMs: number;
+  analysisLevel: AnalysisLevel;
 };
 
 const DEFAULT_SETTINGS: Settings = {
   boardTheme: 'green',
   coordinates: true,
   autoplayMs: 900,
+  analysisLevel: DEFAULT_LEVEL,
 };
+
+const SETTINGS_KEY = 'settings';
+
+/** Field by field, so one stale or hand-edited value falls back alone. */
+export function parseSettings(raw: string | null): Settings {
+  let data: Record<string, unknown> = {};
+  try {
+    const parsed: unknown = JSON.parse(raw ?? '{}');
+    if (parsed && typeof parsed === 'object')
+      data = parsed as Record<string, unknown>;
+  } catch {
+    // Corrupt JSON: defaults.
+  }
+  const d = DEFAULT_SETTINGS;
+  const { boardTheme, coordinates, autoplayMs, analysisLevel } = data;
+  return {
+    boardTheme:
+      typeof boardTheme === 'string' && Object.hasOwn(BOARD_THEMES, boardTheme)
+        ? (boardTheme as BoardTheme)
+        : d.boardTheme,
+    coordinates: typeof coordinates === 'boolean' ? coordinates : d.coordinates,
+    autoplayMs:
+      typeof autoplayMs === 'number' && autoplayMs >= 300 && autoplayMs <= 2500
+        ? autoplayMs
+        : d.autoplayMs,
+    analysisLevel: isAnalysisLevel(analysisLevel)
+      ? analysisLevel
+      : d.analysisLevel,
+  };
+}
+
+function loadSettings(): Settings {
+  try {
+    return parseSettings(localStorage.getItem(SETTINGS_KEY));
+  } catch {
+    return DEFAULT_SETTINGS; // storage blocked
+  }
+}
 
 export type Loaded = {
   id: number;
@@ -61,7 +108,7 @@ export function useStore(): Store {
 export function AppProvider({ children }: { children: ReactNode }) {
   const picker = useGamePicker();
   const [loaded, setLoaded] = useState<Loaded | null>(null);
-  const [settings, setAll] = useState(DEFAULT_SETTINGS);
+  const [settings, setAll] = useState(loadSettings);
   const { selectGame } = picker;
 
   const openPgn = useCallback((pgn: string, source: string) => {
@@ -96,8 +143,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
     [],
   );
 
+  useEffect(() => {
+    try {
+      localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+    } catch {
+      // Storage full or blocked: settings still work for this session.
+    }
+  }, [settings]);
+
   const store = { ...picker, loaded, openGame, openPgn, settings, setSettings };
   return (
-    <StoreContext.Provider value={store}>{children}</StoreContext.Provider>
+    <StoreContext.Provider value={store}>
+      <AnalysisProvider level={settings.analysisLevel}>
+        {children}
+      </AnalysisProvider>
+    </StoreContext.Provider>
   );
 }

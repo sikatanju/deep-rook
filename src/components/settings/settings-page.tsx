@@ -6,6 +6,7 @@ import {
   CardHeader,
   CardTitle,
 } from '@/components/ui/card';
+import { ANALYSIS_LEVELS, LEVELS } from '@/lib/analysis/levels';
 import { cn } from '@/lib/utils';
 
 export function SettingsPage() {
@@ -14,11 +15,43 @@ export function SettingsPage() {
     <Card>
       <CardHeader>
         <CardTitle>Settings</CardTitle>
-        <CardDescription>
-          Kept in memory, so they reset when you reload.
-        </CardDescription>
+        <CardDescription>Saved in this browser.</CardDescription>
       </CardHeader>
       <CardContent className="flex flex-col gap-6">
+        <fieldset className="flex flex-col gap-2">
+          <legend className="mb-1 text-sm font-medium">Analysis depth</legend>
+          <p className="text-sm opacity-70">
+            The engine runs on your device. Deeper analysis is stronger and
+            takes longer.
+          </p>
+          <div className="grid gap-2 sm:grid-cols-3">
+            {LEVELS.map((level) => (
+              <label
+                key={level}
+                className={cn(
+                  'has-[:focus-visible]:ring-ring flex cursor-pointer flex-col gap-1 rounded-md border p-3 text-sm has-[:focus-visible]:ring-2',
+                  settings.analysisLevel === level &&
+                    'border-primary bg-accent',
+                )}
+              >
+                <input
+                  type="radio"
+                  name="analysis-level"
+                  className="sr-only"
+                  checked={settings.analysisLevel === level}
+                  onChange={() => setSettings({ analysisLevel: level })}
+                />
+                <span className="font-medium">
+                  {ANALYSIS_LEVELS[level].label}
+                </span>
+                <span className="opacity-70">
+                  {ANALYSIS_LEVELS[level].blurb}
+                </span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
+
         <fieldset className="flex flex-col gap-2">
           <legend className="mb-1 text-sm font-medium">Board colors</legend>
           <div className="flex flex-wrap gap-3">

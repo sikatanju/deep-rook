@@ -12,7 +12,8 @@
     "check": "astro check",
     "lint": "eslint .",
     "format": "prettier --write .",
-    "test": "vitest run"
+    "test": "vitest run",
+    "bench": "node scripts/bench.mjs"
   },
   "dependencies": {
     "@astrojs/react": "^7.0.1",

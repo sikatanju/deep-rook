@@ -12,4 +12,29 @@ export default defineConfig(
   reactHooks.configs.flat.recommended,
   jsxA11y.flatConfigs.recommended,
   { languageOptions: { globals: globals.browser } },
+  {
+    // The engine runs in workers behind the analyzer; UI code goes through useGameAnalysis.
+    files: ['src/components/**', 'src/app/**', 'src/pages/**'],
+    ignores: ['**/*.test.{ts,tsx}'],
+    rules: {
+      'no-restricted-imports': [
+        'error',
+        {
+          patterns: [
+            {
+              group: [
+                '**/lib/engine/*',
+                '**/workers/*',
+                '**/lib/analysis/analyzer',
+                '**/lib/analysis/schedule',
+                '**/lib/analysis/protocol',
+              ],
+              message:
+                'Analysis internals are private. Use useGameAnalysis from @/hooks/use-game-analysis.',
+            },
+          ],
+        },
+      ],
+    },
+  },
 );

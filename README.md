@@ -13,12 +13,13 @@ pnpm dev
 
 ## Scripts
 
-| Script                      | Does                                                            |
-| --------------------------- | --------------------------------------------------------------- |
-| `dev` / `build` / `preview` | Astro dev server, static build to `dist/`, preview of the build |
-| `check`                     | `astro check` (types for `.ts`, `.tsx`, `.astro`)               |
-| `lint` / `format`           | ESLint (flat config) / Prettier                                 |
-| `test`                      | Vitest + Testing Library on jsdom                               |
+| Script                      | Does                                                              |
+| --------------------------- | ----------------------------------------------------------------- |
+| `dev` / `build` / `preview` | Astro dev server, static build to `dist/`, preview of the build   |
+| `check`                     | `astro check` (types for `.ts`, `.tsx`, `.astro`)                 |
+| `lint` / `format`           | ESLint (flat config) / Prettier                                   |
+| `test`                      | Vitest + Testing Library on jsdom                                 |
+| `bench`                     | Engine nodes/s and depth per analysis level (bundled, not Vitest) |
 
 ## Architecture
 
@@ -27,5 +28,5 @@ pnpm dev
 - `src/layouts/main.astro` has an inline script that sets the `dark` class on `<html>` before first paint. `ThemeProvider` reads that class as its source of truth and persists the choice in `localStorage` under `theme`.
 - All UI and state live under `src/app` and `src/components`. shadcn/ui (Radix, `radix-nova`, neutral) generates into `src/components/ui`.
 - No client router yet. `App` is the single root, so a router can wrap it later without moving files.
-- `src/workers/` is reserved for the engine Web Worker.
+- The chess engine is written from scratch in `src/lib/engine` and runs in a pool of Web Workers (`src/workers`) on the user's machine. `src/lib/analysis` schedules it across a game. UI code reads it only through `useGameAnalysis`; a lint rule enforces that. Design: `docs/engine-design.md`.
 - Anything prefixed `PUBLIC_` is exposed to the browser. Keep secrets out.
