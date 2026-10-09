@@ -7,7 +7,7 @@ import {
   PlayIcon,
   RotateCwIcon,
 } from 'lucide-react';
-import { useCallback, useEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
 import { cn } from '@/lib/utils';
 import { navigate } from '@/app/router';
@@ -16,15 +16,18 @@ import { Board } from '@/components/board/board';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useGameAnalysis } from '@/hooks/use-game-analysis';
+import { CLASSIFICATIONS, classifyMoves } from '@/lib/analysis/classify';
+import { ANALYSIS_LEVELS, LEVELS } from '@/lib/analysis/levels';
 import {
   fenAt,
   materialOf,
   openingName,
+  sanLine,
   type Replay,
 } from '@/lib/chess/replay';
 
 import { EnginePanel } from './engine-panel';
-import { MoveList } from './move-list';
+import { GradeBadge, MoveList } from './move-list';
 import { PlayerStrip } from './player-strip';
 
 function clockAt(replay: Replay, index: number, color: 'w' | 'b') {
@@ -50,7 +53,7 @@ function isTyping(target: EventTarget | null) {
 
 function Viewer({ loaded }: { loaded: Loaded }) {
   const { replay, orientation } = loaded;
-  const { settings } = useStore();
+  const { settings, setSettings } = useStore();
   const last = replay.plies.length;
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(orientation === 'b');
@@ -109,6 +112,16 @@ function Viewer({ loaded }: { loaded: Loaded }) {
   const analysis = useGameAnalysis(loaded, index);
   const here = analysis?.positions[index];
   const best = here && here.status !== 'failed' ? here.line?.pv[0] : undefined;
+  const grades = useMemo(
+    () => (analysis ? classifyMoves(replay, analysis.positions) : []),
+    [replay, analysis],
+  );
+  const grade = grades[index - 1];
+  const prior = analysis?.positions[index - 1];
+  const better =
+    grade && grade !== 'best' && grade !== 'great' && prior?.status === 'done'
+      ? sanLine(fenAt(replay, index - 1), prior.line.pv.slice(0, 1))[0]
+      : undefined;
 
   const { headers, plies } = replay;
   const ply = index > 0 ? plies[index - 1] : undefined;
@@ -216,9 +229,50 @@ function Viewer({ loaded }: { loaded: Loaded }) {
                 .join(' · ')}
             </p>
           </div>
+          <fieldset className="flex gap-1 rounded-md border p-1">
+            <legend className="sr-only">Analysis depth</legend>
+            {LEVELS.map((level) => (
+              <label
+                key={level}
+                title={ANALYSIS_LEVELS[level].blurb}
+                className={cn(
+                  'has-[:focus-visible]:ring-ring flex-1 cursor-pointer rounded px-2 py-1 text-center text-sm has-[:focus-visible]:ring-2',
+                  settings.analysisLevel === level
+                    ? 'bg-accent font-medium'
+                    : 'opacity-70',
+                )}
+              >
+                <input
+                  type="radio"
+                  name="review-analysis-level"
+                  className="sr-only"
+                  checked={settings.analysisLevel === level}
+                  onChange={() => setSettings({ analysisLevel: level })}
+                />
+                {ANALYSIS_LEVELS[level].label}
+              </label>
+            ))}
+          </fieldset>
           <EnginePanel analysis={analysis} index={index} fen={fen} />
+          {grade && ply && (
+            <p className="flex items-center gap-2 text-sm">
+              <GradeBadge grade={grade} />
+              <span>
+                <span className="font-medium">{ply.san}</span> is{' '}
+                {CLASSIFICATIONS[grade].label.toLowerCase()}
+                {better && better !== ply.san && (
+                  <span className="opacity-70"> · best was {better}</span>
+                )}
+              </span>
+            </p>
+          )}
           <div className="h-64 overflow-y-auto rounded-md border p-1 lg:h-80">
-            <MoveList plies={plies} index={index} onSelect={(i) => go(i)} />
+            <MoveList
+              plies={plies}
+              grades={grades}
+              index={index}
+              onSelect={(i) => go(i)}
+            />
           </div>
           {atEnd && (
             <p className="text-sm font-medium">

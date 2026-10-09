@@ -62,3 +62,16 @@ test('the analysis depth setting persists across reloads', async () => {
   render(<App />);
   expect(screen.getByRole('radio', { name: /Deep/ })).toBeChecked();
 });
+
+test('the review page switches analysis depth', async () => {
+  const user = userEvent.setup();
+  render(<App />);
+  await user.click(screen.getByRole('button', { name: 'Try the Opera Game' }));
+  await user.click(screen.getByRole('radio', { name: 'Fast' }));
+
+  await waitFor(() =>
+    expect(screen.getByText(/^Fast/, { selector: 'span' })).toBeInTheDocument(),
+  );
+  await user.click(screen.getByRole('link', { name: 'Settings' }));
+  expect(screen.getByRole('radio', { name: /Fast/ })).toBeChecked();
+});
