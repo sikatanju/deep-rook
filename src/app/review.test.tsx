@@ -89,7 +89,7 @@ test('a single step slides the piece instead of teleporting it', async () => {
   const fly = flying()!;
   expect(fly).toHaveAttribute('data-moving', 'e2e4');
   expect(fly).toHaveAttribute('data-piece', 'wP');
-  expect(fly).toHaveAttribute('data-direction', 'forward');
+  // No `data-direction` any more: the offset below is the one source of truth.
   expect(fly.parentElement).toHaveAttribute('data-move-layer');
   // The flying box is one square (12.5% of the board) placed on the cell the
   // piece leaves: e2 is file 4, and its rank sits 6 rows down from the top when
@@ -101,10 +101,18 @@ test('a single step slides the piece instead of teleporting it', async () => {
   expect(fly.style.getPropertyValue('--mx')).toBe('0');
   expect(fly.style.getPropertyValue('--my')).toBe('-2');
   // Inline longhands, because jsdom applies no cascade and its rects are all 0.
-  expect(fly.style.animationName).toBe('piece-move-fwd');
+  expect(fly.style.animationName).toBe('piece-move');
   expect(fly.style.animationDuration).toBe('220ms');
   expect(fly.style.animationTimingFunction).toBe('ease-out');
   expect(fly.style.animationFillMode).toBe('both');
+  // The keyframes the browser actually gets are a single positive translation:
+  // the offset already carries the direction, so nothing here negates it again.
+  const css = document.querySelector('style')?.textContent ?? '';
+  expect(css).toContain('translate(calc(var(--mx) * 100%)');
+  expect(css).not.toContain('calc(var(--mx) * -100%)');
+  // A reversed animation on top of an already-swapped offset is exactly the bug
+  // that was fixed: the piece flew from the wrong cell to the right one.
+  expect(['', 'normal']).toContain(fly.style.animationDirection);
 });
 
 test('stepping back slides the piece home again', async () => {
@@ -115,11 +123,45 @@ test('stepping back slides the piece home again', async () => {
   // `data-moving` names the travel, so a take-back reads e4 -> e2, and the box
   // starts on the cell the piece stands on now: e4.
   expect(fly).toHaveAttribute('data-moving', 'e4e2');
-  expect(fly).toHaveAttribute('data-direction', 'back');
-  expect(fly.style.animationName).toBe('piece-move-back');
-  expect(fly.style.animationDirection).toBe('reverse');
   expect(fly.style.left).toBe('50%');
   expect(fly.style.top).toBe('50%');
+  // The offset must point at the destination for a take-back too — down to e2.
+  // That is the regression this pins: the flight is driven by from/to alone, so
+  // a step back needs no reversal anywhere else.
+  expect(fly.style.getPropertyValue('--mx')).toBe('0');
+  expect(fly.style.getPropertyValue('--my')).toBe('2');
+  // The same single keyframes rule as a forward step: one rule, one source of
+  // direction, and no reversed playback on top of it.
+  expect(fly.style.animationName).toBe('piece-move');
+  const css = document.querySelector('style')?.textContent ?? '';
+  expect(css).toContain('translate(calc(var(--mx) * 100%)');
+  expect(['', 'normal']).toContain(fly.style.animationDirection);
+});
+
+test('a take-back from a knight move flies the knight to its home square', async () => {
+  const user = await openOperaGame();
+  await user.click(screen.getByRole('button', { name: 'Next move' }));
+  await user.click(screen.getByRole('button', { name: 'Next move' }));
+  // The move-list buttons are the SAN lines inside the <ol>.
+  await user.click(screen.getByRole('button', { name: 'Nf3' }));
+  await user.click(screen.getByRole('button', { name: 'Previous move' }));
+
+  // Taking back 2. Nf3: the knight stands on f3 and goes home to g1.
+  const fly = flying()!;
+  expect(fly).toHaveAttribute('data-moving', 'f3g1');
+  expect(fly).toHaveAttribute('data-piece', 'wN');
+  // The box starts on f3 — file 6, row 5 of 8 from the top. The offset then
+  // points right and down, onto g1, the square the knight is going home TO.
+  // Before the fix the rendered motion ran from the opposite cell back to f3,
+  // so the piece appeared to fly to the wrong square.
+  expect(fly.style.left).toBe('62.5%');
+  expect(fly.style.top).toBe('62.5%');
+  expect(fly.style.getPropertyValue('--mx')).toBe('1');
+  expect(fly.style.getPropertyValue('--my')).toBe('2');
+  // The same rule and the same absence of a reversal as any other step: for the
+  // knight above, a reversed playback is what sent it to e5 instead of g1.
+  expect(fly.style.animationName).toBe('piece-move');
+  expect(['', 'normal']).toContain(fly.style.animationDirection);
 });
 
 test('a jump snaps: no flight is drawn', async () => {

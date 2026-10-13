@@ -10,7 +10,6 @@ export type MovingPiece = {
   to: string;
   /** FEN piece code, read from the position the piece starts in. */
   code: string;
-  direction: 'forward' | 'back';
   /** The ply number: changes exactly when a new flight must start. */
   key: number;
 };
@@ -24,18 +23,23 @@ type Grade = { label: string; symbol: string; color: string };
 /** How long a piece takes to travel between two squares. */
 export const MOVE_MS = '220ms';
 
+// One keyframe, and a positive one: `--mx`/`--my` already carry the direction,
+// because `movingPiece` reports the square the piece stands on as `from` and the
+// square it lands on as `to` for a take-back too. Negating the delta here, or
+// adding `animation-direction: reverse`, would flip a step that is already
+// flipped — which is exactly the bug that drew backward steps onto the wrong
+// square (measured: a take-back f3->g1 slid from e5 back to f3).
 const MOVE_CSS = `
-@keyframes piece-move-fwd {
+@keyframes piece-move {
   from { transform: translate(0, 0); }
   to { transform: translate(calc(var(--mx) * 100%), calc(var(--my) * 100%)); }
-}
-@keyframes piece-move-back {
-  from { transform: translate(0, 0); }
-  to { transform: translate(calc(var(--mx) * -100%), calc(var(--my) * -100%)); }
 }`;
 
-/** Start cell and travel delta of a flight, as board fractions of 0..8. */
-function flightPath(moving: MovingPiece, flipped: boolean) {
+/**
+ * Where the flight box sits and how far it travels, in board fractions of 0..8:
+ * `left`/`top` name the cell the piece is leaving, `mx`/`my` are whole squares.
+ */
+export function flightOffset(moving: MovingPiece, flipped: boolean) {
   const point = (square: string) => {
     const file = square.charCodeAt(0) - 97;
     const rank = Number(square[1]) - 1;
@@ -48,8 +52,8 @@ function flightPath(moving: MovingPiece, flipped: boolean) {
   return {
     left: `${(from.x / 8) * 100}%`,
     top: `${(from.y / 8) * 100}%`,
-    mx: String(to.x - from.x),
-    my: String(to.y - from.y),
+    mx: to.x - from.x,
+    my: to.y - from.y,
   };
 }
 
@@ -141,9 +145,7 @@ export function movingPiece(
   const [a, b] = forward ? [ply.from, ply.to] : [ply.to, ply.from];
   const fen = forward ? fenAt(replay, to - 1) : ply.fen;
   const code = pieceCode(fen, a);
-  return code
-    ? { from: a, to: b, code, direction: forward ? 'forward' : 'back', key: to }
-    : null;
+  return code ? { from: a, to: b, code, key: to } : null;
 }
 
 export function Board({
@@ -176,7 +178,7 @@ export function Board({
   const ordered = (flipped ? [...rows].reverse() : rows).map((row) =>
     flipped ? [...row].reverse() : row,
   );
-  const flight = moving ? flightPath(moving, flipped) : null;
+  const flight = moving ? flightOffset(moving, flipped) : null;
   return (
     <div className="relative">
       <style>{MOVE_CSS}</style>
@@ -266,7 +268,6 @@ export function Board({
             key={moving.key}
             data-moving={`${moving.from}${moving.to}`}
             data-piece={moving.code}
-            data-direction={moving.direction}
             className="absolute flex items-center justify-center"
             style={{
               width: '12.5%',
@@ -275,12 +276,10 @@ export function Board({
               top: flight.top,
               ['--mx' as string]: flight.mx,
               ['--my' as string]: flight.my,
-              animationName: `piece-move-${moving.direction === 'forward' ? 'fwd' : 'back'}`,
+              animationName: 'piece-move',
               animationDuration: MOVE_MS,
               animationTimingFunction: 'ease-out',
               animationFillMode: 'both',
-              animationDirection:
-                moving.direction === 'forward' ? 'normal' : 'reverse',
             }}
           >
             <Piece
