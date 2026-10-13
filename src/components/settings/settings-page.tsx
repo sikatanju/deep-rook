@@ -113,6 +113,24 @@ export function SettingsPage() {
             className="max-w-xs"
           />
         </label>
+
+        <p className="text-xs opacity-60">
+          Pieces are{' '}
+          <a
+            href="https://github.com/neverRare/kiwen-suwi"
+            className="underline"
+          >
+            Kiwen Suwi
+          </a>{' '}
+          by neverRare,{' '}
+          <a
+            href="https://creativecommons.org/licenses/by/4.0/"
+            className="underline"
+          >
+            CC BY 4.0
+          </a>
+          .
+        </p>
       </CardContent>
     </Card>
   );
