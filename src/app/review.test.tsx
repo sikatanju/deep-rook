@@ -68,6 +68,86 @@ test('flips the board', async () => {
   ).toHaveAttribute('data-square', 'h1');
 });
 
+/** The piece in flight, or null when the board snapped instead. */
+const flying = () => document.querySelector<HTMLElement>('[data-moving]');
+
+test('a single step slides the piece instead of teleporting it', async () => {
+  const user = await openOperaGame();
+  expect(flying()).toBeNull();
+  expect(
+    document.querySelector('[data-square="e2"] [data-piece="wP"]'),
+  ).not.toBeNull();
+
+  await user.click(screen.getByRole('button', { name: 'Next move' }));
+
+  // The board is already in the new position...
+  expect(
+    document.querySelector('[data-square="e4"] [data-piece="wP"]'),
+  ).not.toBeNull();
+  // ...and the flight from e2 to e4 is drawn over it. The destination piece is
+  // the landing place, so the flying piece and the settled piece share a box.
+  const fly = flying()!;
+  expect(fly).toHaveAttribute('data-moving', 'e2e4');
+  expect(fly).toHaveAttribute('data-piece', 'wP');
+  expect(fly).toHaveAttribute('data-direction', 'forward');
+  expect(fly.parentElement).toHaveAttribute('data-move-layer');
+  // The flying box is one square (12.5% of the board) placed on the cell the
+  // piece leaves: e2 is file 4, and its rank sits 6 rows down from the top when
+  // White is at the bottom.
+  expect(fly.style.width).toBe('12.5%');
+  expect(fly.style.left).toBe('50%');
+  expect(fly.style.top).toBe('75%');
+  // The travel delta, in board fractions: 0 files, 2 ranks up.
+  expect(fly.style.getPropertyValue('--mx')).toBe('0');
+  expect(fly.style.getPropertyValue('--my')).toBe('-2');
+  // Inline longhands, because jsdom applies no cascade and its rects are all 0.
+  expect(fly.style.animationName).toBe('piece-move-fwd');
+  expect(fly.style.animationDuration).toBe('220ms');
+  expect(fly.style.animationTimingFunction).toBe('ease-out');
+  expect(fly.style.animationFillMode).toBe('both');
+});
+
+test('stepping back slides the piece home again', async () => {
+  const user = await openOperaGame();
+  await user.click(screen.getByRole('button', { name: 'Next move' }));
+  await user.click(screen.getByRole('button', { name: 'Previous move' }));
+  const fly = flying()!;
+  // `data-moving` names the travel, so a take-back reads e4 -> e2, and the box
+  // starts on the cell the piece stands on now: e4.
+  expect(fly).toHaveAttribute('data-moving', 'e4e2');
+  expect(fly).toHaveAttribute('data-direction', 'back');
+  expect(fly.style.animationName).toBe('piece-move-back');
+  expect(fly.style.animationDirection).toBe('reverse');
+  expect(fly.style.left).toBe('50%');
+  expect(fly.style.top).toBe('50%');
+});
+
+test('a jump snaps: no flight is drawn', async () => {
+  const user = await openOperaGame();
+  await user.click(screen.getByRole('button', { name: 'Nf3' }));
+  expect(flying()).toBeNull();
+  expect(
+    document.querySelector('[data-square="f3"] [data-piece="wN"]'),
+  ).not.toBeNull();
+  await user.keyboard('{End}');
+  expect(flying()).toBeNull();
+  await user.keyboard('{Home}');
+  expect(flying()).toBeNull();
+});
+
+test('a flipped board flies the mirrored delta', async () => {
+  const user = await openOperaGame();
+  await user.click(screen.getByRole('button', { name: 'Next move' }));
+  expect(flying()!.style.getPropertyValue('--my')).toBe('-2');
+  await user.keyboard('f');
+  // The same step now reads downward on screen, and the cell below is the
+  // destination: e2 is file 2, rank 7 once Black is at the bottom.
+  const fly = flying()!;
+  expect(fly.style.getPropertyValue('--my')).toBe('2');
+  expect(fly.style.left).toBe('37.5%');
+  expect(fly.style.top).toBe('12.5%');
+});
+
 test('rejects an invalid PGN without leaving the games page', async () => {
   const user = userEvent.setup();
   render(<App />);

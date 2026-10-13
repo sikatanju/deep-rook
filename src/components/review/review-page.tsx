@@ -12,7 +12,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { cn } from '@/lib/utils';
 import { navigate } from '@/app/router';
 import { useStore, type Loaded } from '@/app/store';
-import { Board } from '@/components/board/board';
+import { Board, movingPiece } from '@/components/board/board';
 import { Button } from '@/components/ui/button';
 import { Card, CardContent } from '@/components/ui/card';
 import { useGameAnalysis } from '@/hooks/use-game-analysis';
@@ -61,24 +61,36 @@ function Viewer({ loaded }: { loaded: Loaded }) {
   const [size, setSize] = useState<number | null>(null);
   const column = useRef<HTMLDivElement>(null);
   const resize = useRef<{ x: number; y: number; w: number } | null>(null);
+  // The position the viewer is coming from, held in the same state as the index
+  // so a step is one atomic update: a later re-render (the engine streams in
+  // constantly) must not be able to recompute the flight away.
+  const [nav, setNav] = useState({ at: 0, from: 0 });
 
-  const go = useCallback(
-    (to: number) => setIndex(Math.min(last, Math.max(0, to))),
+  const goTo = useCallback(
+    (to: number) =>
+      setNav(({ at }) => {
+        const next = Math.min(last, Math.max(0, to));
+        setIndex(next);
+        return { at: next, from: at };
+      }),
     [last],
   );
 
-  const step = (to: number) => {
-    setPlaying(false);
-    go(to);
-  };
+  const go = useCallback(
+    (to: number) => {
+      setPlaying(false);
+      goTo(to);
+    },
+    [goTo],
+  );
 
   const running = playing && index < last;
 
   useEffect(() => {
     if (!running) return;
-    const t = setTimeout(() => setIndex((i) => i + 1), settings.autoplayMs);
+    const t = setTimeout(() => goTo(index + 1), settings.autoplayMs);
     return () => clearTimeout(t);
-  }, [running, index, settings.autoplayMs]);
+  }, [running, index, settings.autoplayMs, goTo]);
 
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
@@ -86,17 +98,17 @@ function Viewer({ loaded }: { loaded: Loaded }) {
       if (e.key === ' ') {
         if (e.target instanceof HTMLButtonElement) return;
         e.preventDefault();
-        if (index >= last) go(0);
+        if (index >= last) goTo(0);
         setPlaying(index >= last || !running);
         return;
       }
       const keys: Record<string, () => void> = {
-        ArrowLeft: () => go(index - 1),
-        ArrowRight: () => go(index + 1),
-        ArrowUp: () => go(0),
-        ArrowDown: () => go(last),
-        Home: () => go(0),
-        End: () => go(last),
+        ArrowLeft: () => goTo(index - 1),
+        ArrowRight: () => goTo(index + 1),
+        ArrowUp: () => goTo(0),
+        ArrowDown: () => goTo(last),
+        Home: () => goTo(0),
+        End: () => goTo(last),
         f: () => setFlipped((f) => !f),
       };
       const action = keys[e.key];
@@ -107,7 +119,7 @@ function Viewer({ loaded }: { loaded: Loaded }) {
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [go, index, last, running]);
+  }, [goTo, index, last, running]);
 
   const analysis = useGameAnalysis(loaded, index);
   const here = analysis?.positions[index];
@@ -117,6 +129,7 @@ function Viewer({ loaded }: { loaded: Loaded }) {
     [replay, analysis],
   );
   const grade = grades[index - 1];
+  const moving = movingPiece(replay, nav.at, nav.from);
   const prior = analysis?.positions[index - 1];
   const better =
     grade && grade !== 'best' && grade !== 'great' && prior?.status === 'done'
@@ -172,6 +185,8 @@ function Viewer({ loaded }: { loaded: Loaded }) {
             lastMove={ply}
             checkOn={ply?.check ? (sideToMove === 'w' ? 'K' : 'k') : undefined}
             arrow={best}
+            moving={moving}
+            grade={grade ? CLASSIFICATIONS[grade] : null}
           />
           <div
             role="slider"
@@ -271,7 +286,7 @@ function Viewer({ loaded }: { loaded: Loaded }) {
               plies={plies}
               grades={grades}
               index={index}
-              onSelect={(i) => go(i)}
+              onSelect={(i) => goTo(i)}
             />
           </div>
           {atEnd && (
@@ -283,7 +298,7 @@ function Viewer({ loaded }: { loaded: Loaded }) {
             <Button
               variant="outline"
               size="icon"
-              onClick={() => step(0)}
+              onClick={() => go(0)}
               disabled={index === 0}
             >
               <ChevronsLeftIcon aria-hidden />
@@ -292,7 +307,7 @@ function Viewer({ loaded }: { loaded: Loaded }) {
             <Button
               variant="outline"
               size="icon"
-              onClick={() => step(index - 1)}
+              onClick={() => go(index - 1)}
               disabled={index === 0}
             >
               <ChevronLeftIcon aria-hidden />
@@ -302,7 +317,7 @@ function Viewer({ loaded }: { loaded: Loaded }) {
               size="icon"
               aria-pressed={running}
               onClick={() => {
-                if (atEnd) go(0);
+                if (atEnd) goTo(0);
                 setPlaying(atEnd || !playing);
               }}
             >
@@ -312,7 +327,7 @@ function Viewer({ loaded }: { loaded: Loaded }) {
             <Button
               variant="outline"
               size="icon"
-              onClick={() => step(index + 1)}
+              onClick={() => go(index + 1)}
               disabled={atEnd}
             >
               <ChevronRightIcon aria-hidden />
@@ -321,7 +336,7 @@ function Viewer({ loaded }: { loaded: Loaded }) {
             <Button
               variant="outline"
               size="icon"
-              onClick={() => step(last)}
+              onClick={() => go(last)}
               disabled={atEnd}
             >
               <ChevronsRightIcon aria-hidden />

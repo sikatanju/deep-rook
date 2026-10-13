@@ -1,5 +1,57 @@
 import { BOARD_THEMES, type BoardTheme } from '@/app/store';
+import { fenAt, type Replay } from '@/lib/chess/replay';
 import { cn } from '@/lib/utils';
+
+/** A piece flying between two squares, as derived from the ply being stepped. */
+export type MovingPiece = {
+  /** Square the piece is leaving, in chess terms. */
+  from: string;
+  /** Square it lands on. */
+  to: string;
+  /** FEN piece code, read from the position the piece starts in. */
+  code: string;
+  direction: 'forward' | 'back';
+  /** The ply number: changes exactly when a new flight must start. */
+  key: number;
+};
+
+/** A move grade, as CLASSIFICATIONS holds it. */
+type Grade = { label: string; symbol: string; color: string };
+
+// Written as inline longhands by the flight and the badge rather than through a
+// stylesheet, because jsdom applies no cascade to getComputedStyle and rects are
+// all zero there; inline longhands are what a jsdom test can actually assert.
+/** How long a piece takes to travel between two squares. */
+export const MOVE_MS = '220ms';
+
+const MOVE_CSS = `
+@keyframes piece-move-fwd {
+  from { transform: translate(0, 0); }
+  to { transform: translate(calc(var(--mx) * 100%), calc(var(--my) * 100%)); }
+}
+@keyframes piece-move-back {
+  from { transform: translate(0, 0); }
+  to { transform: translate(calc(var(--mx) * -100%), calc(var(--my) * -100%)); }
+}`;
+
+/** Start cell and travel delta of a flight, as board fractions of 0..8. */
+function flightPath(moving: MovingPiece, flipped: boolean) {
+  const point = (square: string) => {
+    const file = square.charCodeAt(0) - 97;
+    const rank = Number(square[1]) - 1;
+    return flipped ? { x: 7 - file, y: rank } : { x: file, y: 7 - rank };
+  };
+  const from = point(moving.from);
+  const to = point(moving.to);
+  // The box is one square wide and translates by whole squares, so it is placed
+  // on the cell it starts in — `left`/`top` of the cell, not of its centre.
+  return {
+    left: `${(from.x / 8) * 100}%`,
+    top: `${(from.y / 8) * 100}%`,
+    mx: String(to.x - from.x),
+    my: String(to.y - from.y),
+  };
+}
 
 export function Piece({
   type,
@@ -25,7 +77,7 @@ export function Piece({
 
 type Cell = { square: string; piece: string | null };
 
-function cells(fen: string): Cell[][] {
+export function cells(fen: string): Cell[][] {
   return fen
     .split(' ')[0]!
     .split('/')
@@ -48,6 +100,52 @@ function cells(fen: string): Cell[][] {
     });
 }
 
+/** The FEN's piece code on a square, e.g. "wP". Colour is the letter's case. */
+function pieceCode(fen: string, square: string): string | null {
+  const file = square.charCodeAt(0) - 97;
+  const row = fen.split(' ')[0]!.split('/')[8 - Number(square[1])]!;
+  let x = 0;
+  for (const ch of row) {
+    if (/\d/.test(ch)) {
+      x += Number(ch);
+      continue;
+    }
+    if (x === file)
+      return (ch === ch.toUpperCase() ? 'w' : 'b') + ch.toUpperCase();
+    x++;
+  }
+  return null;
+}
+
+/**
+ * The piece a single step of the review flies between positions `from` and `to`,
+ * or null when the board must snap. A step forward flies the ply at `to` from
+ * its from-square; a step back unplays the ply at `from`, so the piece travels
+ * from its to-square back home. Anything else — a move-list jump, Home/End, the
+ * start position, a re-render that left the index alone — returns null, because
+ * sliding a piece along a path it never played would be a lie.
+ */
+export function movingPiece(
+  replay: Replay,
+  to: number,
+  from: number,
+): MovingPiece | null {
+  const step = to - from;
+  if (step !== 1 && step !== -1) return null;
+  const forward = step === 1;
+  // Index N is the position after ply N. Stepping forward to index N plays ply N;
+  // stepping back from index M unplays ply M. At index 0 there is no ply at
+  // `to - 1`, yet ply 1 is exactly the one that must fly home.
+  const ply = replay.plies[forward ? to - 1 : from - 1];
+  if (!ply) return null;
+  const [a, b] = forward ? [ply.from, ply.to] : [ply.to, ply.from];
+  const fen = forward ? fenAt(replay, to - 1) : ply.fen;
+  const code = pieceCode(fen, a);
+  return code
+    ? { from: a, to: b, code, direction: forward ? 'forward' : 'back', key: to }
+    : null;
+}
+
 export function Board({
   fen,
   flipped,
@@ -56,6 +154,8 @@ export function Board({
   lastMove,
   checkOn,
   arrow,
+  moving,
+  grade,
 }: {
   fen: string;
   flipped: boolean;
@@ -66,14 +166,20 @@ export function Board({
   checkOn?: 'K' | 'k';
   /** A UCI move ("e2e4") to draw as an arrow, e.g. the engine's best move. */
   arrow?: string;
+  /** The piece to slide, when the viewer arrived here by a single step. */
+  moving?: MovingPiece | null;
+  /** Grade of the ply that produced this position, drawn on `moving.to`. */
+  grade?: Grade | null;
 }) {
   const colors = BOARD_THEMES[theme];
   const rows = cells(fen);
   const ordered = (flipped ? [...rows].reverse() : rows).map((row) =>
     flipped ? [...row].reverse() : row,
   );
+  const flight = moving ? flightPath(moving, flipped) : null;
   return (
     <div className="relative">
+      <style>{MOVE_CSS}</style>
       <div
         role="img"
         aria-label={`Chess board, ${flipped ? 'black' : 'white'} at the bottom`}
@@ -127,10 +233,64 @@ export function Board({
                   {square[0]}
                 </span>
               )}
+              {grade && square === moving?.to && (
+                <span
+                  key={`${moving.key}-${grade.label}`}
+                  role="img"
+                  aria-label={grade.label}
+                  title={grade.label}
+                  data-grade={grade.label.toLowerCase()}
+                  className="pointer-events-none absolute top-[0.8cqw] right-[0.8cqw] z-30 grid aspect-square w-[6cqw] place-items-center rounded-full font-sans leading-none font-bold text-white"
+                  style={{
+                    background: grade.color,
+                    fontSize: '3.4cqw',
+                    boxShadow: '0 0 0 1px rgba(0,0,0,0.25)',
+                  }}
+                >
+                  {grade.symbol}
+                </span>
+              )}
             </div>
           );
         })}
       </div>
+      {flight && moving && (
+        // Never a child of the grid: an in-flow extra grid item creates a ninth
+        // implicit row and grows the board (measured: 616px -> 632px).
+        <div
+          data-move-layer=""
+          aria-hidden
+          className="pointer-events-none absolute inset-0 z-[15]"
+        >
+          <div
+            key={moving.key}
+            data-moving={`${moving.from}${moving.to}`}
+            data-piece={moving.code}
+            data-direction={moving.direction}
+            className="absolute flex items-center justify-center"
+            style={{
+              width: '12.5%',
+              height: '12.5%',
+              left: flight.left,
+              top: flight.top,
+              ['--mx' as string]: flight.mx,
+              ['--my' as string]: flight.my,
+              animationName: `piece-move-${moving.direction === 'forward' ? 'fwd' : 'back'}`,
+              animationDuration: MOVE_MS,
+              animationTimingFunction: 'ease-out',
+              animationFillMode: 'both',
+              animationDirection:
+                moving.direction === 'forward' ? 'normal' : 'reverse',
+            }}
+          >
+            <Piece
+              type={moving.code[1]!.toLowerCase()}
+              white={moving.code[0] === 'w'}
+              className="size-[88%] drop-shadow-[0_1px_1px_rgba(0,0,0,0.35)]"
+            />
+          </div>
+        </div>
+      )}
       {arrow && <Arrow uci={arrow} flipped={flipped} />}
     </div>
   );

@@ -3,6 +3,10 @@ dist/
 # generated types
 .astro/
 
+# phase artifacts from the poteto workflow (probes, audits, screenshots)
+.piece-probe/
+.acl-repair/
+
 # dependencies
 node_modules/
 

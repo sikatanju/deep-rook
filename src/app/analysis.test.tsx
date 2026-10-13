@@ -52,6 +52,39 @@ test('the review page shows the engine evaluation, best line, and arrow', async 
   ).toHaveAttribute('aria-valuenow', '100');
 });
 
+test('the board carries the move grade on the piece, once the engine has graded it', async () => {
+  const user = userEvent.setup();
+  render(<App />);
+  await user.click(screen.getByRole('button', { name: 'Try the Opera Game' }));
+  await user.click(screen.getByRole('button', { name: 'Next move' }));
+
+  // The flight is drawn before the engine has graded anything.
+  const flight = document.querySelector('[data-moving]');
+  expect(flight).toHaveAttribute('data-moving', 'e2e4');
+
+  // The grade arrives late, on its own flush.
+  const badge = await waitFor(
+    () => {
+      const found = document.querySelector('[data-square="e4"] [data-grade]');
+      expect(found).not.toBeNull();
+      return found as HTMLElement;
+    },
+    { timeout: 20_000 },
+  );
+  expect(badge).toHaveAttribute('role', 'img');
+  expect(badge.getAttribute('aria-label')).toBeTruthy();
+  expect(badge.closest('[data-square]')).toHaveAttribute('data-square', 'e4');
+
+  // It is drawn over the destination square's piece, not in place of it.
+  expect(
+    document.querySelector('[data-square="e4"] [data-piece="wP"]'),
+  ).not.toBeNull();
+  // A late grade must not restart the flight that is already running: the same
+  // element is still flying, and its animation was never re-armed.
+  expect(document.querySelector('[data-moving]')).toBe(flight);
+  expect(badge.parentElement).not.toBe(flight);
+});
+
 test('the analysis depth setting persists across reloads', async () => {
   const user = userEvent.setup();
   const { unmount } = render(<App />);
