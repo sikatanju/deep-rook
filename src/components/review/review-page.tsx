@@ -18,6 +18,7 @@ import { Card, CardContent } from '@/components/ui/card';
 import { useGameAnalysis } from '@/hooks/use-game-analysis';
 import { CLASSIFICATIONS, classifyMoves } from '@/lib/analysis/classify';
 import { ANALYSIS_LEVELS, LEVELS } from '@/lib/analysis/levels';
+import { evalSeries, gameReport } from '@/lib/analysis/report';
 import {
   fenAt,
   materialOf,
@@ -27,8 +28,10 @@ import {
 } from '@/lib/chess/replay';
 
 import { EnginePanel } from './engine-panel';
+import { EvalGraph } from './eval-graph';
 import { GradeBadge, MoveList } from './move-list';
 import { PlayerStrip } from './player-strip';
+import { ReportCard } from './report-card';
 
 function clockAt(replay: Replay, index: number, color: 'w' | 'b') {
   const parity = color === 'w' ? 0 : 1;
@@ -127,6 +130,16 @@ function Viewer({ loaded }: { loaded: Loaded }) {
   const grades = useMemo(
     () => (analysis ? classifyMoves(replay, analysis.positions) : []),
     [replay, analysis],
+  );
+  // The graph's series and the report derive from the same snapshot as the
+  // grades, so all three stay mutually consistent while the engine streams.
+  const series = useMemo(
+    () => (analysis ? evalSeries(analysis.positions) : []),
+    [analysis],
+  );
+  const report = useMemo(
+    () => (analysis ? gameReport(replay, analysis.positions, grades) : null),
+    [replay, analysis, grades],
   );
   const grade = grades[index - 1];
   const moving = movingPiece(replay, nav.at, nav.from);
@@ -232,6 +245,19 @@ function Viewer({ loaded }: { loaded: Loaded }) {
           />
         </div>
         {strip(bottom)}
+        {series.length > 1 && (
+          <EvalGraph
+            series={series}
+            index={index}
+            marks={report?.keyMoments.map((m) => ({
+              index: m.index,
+              grade: m.grade,
+            }))}
+            // `go`, not `goTo`: a drag is user navigation and must stop
+            // autoplay, or the two fight over the index.
+            onScrub={go}
+          />
+        )}
       </div>
 
       <Card className="lg:sticky lg:top-6">
@@ -269,6 +295,7 @@ function Viewer({ loaded }: { loaded: Loaded }) {
             ))}
           </fieldset>
           <EnginePanel analysis={analysis} index={index} fen={fen} />
+          <ReportCard report={report} onJump={go} />
           {grade && ply && (
             <p className="flex items-center gap-2 text-sm">
               <GradeBadge grade={grade} />

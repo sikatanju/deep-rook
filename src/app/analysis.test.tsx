@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { expect, test, vi } from 'vitest';
 
@@ -107,4 +107,75 @@ test('the review page switches analysis depth', async () => {
   );
   await user.click(screen.getByRole('link', { name: 'Settings' }));
   expect(screen.getByRole('radio', { name: /Fast/ })).toBeChecked();
+});
+
+test('the eval graph and game report fill in as analysis settles', async () => {
+  const user = userEvent.setup();
+  render(<App />);
+  await user.click(screen.getByRole('button', { name: 'Try the Opera Game' }));
+
+  // The first flush gives the graph its series (34 positions of the Opera
+  // Game) and the report card its placeholders.
+  const graph = await screen.findByRole(
+    'img',
+    { name: /^Evaluation graph/ },
+    { timeout: 5_000 },
+  );
+  screen.getByRole('region', { name: 'Game report' });
+  expect(document.querySelectorAll('[data-accuracy]')).toHaveLength(2);
+  // The graph sits under the board, not inside the side card.
+  const board = screen.getByRole('img', { name: /white at the bottom/ });
+  expect(
+    board.compareDocumentPosition(graph) & Node.DOCUMENT_POSITION_FOLLOWING,
+  ).toBeTruthy();
+
+  // Settled positions become drawn runs and real accuracy figures: positions
+  // 0 and 1 alone grade 1.e4 for White.
+  await waitFor(
+    () =>
+      expect(document.querySelector('polyline[data-seg]')).not.toBeNull(),
+    { timeout: 10_000 },
+  );
+  expect(document.querySelector('line[data-cursor]')).not.toBeNull();
+  await waitFor(
+    () =>
+      expect(
+        document.querySelector('[data-accuracy="w"]')?.textContent,
+      ).toMatch(/^\d/),
+    { timeout: 20_000 },
+  );
+});
+
+test('scrubbing the eval graph moves the game to that position', async () => {
+  const user = userEvent.setup();
+  render(<App />);
+  await user.click(screen.getByRole('button', { name: 'Try the Opera Game' }));
+  const graph = await screen.findByRole(
+    'img',
+    { name: /^Evaluation graph/ },
+    { timeout: 5_000 },
+  );
+
+  // A flat 1000px-wide rect over the Opera Game's 34 positions: x=500 scrubs
+  // to index round(0.5·33) = 17, the position after 9.Bg5 (ply 16).
+  const rect = vi
+    .spyOn(Element.prototype, 'getBoundingClientRect')
+    .mockReturnValue({
+      x: 0,
+      y: 0,
+      top: 0,
+      right: 1000,
+      bottom: 100,
+      left: 0,
+      width: 1000,
+      height: 100,
+      toJSON: () => ({}),
+    } as DOMRect);
+  fireEvent.pointerDown(graph, { clientX: 500, pointerId: 1 });
+  rect.mockRestore();
+
+  expect(screen.getByRole('button', { name: /Bg5/ })).toHaveAttribute(
+    'aria-current',
+    'step',
+  );
 });
