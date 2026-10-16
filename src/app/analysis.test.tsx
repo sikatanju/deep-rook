@@ -123,7 +123,6 @@ test('the eval graph and game report fill in as analysis settles', async () => {
   );
   screen.getByRole('region', { name: 'Game report' });
   expect(document.querySelectorAll('[data-accuracy]')).toHaveLength(2);
-  // The graph sits under the board, not inside the side card.
   const board = screen.getByRole('img', { name: /white at the bottom/ });
   expect(
     board.compareDocumentPosition(graph) & Node.DOCUMENT_POSITION_FOLLOWING,

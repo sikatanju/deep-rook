@@ -31,15 +31,16 @@ function GamesPage() {
   );
 }
 
-const PAGES: Record<Route, () => React.ReactElement> = {
-  games: GamesPage,
-  review: ReviewPage,
-  settings: SettingsPage,
-};
+const PAGES: Record<Route, { Page: () => React.ReactElement; wide: boolean }> =
+  {
+    games: { Page: GamesPage, wide: false },
+    review: { Page: ReviewPage, wide: true },
+    settings: { Page: SettingsPage, wide: false },
+  };
 
 function Shell() {
   const route = useRoute();
-  const Page = PAGES[route];
+  const { Page, wide } = PAGES[route];
   return (
     <div className="min-h-svh md:grid md:grid-cols-[13rem_minmax(0,1fr)]">
       <aside className="flex items-center justify-between border-b p-4 md:sticky md:top-0 md:h-svh md:flex-col md:items-stretch md:justify-start md:border-r md:border-b-0">
@@ -75,7 +76,12 @@ function Shell() {
           <ThemeToggle />
         </div>
       </aside>
-      <main className="mx-auto w-full max-w-5xl p-4 pb-24 md:p-8">
+      <main
+        className={cn(
+          'w-full p-4 pb-24 md:p-8',
+          wide ? 'lg:p-4' : 'mx-auto max-w-5xl',
+        )}
+      >
         <Page />
       </main>
     </div>

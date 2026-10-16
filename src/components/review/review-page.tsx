@@ -172,22 +172,13 @@ function Viewer({ loaded }: { loaded: Loaded }) {
   const [top, bottom] = flipped ? (['w', 'b'] as const) : (['b', 'w'] as const);
 
   return (
-    <div
-      className={cn(
-        'grid items-start gap-6',
-        size === null
-          ? 'lg:grid-cols-[minmax(0,1fr)_20rem]'
-          : 'lg:grid-cols-[auto_20rem]',
-      )}
-    >
+    <div className="flex flex-col items-center gap-6 lg:flex-row lg:items-start lg:justify-center">
       <div
         ref={column}
-        className={cn(
-          'mx-auto w-full',
-          size === null &&
-            'max-w-[min(100%,calc(100svh-8rem))] [@media(min-width:1280px)_and_(min-height:720px)]:min-w-[min(100%,36rem)]',
-        )}
-        style={size === null ? undefined : { width: size }}
+        // The board's side is the window height less 8.5rem for two h-13
+        // player strips and main's lg:p-4 above and below.
+        className="w-[min(100%,var(--fit))] [--chrome:8.5rem] [--fit:calc(100svh_-_var(--chrome))] lg:min-w-0 lg:flex-[0_1_var(--fit)]"
+        style={size === null ? undefined : { width: size, flex: 'none' }}
       >
         {strip(top)}
         <div className="relative">
@@ -246,23 +237,25 @@ function Viewer({ loaded }: { loaded: Loaded }) {
           />
         </div>
         {strip(bottom)}
-        {series.length > 1 && (
-          <EvalGraph
-            series={series}
-            index={index}
-            marks={report?.keyMoments.map((m) => ({
-              index: m.index,
-              grade: m.grade,
-            }))}
-            // `go`, not `goTo`: a drag is user navigation and must stop
-            // autoplay, or the two fight over the index.
-            onScrub={go}
-          />
-        )}
       </div>
 
-      <Card className="lg:sticky lg:top-6">
-        <CardContent className="flex flex-col gap-3">
+      {/* Positioned so the absolutely placed sr-only inputs stay inside this
+          scroll box. Left static, they escape it and make the page scroll. */}
+      <Card className="w-full lg:relative lg:h-[calc(100svh-2rem)] lg:flex-[0_0_22rem] lg:overflow-y-auto">
+        <CardContent className="flex flex-col gap-3 lg:min-h-0 lg:flex-1">
+          {series.length > 1 && (
+            <EvalGraph
+              series={series}
+              index={index}
+              marks={report?.keyMoments.map((m) => ({
+                index: m.index,
+                grade: m.grade,
+              }))}
+              // `go`, not `goTo`: a drag is user navigation and must stop
+              // autoplay, or the two fight over the index.
+              onScrub={go}
+            />
+          )}
           <div>
             <p className="font-medium">{loaded.source}</p>
             <p className="text-sm opacity-70">
@@ -309,7 +302,7 @@ function Viewer({ loaded }: { loaded: Loaded }) {
               </span>
             </p>
           )}
-          <div className="h-64 overflow-y-auto rounded-md border p-1 lg:h-80">
+          <div className="h-64 overflow-y-auto rounded-md border p-1 lg:h-auto lg:min-h-40 lg:flex-1">
             <MoveList
               plies={plies}
               grades={grades}

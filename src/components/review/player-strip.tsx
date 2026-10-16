@@ -22,7 +22,7 @@ export function PlayerStrip({
   toMove: boolean;
 }) {
   return (
-    <div className="flex items-center gap-3 px-1 py-1.5">
+    <div className="flex h-13 items-center gap-3 px-1">
       <span
         aria-hidden
         className={cn(

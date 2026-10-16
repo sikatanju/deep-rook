@@ -238,7 +238,7 @@ test('board colors can be changed in settings', async () => {
 test('board can be resized with the slider handle and reset', async () => {
   const user = await openOperaGame();
   const handle = screen.getByRole('slider', { name: 'Board size' });
-  const column = handle.closest('[style], .mx-auto') as HTMLElement;
+  const column = handle.parentElement!.parentElement!;
   handle.focus();
   await user.keyboard('{ArrowRight}');
   expect(column).toHaveStyle({ width: '280px' });
