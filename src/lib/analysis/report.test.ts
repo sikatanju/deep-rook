@@ -171,6 +171,29 @@ test('key moments rank by loss, break ties by earlier ply, cap at five', () => {
   expect(last.loss).toBeCloseTo(31.35, 1);
 });
 
+test('key moments of a game set up from a FEN carry its move numbers', () => {
+  const fenGame = parseReplay(`[SetUp "1"]
+[FEN "r2q1rk1/pppp1ppp/8/8/4P3/8/PPP2PPP/R2Q1RK1 b - - 0 20"]
+
+20... d5 21. exd5 Qxd5 *`);
+  // The eval swings by four pawns each ply, so every mover blunders.
+  const pos: PositionAnalysis[] = [cp(0), cp(400), cp(0), cp(400)].map(
+    (score) => ({ status: 'done', line: { score, pv: ['a2a3'], depth: 10 } }),
+  );
+  const r = gameReport(fenGame, pos, classifyMoves(fenGame, pos));
+  expect(
+    r.keyMoments.map(({ moveNumber, color, san }) => ({
+      moveNumber,
+      color,
+      san,
+    })),
+  ).toEqual([
+    { moveNumber: 20, color: 'b', san: 'd5' },
+    { moveNumber: 21, color: 'w', san: 'exd5' },
+    { moveNumber: 21, color: 'b', san: 'Qxd5' },
+  ]);
+});
+
 test('unsettled plies never qualify or contribute', () => {
   // 16.Qb8+ would be a blunder, but position 31 is still searching.
   const pos = positions(
