@@ -126,7 +126,8 @@ src/lib/analysis/protocol.ts     Job, FromEngine, Lane, SpawnLane, spawnWorkerLa
 src/lib/analysis/analyzer.ts     createAnalyzer: entries, lanes, job ids, flush
 src/workers/engine.worker.ts     thin shell around createEngine
 src/hooks/use-game-analysis.tsx  AnalysisProvider, useGameAnalysis  <- the UI's only door
-src/components/review/engine-panel.tsx  EvalBar, EnginePanel
+src/components/review/engine-panel.tsx  EnginePanel
+src/components/review/eval-bar.tsx      EvalBar
 ```
 
 ## Synthesis decision
@@ -216,7 +217,7 @@ The orchestrator accepted every deviation below against this design.
 - **Fast node cap 150k → 250k.** The bench showed Fast reaching only depth 7 in middlegames at 150k. Contract unchanged: it's a table value.
 - **Bench is a script, not a Vitest test.** Vitest's module transform turns imported constants into property lookups in the hot loop: 0.3M vs 1.7M nodes per second measured. `scripts/bench.mjs` bundles with Vite first. This is a local deviation with no contract impact.
 - **Engine tests run in jsdom, not the node environment.** The shared `vitest.setup.ts` touches `localStorage`. This is local.
-- **EvalBar became a horizontal win-chance meter inside `EnginePanel`** (side card), not a vertical bar beside the board. A vertical bar would have entangled the board column's resize logic. The UI contract is unchanged: one hook feeds one panel and the board's `arrow` prop.
+- **EvalBar is a vertical bar beside the board, as sketched in Usage.** It first shipped as a horizontal win-chance meter inside `EnginePanel`, because a vertical bar would have entangled the board column's resize logic. The full-height review layout made the board column a grid, and the bar now has its own track beside the board. It reads the same `line.score` that `EnginePanel` shows as text.
 - **No snapshot object-identity reuse.** The only consumer reads the whole document through one hook, so per-position identity would buy nothing yet. Add it when a component subscribes to a single position.
 - **Crash guard.** After 5 consecutive lane crashes the analyzer stops scheduling, and positions stay `queued`. This was not in the sketch. It prevents a respawn loop when the worker bundle cannot load.
 - **Deferred, not dropped:** move classification and accuracy (see open questions). `Ply` did not need a `uci` field, because nothing compares played moves yet.

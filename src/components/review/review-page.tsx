@@ -28,6 +28,7 @@ import {
 } from '@/lib/chess/replay';
 
 import { EnginePanel } from './engine-panel';
+import { EvalBar } from './eval-bar';
 import { EvalGraph } from './eval-graph';
 import { GradeBadge, MoveList } from './move-list';
 import { PlayerStrip } from './player-strip';
@@ -127,7 +128,7 @@ function Viewer({ loaded }: { loaded: Loaded }) {
 
   const analysis = useGameAnalysis(loaded, index);
   const here = analysis?.positions[index];
-  const best = here && here.status !== 'failed' ? here.line?.pv[0] : undefined;
+  const line = here && here.status !== 'failed' ? here.line : null;
   const grades = useMemo(
     () => (analysis ? classifyMoves(replay, analysis.positions) : []),
     [replay, analysis],
@@ -176,11 +177,13 @@ function Viewer({ loaded }: { loaded: Loaded }) {
       <div
         ref={column}
         // The board's side is the window height less 8.5rem for two h-13
-        // player strips and main's lg:p-4 above and below.
-        className="w-[min(100%,var(--fit))] [--chrome:8.5rem] [--fit:calc(100svh_-_var(--chrome))] lg:min-w-0 lg:flex-[0_1_var(--fit)]"
+        // player strips and main's lg:p-4 above and below. The 2rem holds the
+        // eval bar's track and its gap.
+        className="grid w-[min(100%,var(--fit))] grid-cols-[1.5rem_minmax(0,1fr)] gap-x-2 [--chrome:8.5rem] [--fit:calc(100svh_-_var(--chrome)_+_2rem)] lg:min-w-0 lg:flex-[0_1_var(--fit)]"
         style={size === null ? undefined : { width: size, flex: 'none' }}
       >
-        {strip(top)}
+        <div className="col-start-2">{strip(top)}</div>
+        <EvalBar score={line?.score ?? null} flipped={flipped} />
         <div className="relative">
           <Board
             fen={fen}
@@ -189,7 +192,7 @@ function Viewer({ loaded }: { loaded: Loaded }) {
             coordinates={settings.coordinates}
             lastMove={ply}
             checkOn={ply?.check ? (sideToMove === 'w' ? 'K' : 'k') : undefined}
-            arrow={best}
+            arrow={line?.pv[0]}
             moving={moving}
             grade={grade ? CLASSIFICATIONS[grade] : null}
           />
@@ -236,7 +239,7 @@ function Viewer({ loaded }: { loaded: Loaded }) {
             }}
           />
         </div>
-        {strip(bottom)}
+        <div className="col-start-2">{strip(bottom)}</div>
       </div>
 
       {/* Positioned so the absolutely placed sr-only inputs stay inside this
