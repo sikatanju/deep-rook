@@ -6,6 +6,10 @@ export type Ply = {
   from: Square;
   to: Square;
   check: boolean;
+  /** The side that played this ply. */
+  color: 'w' | 'b';
+  /** Fullmove number of the position this ply is played from, 20 for "20… d5". */
+  moveNumber: number;
   /** Seconds left on the mover's clock after this ply, when the PGN has %clk. */
   clock?: number;
 };
@@ -52,6 +56,8 @@ export function parseReplay(pgn: string): Replay {
       from: m.from,
       to: m.to,
       check: m.san.endsWith('+') || m.san.endsWith('#'),
+      color: m.color,
+      moveNumber: Number(m.before.split(' ')[5]),
       clock: clocks.get(m.after),
     })),
   };

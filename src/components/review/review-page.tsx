@@ -34,9 +34,9 @@ import { PlayerStrip } from './player-strip';
 import { ReportCard } from './report-card';
 
 function clockAt(replay: Replay, index: number, color: 'w' | 'b') {
-  const parity = color === 'w' ? 0 : 1;
   for (let i = index; i >= 1; i--) {
-    if ((i - 1) % 2 === parity) return replay.plies[i - 1]!.clock;
+    const ply = replay.plies[i - 1]!;
+    if (ply.color === color) return ply.clock;
   }
   const base = Number(replay.headers.TimeControl?.split('+')[0]);
   return Number.isFinite(base) && base > 0 ? base : undefined;

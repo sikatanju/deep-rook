@@ -37,10 +37,17 @@ export function MoveList({
     active.current?.scrollIntoView?.({ block: 'nearest' });
   }, [index]);
 
-  const rows = Array.from({ length: Math.ceil(plies.length / 2) }, (_, i) => i);
-  const cell = (ply: number) => {
-    const move = plies[ply];
-    if (!move) return <span />;
+  // A game set up with Black to move opens on a row with an empty White cell.
+  const rows: { number: number; w?: number; b?: number }[] = [];
+  plies.forEach((ply, i) => {
+    if (ply.color === 'w' || rows.length === 0) {
+      rows.push({ number: ply.moveNumber });
+    }
+    rows.at(-1)![ply.color] = i;
+  });
+  const cell = (ply: number | undefined) => {
+    if (ply === undefined) return <span />;
+    const move = plies[ply]!;
     const selected = index === ply + 1;
     const grade = grades[ply];
     return (
@@ -63,12 +70,12 @@ export function MoveList({
   return (
     <ol className="grid grid-cols-[2.5rem_1fr_1fr] content-start gap-y-0.5">
       {rows.map((row) => (
-        <li key={row} className="contents">
+        <li key={row.number} className="contents">
           <span className="py-1 pr-1 text-right font-mono text-sm opacity-50">
-            {row + 1}.
+            {row.number}.
           </span>
-          {cell(row * 2)}
-          {cell(row * 2 + 1)}
+          {cell(row.w)}
+          {cell(row.b)}
         </li>
       ))}
     </ol>

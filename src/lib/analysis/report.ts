@@ -3,7 +3,7 @@
 // grades it produces. Nothing here knows React; the Viewer memoizes these the
 // same way it memoizes `grades`, so streaming flushes just re-derive.
 
-import { fenAt, type Replay } from '@/lib/chess/replay';
+import type { Replay } from '@/lib/chess/replay';
 import { winPercent } from '@/lib/chess/score';
 
 import type { Classification } from './classify';
@@ -132,19 +132,19 @@ export function gameReport(
     const before = series[p] ?? null;
     const after = series[p + 1] ?? null;
     if (before === null || after === null) continue;
-    const color = fenAt(replay, p).split(' ')[1] as 'w' | 'b';
-    const sign = color === 'w' ? 1 : -1;
+    const ply = replay.plies[p]!;
+    const sign = ply.color === 'w' ? 1 : -1;
     const loss = Math.max(0, sign * (before - after));
-    const side = sides[color];
+    const side = sides[ply.color];
     side.counts[grade]++;
     side.sum += moveAccuracy(loss);
     side.graded++;
     if (MOMENT_GRADES.has(grade)) {
       moments.push({
         index: p + 1,
-        moveNumber: Math.floor(p / 2) + 1,
-        color,
-        san: replay.plies[p]!.san,
+        moveNumber: ply.moveNumber,
+        color: ply.color,
+        san: ply.san,
         grade,
         loss,
       });
