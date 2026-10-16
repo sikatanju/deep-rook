@@ -1,3 +1,5 @@
+import { ChevronDownIcon } from 'lucide-react';
+
 import { CLASSIFICATIONS, type Classification } from '@/lib/analysis/classify';
 import type { GameReport, PlayerReport } from '@/lib/analysis/report';
 import { cn } from '@/lib/utils';
@@ -18,11 +20,11 @@ const UNGRADED: PlayerReport = {
 
 /**
  * Whole-game summary of the analysis: accuracy estimates, per-grade counts,
- * and jump-to moments. Keeps its layout while `report` is null (before the
- * first analyzer flush) so the review card does not jump: the accuracy slots
- * show ellipses, both nine-cell count grids render their zeros, and the
- * moments list holds its height. Reads back through data-* attributes only,
- * like the board and engine panel.
+ * and jump-to moments, collapsed until opened. Keeps its layout while `report`
+ * is null (before the first analyzer flush) so the review card does not jump:
+ * the accuracy slots show ellipses, both nine-cell count grids render their
+ * zeros, and the open moments list holds its height. Reads back through data-*
+ * attributes only, like the board and engine panel.
  */
 export function ReportCard({
   report,
@@ -109,11 +111,20 @@ export function ReportCard({
         ))}
       </div>
 
-      <div className="flex flex-col gap-1">
-        <p className="text-xs font-medium opacity-70">Key moments</p>
+      <details className="group">
+        <summary className="focus-visible:ring-ring flex cursor-pointer items-center gap-1.5 rounded text-xs font-medium outline-none focus-visible:ring-2 [&::-webkit-details-marker]:hidden">
+          <span className="opacity-70">Key moments</span>
+          <span className="font-mono tabular-nums opacity-50">
+            {report ? moments.length : '…'}
+          </span>
+          <ChevronDownIcon
+            aria-hidden
+            className="ml-auto size-3.5 opacity-70 transition-transform group-open:rotate-180"
+          />
+        </summary>
         {/* Five rows reserved: the report keeps at most five moments, so the
             card reaches its final height on the first flush and never jumps. */}
-        <div className="min-h-28">
+        <div className="mt-1 min-h-28">
           {moments.length > 0 ? (
             <ol className="flex flex-col gap-0.5">
               {moments.map((moment) => (
@@ -140,7 +151,7 @@ export function ReportCard({
             </p>
           )}
         </div>
-      </div>
+      </details>
 
       {report && (
         <p className="text-xs opacity-60">

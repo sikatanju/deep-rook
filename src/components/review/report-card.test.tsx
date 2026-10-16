@@ -128,20 +128,37 @@ test('counts are per color and include zeros', () => {
   ).toHaveAttribute('data-count', '0');
 });
 
+const moment: KeyMoment = {
+  index: 31,
+  moveNumber: 16,
+  color: 'w',
+  san: 'Qb8',
+  grade: 'blunder',
+  loss: 31,
+};
+
+test('key moments start collapsed and open from their summary', async () => {
+  const user = userEvent.setup();
+  render(
+    <ReportCard report={report({ keyMoments: [moment] })} onJump={() => {}} />,
+  );
+
+  const summary = screen.getByText('Key moments');
+  expect(summary.closest('summary')).toHaveTextContent(/Key moments\s*1/);
+  const button = screen.getByRole('button', { name: /16\. Qb8/, hidden: true });
+  expect(button).not.toBeVisible();
+
+  await user.click(summary);
+  expect(button).toBeVisible();
+});
+
 test('key moments are list buttons that jump after the move', async () => {
-  const moment: KeyMoment = {
-    index: 31,
-    moveNumber: 16,
-    color: 'w',
-    san: 'Qb8',
-    grade: 'blunder',
-    loss: 31,
-  };
   const onJump = vi.fn();
   const user = userEvent.setup();
   render(
     <ReportCard report={report({ keyMoments: [moment] })} onJump={onJump} />,
   );
+  await user.click(screen.getByText('Key moments'));
 
   // Substring match: the required GradeBadge contributes its own accessible
   // label ("Blunder") to the button's name, so the exact string is not "16. Qb8".
