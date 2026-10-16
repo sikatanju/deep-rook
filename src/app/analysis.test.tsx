@@ -179,3 +179,42 @@ test('scrubbing the eval graph moves the game to that position', async () => {
     'step',
   );
 });
+
+test('pressing or dragging the eval graph on the shown position keeps the piece flying', async () => {
+  const user = userEvent.setup();
+  render(<App />);
+  await user.click(screen.getByRole('button', { name: 'Try the Opera Game' }));
+  const graph = await screen.findByRole(
+    'img',
+    { name: /^Evaluation graph/ },
+    { timeout: 5_000 },
+  );
+  await user.click(screen.getByRole('button', { name: 'Next move' }));
+  const flight = document.querySelector('[data-moving]');
+  expect(flight).toHaveAttribute('data-moving', 'e2e4');
+
+  // 1000px wide over 34 positions: x=30 and x=40 both scrub to index 1, the
+  // position after 1.e4 that is already shown.
+  vi.spyOn(graph, 'getBoundingClientRect').mockReturnValue(
+    new DOMRect(0, 0, 1000, 100),
+  );
+  fireEvent.pointerDown(graph, { clientX: 30, pointerId: 1 });
+  fireEvent.pointerMove(graph, { clientX: 40, pointerId: 1 });
+  fireEvent.pointerUp(graph, { clientX: 40, pointerId: 1 });
+
+  expect(graph).toHaveAccessibleName(/^Evaluation graph, position 2 of 34/);
+  expect(document.querySelector('[data-moving]')).toBe(flight);
+});
+
+test('stepping past the last move keeps the last move flying', async () => {
+  const user = userEvent.setup();
+  render(<App />);
+  await user.click(screen.getByRole('button', { name: 'Try the Opera Game' }));
+  await user.keyboard('{End}{ArrowLeft}{ArrowRight}');
+  const flight = document.querySelector('[data-moving]');
+  expect(flight).toHaveAttribute('data-moving', 'd1d8');
+
+  await user.keyboard('{ArrowRight}');
+
+  expect(document.querySelector('[data-moving]')).toBe(flight);
+});
