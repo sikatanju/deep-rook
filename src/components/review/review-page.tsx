@@ -71,10 +71,11 @@ function Viewer({ loaded }: { loaded: Loaded }) {
 
   const goTo = useCallback(
     (to: number) =>
-      setNav(({ at }) => {
+      setNav((prev) => {
         const next = Math.min(last, Math.max(0, to));
+        if (next === prev.at) return prev;
         setIndex(next);
-        return { at: next, from: at };
+        return { at: next, from: prev.at };
       }),
     [last],
   );
