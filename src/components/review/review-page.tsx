@@ -257,9 +257,9 @@ function Viewer({ loaded }: { loaded: Loaded }) {
       <div className="grid gap-8 lg:grid-cols-[auto_minmax(0,1fr)] xl:grid-cols-[auto_minmax(0,1fr)_20rem] xl:items-start">
         <PageHeader
           // From lg up the title stands on the left of the board, turned a
-          // quarter anticlockwise so it reads bottom to top and costs no height.
+          // quarter anticlockwise so it reads bottom to top, ending at the top of the page.
           // `h-0 min-h-full` lets it take the board's height without setting it.
-          className="min-w-0 lg:h-0 lg:min-h-full lg:rotate-180 lg:[writing-mode:vertical-rl]"
+          className="min-w-0 lg:h-0 lg:min-h-full lg:rotate-180 lg:text-end lg:[writing-mode:vertical-rl]"
           titleClassName="lg:mt-0 lg:mr-2 lg:text-3xl"
           eyebrow={[
             opening,
@@ -397,6 +397,21 @@ function Viewer({ loaded }: { loaded: Loaded }) {
         </div>
 
         <div className="flex w-full max-w-2xl min-w-0 flex-col gap-5 justify-self-center lg:col-span-2 xl:col-span-1 xl:max-w-none">
+          <LevelPicker
+            compact
+            legend="Analysis depth"
+            name="review-analysis-level"
+            value={loaded.level}
+            onChange={setReviewLevel}
+          />
+          <div className="border-line bg-surface max-h-[236px] overflow-y-auto rounded-sm border-3">
+            <MoveList
+              plies={plies}
+              grades={grades}
+              index={index}
+              onSelect={(i) => goTo(i)}
+            />
+          </div>
           <CoachBubble
             grade={grade ?? undefined}
             move={ply && grade ? moveLabel(ply) : undefined}
@@ -424,21 +439,6 @@ function Viewer({ loaded }: { loaded: Loaded }) {
             label={analysis?.unavailable ? 'Engine unavailable' : undefined}
           />
           <EnginePanel analysis={analysis} index={index} fen={fen} />
-          <LevelPicker
-            compact
-            legend="Analysis depth"
-            name="review-analysis-level"
-            value={loaded.level}
-            onChange={setReviewLevel}
-          />
-          <div className="border-line bg-surface max-h-[236px] overflow-y-auto rounded-sm border-3">
-            <MoveList
-              plies={plies}
-              grades={grades}
-              index={index}
-              onSelect={(i) => goTo(i)}
-            />
-          </div>
           {atEnd && (
             <p className="font-extrabold">
               {headers.Termination ?? headers.Result ?? ''}
