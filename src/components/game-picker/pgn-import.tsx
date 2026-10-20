@@ -12,13 +12,13 @@ import {
 import { OPERA_GAME } from '@/lib/chess/replay';
 
 export function PgnImport() {
-  const { openPgn } = useStore();
+  const { stagePgn } = useStore();
   const [pgn, setPgn] = useState('');
   const [error, setError] = useState<string | null>(null);
 
-  function load(text: string, source: string) {
+  function stage(text: string, source: string) {
     try {
-      openPgn(text, source);
+      stagePgn(text, source);
       setError(null);
     } catch (e) {
       setError(e instanceof Error ? e.message : 'Could not read that PGN.');
@@ -50,14 +50,14 @@ export function PgnImport() {
         )}
         <div className="flex gap-2">
           <Button
-            onClick={() => load(pgn, 'Pasted game')}
+            onClick={() => stage(pgn, 'Pasted game')}
             disabled={!pgn.trim()}
           >
             Load PGN
           </Button>
           <Button
             variant="outline"
-            onClick={() => load(OPERA_GAME, 'The Opera Game')}
+            onClick={() => stage(OPERA_GAME, 'The Opera Game')}
           >
             Try the Opera Game
           </Button>

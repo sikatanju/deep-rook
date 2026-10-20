@@ -57,7 +57,7 @@ function isTyping(target: EventTarget | null) {
 
 function Viewer({ loaded }: { loaded: Loaded }) {
   const { replay, orientation } = loaded;
-  const { settings, setSettings } = useStore();
+  const { settings, setReviewLevel } = useStore();
   const last = replay.plies.length;
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(orientation === 'b');
@@ -275,7 +275,7 @@ function Viewer({ loaded }: { loaded: Loaded }) {
                 title={ANALYSIS_LEVELS[level].blurb}
                 className={cn(
                   'has-[:focus-visible]:ring-ring flex-1 cursor-pointer rounded px-2 py-1 text-center text-sm has-[:focus-visible]:ring-2',
-                  settings.analysisLevel === level
+                  loaded.level === level
                     ? 'bg-accent font-medium'
                     : 'opacity-70',
                 )}
@@ -284,8 +284,8 @@ function Viewer({ loaded }: { loaded: Loaded }) {
                   type="radio"
                   name="review-analysis-level"
                   className="sr-only"
-                  checked={settings.analysisLevel === level}
-                  onChange={() => setSettings({ analysisLevel: level })}
+                  checked={loaded.level === level}
+                  onChange={() => setReviewLevel(level)}
                 />
                 {ANALYSIS_LEVELS[level].label}
               </label>
@@ -392,7 +392,7 @@ export function ReviewPage() {
         <CardContent className="flex flex-col items-start gap-3">
           <p className="font-medium">No game loaded.</p>
           <p className="text-sm opacity-70">
-            Pick a game from Chess.com or paste a PGN, then it shows up here.
+            Pick a game, choose a review mode, and press Review game.
           </p>
           <Button onClick={() => navigate('games')}>Choose a game</Button>
         </CardContent>

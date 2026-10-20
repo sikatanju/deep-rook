@@ -19,10 +19,10 @@ export function SettingsPage() {
       </CardHeader>
       <CardContent className="flex flex-col gap-6">
         <fieldset className="flex flex-col gap-2">
-          <legend className="mb-1 text-sm font-medium">Analysis depth</legend>
+          <legend className="mb-1 text-sm font-medium">Review mode</legend>
           <p className="text-sm opacity-70">
-            The engine runs on your device. Deeper analysis is stronger and
-            takes longer.
+            The mode preselected when you start a review. The engine runs on
+            your device, and deeper modes are stronger and take longer.
           </p>
           <div className="grid gap-2 sm:grid-cols-3">
             {LEVELS.map((level) => (

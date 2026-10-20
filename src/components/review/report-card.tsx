@@ -73,39 +73,48 @@ export function ReportCard({
             ['b', 'Black', black],
           ] as const
         ).map(([color, name, half]) => (
-          <div key={color} data-color={color} className="flex items-center gap-2">
+          <div
+            key={color}
+            data-color={color}
+            className="flex items-center gap-2"
+          >
             <span className="w-9 shrink-0 text-xs opacity-70">{name}</span>
             <div className="flex flex-1 items-center justify-between">
-              {(Object.keys(CLASSIFICATIONS) as Classification[]).map((grade) => {
-                const count = half.counts[grade] ?? 0;
-                const { label, symbol, color: gradeColor } =
-                  CLASSIFICATIONS[grade];
-                return (
-                  <span
-                    key={grade}
-                    data-grade={grade}
-                    data-count={count}
-                    title={label}
-                    className="flex items-center gap-0.5"
-                  >
+              {(Object.keys(CLASSIFICATIONS) as Classification[]).map(
+                (grade) => {
+                  const count = half.counts[grade] ?? 0;
+                  const {
+                    label,
+                    symbol,
+                    color: gradeColor,
+                  } = CLASSIFICATIONS[grade];
+                  return (
                     <span
-                      aria-hidden
-                      className="text-[10px] font-bold leading-none"
-                      style={{ color: gradeColor }}
+                      key={grade}
+                      data-grade={grade}
+                      data-count={count}
+                      title={label}
+                      className="flex items-center gap-0.5"
                     >
-                      {symbol}
+                      <span
+                        aria-hidden
+                        className="text-[10px] leading-none font-bold"
+                        style={{ color: gradeColor }}
+                      >
+                        {symbol}
+                      </span>
+                      <span
+                        className={cn(
+                          'font-mono text-xs tabular-nums',
+                          count === 0 && 'opacity-50',
+                        )}
+                      >
+                        {count}
+                      </span>
                     </span>
-                    <span
-                      className={cn(
-                        'font-mono text-xs tabular-nums',
-                        count === 0 && 'opacity-50',
-                      )}
-                    >
-                      {count}
-                    </span>
-                  </span>
-                );
-              })}
+                  );
+                },
+              )}
             </div>
           </div>
         ))}

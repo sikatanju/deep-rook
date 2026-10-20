@@ -8,6 +8,7 @@ async function openOperaGame() {
   const user = userEvent.setup();
   render(<App />);
   await user.click(screen.getByRole('button', { name: 'Try the Opera Game' }));
+  await user.click(screen.getByRole('button', { name: 'Review game' }));
   return user;
 }
 
@@ -202,6 +203,7 @@ test('a game set up with Black to move shows each clock on its own player', asyn
 
 20... d5 {[%clk 0:01:00]} 21. exd5 {[%clk 0:02:00]} 21... Qxd5 {[%clk 0:00:50]} *`);
   await user.click(screen.getByRole('button', { name: 'Load PGN' }));
+  await user.click(screen.getByRole('button', { name: 'Review game' }));
   const strip = (name: string) =>
     screen.getByText(name).parentElement!.parentElement!;
 
@@ -230,6 +232,7 @@ test('board colors can be changed in settings', async () => {
   await user.click(screen.getByLabelText('brown'));
   await user.click(screen.getByRole('link', { name: 'Games' }));
   await user.click(screen.getByRole('button', { name: 'Try the Opera Game' }));
+  await user.click(screen.getByRole('button', { name: 'Review game' }));
   expect(document.querySelector('[data-square="a8"]')).toHaveStyle({
     background: 'rgb(240, 217, 181)',
   });

@@ -33,12 +33,12 @@ function monthLabel(key: MonthKey): string {
 }
 
 export function GamePicker() {
-  const { state, search, selectMonth, openGame } = useStore();
+  const { state, search, selectMonth, stageGame } = useStore();
   const [openError, setOpenError] = useState<string | null>(null);
 
-  function open(game: Game) {
+  function stage(game: Game) {
     try {
-      openGame(game);
+      stageGame(game);
       setOpenError(null);
     } catch {
       setOpenError('That game could not be read.');
@@ -100,7 +100,7 @@ export function GamePicker() {
                   games={state.games.games}
                   username={state.profile.username}
                   selectedId={state.selected?.id}
-                  onSelect={open}
+                  onSelect={stage}
                 />
               )}
               {openError && (

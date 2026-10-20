@@ -7,9 +7,10 @@ import {
 } from 'lucide-react';
 
 import { ROUTES, useRoute, type Route } from '@/app/router';
-import { AppProvider } from '@/app/store';
+import { AppProvider, useStore } from '@/app/store';
 import { GamePicker } from '@/components/game-picker/game-picker';
 import { PgnImport } from '@/components/game-picker/pgn-import';
+import { ReviewSetup } from '@/components/game-picker/review-setup';
 import { ReviewPage } from '@/components/review/review-page';
 import { SettingsPage } from '@/components/settings/settings-page';
 import { ThemeProvider } from '@/components/theme-provider';
@@ -23,10 +24,17 @@ const NAV: Record<Route, { label: string; icon: LucideIcon }> = {
 };
 
 function GamesPage() {
+  const { staged } = useStore();
+  // A sticky element only moves inside its parent. Small screens stack the
+  // cards in this flex column, so the setup card can follow the game list. At
+  // lg the second column stretches to the list's height for the same reason.
   return (
-    <div className="grid items-start gap-6 lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)]">
+    <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:items-start">
       <GamePicker />
-      <PgnImport />
+      <div className="contents lg:flex lg:flex-col lg:gap-6 lg:self-stretch">
+        {staged && <ReviewSetup staged={staged} />}
+        <PgnImport />
+      </div>
     </div>
   );
 }

@@ -78,7 +78,9 @@ function loadSettings(): Settings {
   }
 }
 
-export type Loaded = {
+/** A game picked on the Games page, not yet reviewed. */
+export type Staged = {
+  /** Assigned once at staging, so reviewing it again continues the analysis. */
   id: number;
   replay: Replay;
   /** Where the game came from, for the header. */
@@ -87,10 +89,18 @@ export type Loaded = {
   orientation: 'w' | 'b';
 };
 
+/** What the Viewer reviews: a staged game plus the mode it was started at. */
+export type Loaded = Staged & { level: AnalysisLevel };
+
 type Store = ReturnType<typeof useGamePicker> & {
+  staged: Staged | null;
   loaded: Loaded | null;
-  openGame: (game: Game) => void;
-  openPgn: (pgn: string, source: string) => void;
+  stageGame: (game: Game) => void;
+  stagePgn: (pgn: string, source: string) => void;
+  /** Reviews the staged game at the remembered mode and opens the review page. */
+  startReview: () => void;
+  /** Changes the mode of the running review and the default for the next. */
+  setReviewLevel: (level: AnalysisLevel) => void;
   settings: Settings;
   setSettings: (patch: Partial<Settings>) => void;
 };
@@ -107,33 +117,36 @@ export function useStore(): Store {
 
 export function AppProvider({ children }: { children: ReactNode }) {
   const picker = useGamePicker();
+  const [staged, setStaged] = useState<Staged | null>(null);
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [settings, setAll] = useState(loadSettings);
   const { selectGame } = picker;
 
-  const openPgn = useCallback((pgn: string, source: string) => {
-    setLoaded({
-      id: nextId++,
-      replay: parseReplay(pgn),
-      source,
-      orientation: 'w',
-    });
-    navigate('review');
-  }, []);
+  const stagePgn = useCallback(
+    (pgn: string, source: string) => {
+      setStaged({
+        id: nextId++,
+        replay: parseReplay(pgn),
+        source,
+        orientation: 'w',
+      });
+      selectGame(null);
+    },
+    [selectGame],
+  );
 
-  const openGame = useCallback(
+  const stageGame = useCallback(
     (game: Game) => {
       const replay = parseReplay(game.pgn);
       const me =
         picker.state.status === 'ready' ? picker.state.profile.username : '';
-      setLoaded({
+      setStaged({
         id: nextId++,
         replay,
         source: `${game.white.username} vs ${game.black.username}`,
         orientation: game.black.username.toLowerCase() === me ? 'b' : 'w',
       });
       selectGame(game);
-      navigate('review');
     },
     [picker.state, selectGame],
   );
@@ -141,6 +154,20 @@ export function AppProvider({ children }: { children: ReactNode }) {
   const setSettings = useCallback(
     (patch: Partial<Settings>) => setAll((s) => ({ ...s, ...patch })),
     [],
+  );
+
+  const startReview = useCallback(() => {
+    if (!staged) return;
+    setLoaded({ ...staged, level: settings.analysisLevel });
+    navigate('review');
+  }, [staged, settings.analysisLevel]);
+
+  const setReviewLevel = useCallback(
+    (level: AnalysisLevel) => {
+      setLoaded((l) => l && { ...l, level });
+      setSettings({ analysisLevel: level });
+    },
+    [setSettings],
   );
 
   useEffect(() => {
@@ -151,10 +178,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
     }
   }, [settings]);
 
-  const store = { ...picker, loaded, openGame, openPgn, settings, setSettings };
+  const store = {
+    ...picker,
+    staged,
+    loaded,
+    stageGame,
+    stagePgn,
+    startReview,
+    setReviewLevel,
+    settings,
+    setSettings,
+  };
   return (
     <StoreContext.Provider value={store}>
-      <AnalysisProvider level={settings.analysisLevel}>
+      {/* The review's level, not the setup radios': picking a mode for the
+          next game must not retarget a running analysis. */}
+      <AnalysisProvider level={loaded?.level ?? settings.analysisLevel}>
         {children}
       </AnalysisProvider>
     </StoreContext.Provider>

@@ -33,10 +33,15 @@ vi.hoisted(() => {
 
 import App from './App';
 
+async function openOperaGame(user: ReturnType<typeof userEvent.setup>) {
+  await user.click(screen.getByRole('button', { name: 'Try the Opera Game' }));
+  await user.click(screen.getByRole('button', { name: 'Review game' }));
+}
+
 test('the review page shows the engine evaluation, best line, and arrow', async () => {
   const user = userEvent.setup();
   render(<App />);
-  await user.click(screen.getByRole('button', { name: 'Try the Opera Game' }));
+  await openOperaGame(user);
   await user.keyboard('{End}');
   await user.keyboard('{ArrowLeft}{ArrowLeft}{ArrowLeft}');
 
@@ -55,7 +60,7 @@ test('the review page shows the engine evaluation, best line, and arrow', async 
 test('the board carries the move grade on the piece, once the engine has graded it', async () => {
   const user = userEvent.setup();
   render(<App />);
-  await user.click(screen.getByRole('button', { name: 'Try the Opera Game' }));
+  await openOperaGame(user);
   await user.click(screen.getByRole('button', { name: 'Next move' }));
 
   // The flight is drawn before the engine has graded anything.
@@ -99,12 +104,13 @@ test('the analysis depth setting persists across reloads', async () => {
 test('the review page switches analysis depth', async () => {
   const user = userEvent.setup();
   render(<App />);
-  await user.click(screen.getByRole('button', { name: 'Try the Opera Game' }));
+  await openOperaGame(user);
   await user.click(screen.getByRole('radio', { name: 'Fast' }));
 
   await waitFor(() =>
     expect(screen.getByText(/^Fast/, { selector: 'span' })).toBeInTheDocument(),
   );
+  // The switch is also the remembered default for the next review.
   await user.click(screen.getByRole('link', { name: 'Settings' }));
   expect(screen.getByRole('radio', { name: /Fast/ })).toBeChecked();
 });
@@ -112,7 +118,7 @@ test('the review page switches analysis depth', async () => {
 test('the eval graph and game report fill in as analysis settles', async () => {
   const user = userEvent.setup();
   render(<App />);
-  await user.click(screen.getByRole('button', { name: 'Try the Opera Game' }));
+  await openOperaGame(user);
 
   // The first flush gives the graph its series (34 positions of the Opera
   // Game) and the report card its placeholders.
@@ -131,8 +137,7 @@ test('the eval graph and game report fill in as analysis settles', async () => {
   // Settled positions become drawn runs and real accuracy figures: positions
   // 0 and 1 alone grade 1.e4 for White.
   await waitFor(
-    () =>
-      expect(document.querySelector('polyline[data-seg]')).not.toBeNull(),
+    () => expect(document.querySelector('polyline[data-seg]')).not.toBeNull(),
     { timeout: 10_000 },
   );
   expect(document.querySelector('line[data-cursor]')).not.toBeNull();
@@ -148,7 +153,7 @@ test('the eval graph and game report fill in as analysis settles', async () => {
 test('scrubbing the eval graph moves the game to that position', async () => {
   const user = userEvent.setup();
   render(<App />);
-  await user.click(screen.getByRole('button', { name: 'Try the Opera Game' }));
+  await openOperaGame(user);
   const graph = await screen.findByRole(
     'img',
     { name: /^Evaluation graph/ },
@@ -182,7 +187,7 @@ test('scrubbing the eval graph moves the game to that position', async () => {
 test('pressing or dragging the eval graph on the shown position keeps the piece flying', async () => {
   const user = userEvent.setup();
   render(<App />);
-  await user.click(screen.getByRole('button', { name: 'Try the Opera Game' }));
+  await openOperaGame(user);
   const graph = await screen.findByRole(
     'img',
     { name: /^Evaluation graph/ },
@@ -208,7 +213,7 @@ test('pressing or dragging the eval graph on the shown position keeps the piece 
 test('stepping past the last move keeps the last move flying', async () => {
   const user = userEvent.setup();
   render(<App />);
-  await user.click(screen.getByRole('button', { name: 'Try the Opera Game' }));
+  await openOperaGame(user);
   await user.keyboard('{End}{ArrowLeft}{ArrowRight}');
   const flight = document.querySelector('[data-moving]');
   expect(flight).toHaveAttribute('data-moving', 'd1d8');

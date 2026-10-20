@@ -46,6 +46,7 @@ test('lists games for a user and opens one in the review page', async () => {
   await user.click(screen.getByRole('button', { name: 'Find games' }));
   const row = await screen.findByRole('button', { name: /Rival/ });
   await user.click(row);
+  await user.click(screen.getByRole('button', { name: 'Review game' }));
   expect(
     await screen.findByRole('img', { name: /Chess board/ }),
   ).toBeInTheDocument();
