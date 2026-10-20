@@ -31,39 +31,35 @@ export function CoachBubble({
   className?: string;
 }) {
   return (
-    <section aria-label="Coach" className={cn('@container', className)}>
-      {/* A container query: the bubble answers to the room it is given, not the
-          screen. Narrow, the tile sits above it and the tail goes; wide, they sit
-          side by side. */}
-      <div className="flex flex-col items-start gap-4 @min-[18rem]:flex-row @min-[18rem]:gap-3">
-        <span
-          aria-hidden
-          className="border-line bg-pop-3 text-sticker-ink grid size-12 flex-none rotate-[4deg] place-items-center rounded-sm border-3 text-3xl leading-none shadow-sm"
-        >
-          ♜
-        </span>
-        <div className="border-line bg-surface before:border-line before:bg-surface relative w-full min-w-0 flex-1 rounded-md border-3 px-4 py-3 shadow-lg before:hidden before:content-[''] @min-[18rem]:before:absolute @min-[18rem]:before:top-4 @min-[18rem]:before:-left-3 @min-[18rem]:before:block @min-[18rem]:before:size-[18px] @min-[18rem]:before:rotate-45 @min-[18rem]:before:border-b-3 @min-[18rem]:before:border-l-3">
-          {(grade || move || score) && (
-            <div className="flex flex-wrap items-center gap-2">
-              {grade && <GradeSticker grade={grade} tilt={-2} />}
-              {move && (
-                <span className="font-mono text-sm font-bold">{move}</span>
-              )}
-              {score && (
-                <span className="border-line bg-surface-alt rounded-sm border-2 px-1.5 font-mono text-sm font-bold">
-                  {score}
-                </span>
-              )}
-            </div>
-          )}
-          <p className="font-display mt-2 mb-1 text-xl leading-6 font-extrabold">
-            {title}
-          </p>
-          {children && <p className="text-ink-muted">{children}</p>}
-          {actions && (
-            <div className="mt-3 flex flex-wrap gap-2">{actions}</div>
-          )}
-        </div>
+    <section
+      aria-label="Coach"
+      className={cn('flex items-start gap-3', className)}
+    >
+      <span
+        aria-hidden
+        className="border-line bg-pop-3 text-sticker-ink grid size-12 flex-none rotate-[4deg] place-items-center rounded-sm border-3 text-3xl leading-none shadow-sm"
+      >
+        ♜
+      </span>
+      <div className="border-line bg-surface before:border-line before:bg-surface relative min-w-0 flex-1 rounded-md border-3 px-4 py-3 shadow-lg before:absolute before:top-4 before:-left-3 before:size-[18px] before:rotate-45 before:border-b-3 before:border-l-3 before:content-['']">
+        {(grade || move || score) && (
+          <div className="flex flex-wrap items-center gap-2">
+            {grade && <GradeSticker grade={grade} tilt={-2} />}
+            {move && (
+              <span className="font-mono text-sm font-bold">{move}</span>
+            )}
+            {score && (
+              <span className="border-line bg-surface-alt rounded-sm border-2 px-1.5 font-mono text-sm font-bold">
+                {score}
+              </span>
+            )}
+          </div>
+        )}
+        <p className="font-display mt-2 mb-1 text-xl leading-6 font-extrabold">
+          {title}
+        </p>
+        {children && <p className="text-ink-muted">{children}</p>}
+        {actions && <div className="mt-3 flex flex-wrap gap-2">{actions}</div>}
       </div>
     </section>
   );
