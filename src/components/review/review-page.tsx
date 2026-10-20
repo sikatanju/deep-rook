@@ -282,11 +282,14 @@ function Viewer({ loaded }: { loaded: Loaded }) {
         </Button>
       </div>
 
-      <div className="flex flex-col items-center gap-8 lg:flex-row lg:items-start">
+      <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_20rem] xl:items-start">
         <div
           ref={column}
-          // 28px for the eval bar, 12px gap, and a 448px board by default.
-          className="grid w-[min(100%,30.5rem)] flex-none grid-cols-[1.75rem_minmax(0,1fr)] gap-x-3"
+          // The board is the page: as wide as the space allows, but short enough
+          // that its strips and step buttons stay on screen. 2.5rem of the width
+          // is the eval bar and its gap; the 18.5rem is everything else stacked
+          // above and below the board.
+          className="grid w-[min(100%,max(22rem,calc(100svh-18.5rem)))] grid-cols-[1.75rem_minmax(0,1fr)] gap-x-3 justify-self-center"
           style={size === null ? undefined : { width: size }}
         >
           <div className="col-start-2">{strip(top)}</div>
@@ -391,7 +394,7 @@ function Viewer({ loaded }: { loaded: Loaded }) {
           </div>
         </div>
 
-        <div className="flex w-full min-w-0 flex-col gap-5 lg:flex-1">
+        <div className="flex w-full max-w-2xl min-w-0 flex-col gap-5 justify-self-center xl:max-w-none">
           <CoachBubble
             grade={grade ?? undefined}
             move={ply && grade ? moveLabel(ply) : undefined}
