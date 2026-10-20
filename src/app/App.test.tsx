@@ -13,7 +13,7 @@ test('renders the app shell with the username form', () => {
   expect(screen.getByRole('button', { name: 'Find games' })).toBeDisabled();
 });
 
-test('lists games for a user and opens one in the review page', async () => {
+function stubChessCom() {
   const json = (body: unknown) =>
     Promise.resolve(new Response(JSON.stringify(body)));
   vi.stubGlobal(
@@ -40,17 +40,45 @@ test('lists games for a user and opens one in the review page', async () => {
       return json({ username: 'Me', joined: 1 });
     }),
   );
+}
+
+async function findGameRow() {
   const user = userEvent.setup();
   render(<App />);
   await user.type(screen.getByLabelText('Chess.com username'), 'Me');
   await user.click(screen.getByRole('button', { name: 'Find games' }));
-  const row = await screen.findByRole('button', { name: /Rival/ });
+  return { user, row: await screen.findByRole('button', { name: /Rival/ }) };
+}
+
+test('lists games for a user and opens one in the review page', async () => {
+  stubChessCom();
+  const { user, row } = await findGameRow();
   await user.click(row);
   await user.click(screen.getByRole('button', { name: 'Review game' }));
   expect(
     await screen.findByRole('img', { name: /Chess board/ }),
   ).toBeInTheDocument();
   expect(screen.getByText('Rival')).toBeInTheDocument();
+});
+
+test('picking a game row only stages it until Review game is pressed', async () => {
+  stubChessCom();
+  const { user, row } = await findGameRow();
+  await user.click(row);
+
+  expect(row).toHaveAttribute('aria-pressed', 'true');
+  expect(screen.getByText('Me vs Rival')).toBeInTheDocument();
+  expect(screen.getByText('2 moves')).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: 'Review' })).not.toHaveAttribute(
+    'aria-current',
+    'page',
+  );
+  expect(screen.queryByRole('img', { name: /Chess board/ })).toBeNull();
+
+  await user.click(screen.getByRole('button', { name: 'Review game' }));
+  expect(
+    await screen.findByRole('img', { name: /Chess board/ }),
+  ).toBeInTheDocument();
 });
 
 test('shows a message when the user does not exist', async () => {
