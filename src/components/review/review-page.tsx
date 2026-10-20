@@ -254,12 +254,12 @@ function Viewer({ loaded }: { loaded: Loaded }) {
 
   return (
     <>
-      <div className="grid gap-8 lg:grid-cols-[auto_minmax(0,1fr)] xl:grid-cols-[auto_minmax(0,1fr)_20rem] xl:items-start">
+      <div className="grid gap-x-8 gap-y-5 lg:grid-cols-[auto_minmax(0,1fr)] xl:grid-cols-[auto_minmax(0,1fr)_20rem] xl:grid-rows-[repeat(4,auto)_1fr] xl:items-start">
         <PageHeader
           // From lg up the title stands on the left of the board, turned a
           // quarter anticlockwise so it reads bottom to top, ending at the top of the page.
           // `h-0 min-h-full` lets it take the board's height without setting it.
-          className="min-w-0 lg:h-0 lg:min-h-full lg:rotate-180 lg:text-end lg:[writing-mode:vertical-rl]"
+          className="min-w-0 lg:col-start-1 lg:row-span-2 lg:row-start-1 lg:h-0 lg:min-h-full lg:rotate-180 lg:text-end lg:[writing-mode:vertical-rl] xl:row-span-5"
           titleClassName="lg:mt-0 lg:mr-2 lg:text-3xl"
           eyebrow={[
             opening,
@@ -280,10 +280,10 @@ function Viewer({ loaded }: { loaded: Loaded }) {
         <div
           ref={column}
           // The board is the page: as wide as the space allows, but short enough
-          // that its strips and step buttons stay on screen. 2.5rem of the width
-          // is the eval bar and its gap; the 11.5rem is everything else stacked
-          // above and below the board.
-          className="grid w-[min(100%,max(22rem,calc(100svh-11.5rem)))] grid-cols-[1.75rem_minmax(0,1fr)] gap-x-3 justify-self-center"
+          // that its strips stay on screen, with the step buttons too until they move
+          // beside it at xl. 2.5rem of the width is the eval bar and its gap; the
+          // rem figure is everything else stacked above and below the board.
+          className="grid w-[min(100%,max(22rem,calc(100svh-11.5rem)))] grid-cols-[1.75rem_minmax(0,1fr)] gap-x-3 justify-self-center lg:col-start-2 lg:row-start-1 xl:row-span-5 xl:w-[min(100%,max(22rem,calc(100svh-8.5rem)))]"
           style={size === null ? undefined : { width: size }}
         >
           <div className="col-start-2">{strip(top)}</div>
@@ -348,55 +348,55 @@ function Viewer({ loaded }: { loaded: Loaded }) {
             />
           </div>
           <div className="col-start-2">{strip(bottom)}</div>
-          <div className="col-start-2 mt-3 flex flex-wrap items-center justify-center gap-2">
-            {stepButton(
-              'First move',
-              <ChevronsLeftIcon aria-hidden />,
-              0,
-              index === 0,
-            )}
-            {stepButton(
-              'Previous move',
-              <ChevronLeftIcon aria-hidden />,
-              index - 1,
-              index === 0,
-            )}
-            <Button
-              variant="primary"
-              size="sm"
-              aria-pressed={running}
-              onClick={() => {
-                if (atEnd) goTo(0);
-                setPlaying(atEnd || !playing);
-              }}
-            >
-              {running ? <PauseIcon aria-hidden /> : <PlayIcon aria-hidden />}
-              {running ? 'Pause' : 'Autoplay'}
-            </Button>
-            {stepButton(
-              'Next move',
-              <ChevronRightIcon aria-hidden />,
-              index + 1,
-              atEnd,
-            )}
-            {stepButton(
-              'Last move',
-              <ChevronsRightIcon aria-hidden />,
-              last,
-              atEnd,
-            )}
-            <Button
-              size="sm"
-              aria-label="Flip board"
-              onClick={() => setFlipped((f) => !f)}
-            >
-              <RotateCwIcon aria-hidden />
-              Flip
-            </Button>
-          </div>
         </div>
 
-        <div className="flex w-full max-w-2xl min-w-0 flex-col gap-5 justify-self-center lg:col-span-2 xl:col-span-1 xl:max-w-none">
+        <div className="ml-10 flex flex-wrap items-center justify-center gap-2 justify-self-center lg:col-start-2 lg:row-start-2 xl:col-start-3 xl:row-start-3 xl:ml-0 xl:justify-self-stretch">
+          {stepButton(
+            'First move',
+            <ChevronsLeftIcon aria-hidden />,
+            0,
+            index === 0,
+          )}
+          {stepButton(
+            'Previous move',
+            <ChevronLeftIcon aria-hidden />,
+            index - 1,
+            index === 0,
+          )}
+          <Button
+            variant="primary"
+            size="sm"
+            aria-pressed={running}
+            onClick={() => {
+              if (atEnd) goTo(0);
+              setPlaying(atEnd || !playing);
+            }}
+          >
+            {running ? <PauseIcon aria-hidden /> : <PlayIcon aria-hidden />}
+            {running ? 'Pause' : 'Autoplay'}
+          </Button>
+          {stepButton(
+            'Next move',
+            <ChevronRightIcon aria-hidden />,
+            index + 1,
+            atEnd,
+          )}
+          {stepButton(
+            'Last move',
+            <ChevronsRightIcon aria-hidden />,
+            last,
+            atEnd,
+          )}
+          <Button
+            size="icon-sm"
+            aria-label="Flip board"
+            title="Flip board (F)"
+            onClick={() => setFlipped((f) => !f)}
+          >
+            <RotateCwIcon aria-hidden />
+          </Button>
+        </div>
+        <div className="w-full max-w-2xl min-w-0 justify-self-center lg:col-span-2 xl:col-span-1 xl:col-start-3 xl:row-start-1 xl:max-w-none">
           <LevelPicker
             compact
             legend="Analysis depth"
@@ -404,14 +404,16 @@ function Viewer({ loaded }: { loaded: Loaded }) {
             value={loaded.level}
             onChange={setReviewLevel}
           />
-          <div className="border-line bg-surface max-h-[236px] overflow-y-auto rounded-sm border-3">
-            <MoveList
-              plies={plies}
-              grades={grades}
-              index={index}
-              onSelect={(i) => goTo(i)}
-            />
-          </div>
+        </div>
+        <div className="border-line bg-surface max-h-[236px] w-full max-w-2xl min-w-0 justify-self-center overflow-y-auto rounded-sm border-3 lg:col-span-2 xl:col-span-1 xl:col-start-3 xl:row-start-2 xl:max-w-none">
+          <MoveList
+            plies={plies}
+            grades={grades}
+            index={index}
+            onSelect={(i) => goTo(i)}
+          />
+        </div>
+        <div className="flex w-full max-w-2xl min-w-0 flex-col gap-5 justify-self-center lg:col-span-2 xl:col-span-1 xl:col-start-3 xl:row-start-4 xl:max-w-none">
           <CoachBubble
             grade={grade ?? undefined}
             move={ply && grade ? moveLabel(ply) : undefined}
