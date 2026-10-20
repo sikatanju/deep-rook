@@ -17,7 +17,9 @@ The review page has no analysis. It needs a White-POV score, a best move, and a 
 
 ```tsx
 // App.tsx: once, inside AppProvider, above Shell.
-<AnalysisProvider level={settings.analysisLevel}>{children}</AnalysisProvider>
+// The level follows the running review, not the setup radios, so choosing a
+// mode for the next game cannot retarget the analysis in progress.
+<AnalysisProvider level={loaded?.level ?? settings.analysisLevel}>{children}</AnalysisProvider>
 
 // Viewer: one hook focuses the position and reads the whole-game document.
 const analysis = useGameAnalysis(loaded, index); // GameAnalysis | null
@@ -27,9 +29,15 @@ const line = here && here.status !== 'failed' ? here.line : null;
 <Board ... arrow={line?.pv[0]} />            // UCI, e.g. 'e2e4'
 <EnginePanel fen={fen} position={here} analysis={analysis} />
 
-// Settings: radio list derived from the one table.
+// ReviewSetup: picking a game only stages it. The radio list derives from the
+// one table and sets the remembered mode; the button starts the review, which
+// navigates and mounts the Viewer, and only then does the engine run.
 {LEVELS.map((level) => <input type="radio" checked={settings.analysisLevel === level}
   onChange={() => setSettings({ analysisLevel: level })} />)}
+<Button onClick={startReview}>Review game</Button> // loaded = { ...staged, level }
+
+// Viewer: the in-review switcher changes the running review and the default.
+<input type="radio" checked={loaded.level === level} onChange={() => setReviewLevel(level)} />
 ```
 
 Components never see a worker, a job, a lane, or a side-to-move score. Lint blocks imports of engine and analysis internals from components.
@@ -194,7 +202,7 @@ Rejected:
   - determinism (same request gives the same line and node count)
   - the node cap binding, and iterations streaming in order
 - **Scheduling and analyzer** (`schedule.test.ts`, `analyzer.test.ts`): the plan's priority order, the dwell-gated preemption, and no duplicate or redone work. Also streaming into the document, stale messages after a game switch, raising and lowering the level, monotone lines, history FENs in jobs, and the no-Worker case. These use scripted lanes and fake timers.
-- **App** (`analysis.test.tsx`): an in-process `Worker` stub runs the real engine through the real analyzer, hook, panel, and arrow. On Opera position 30 it shows `#2`, `Qb8+ Nxb8 Rd8#`, and a b3→b8 arrow. The level setting persists across a remount.
+- **App** (`analysis.test.tsx`): an in-process `Worker` stub runs the real engine through the real analyzer, hook, panel, and arrow. On Opera position 30 it shows `#2`, `Qb8+ Nxb8 Rd8#`, and a b3→b8 arrow. The level setting persists across a remount. `staging.test.tsx` counts the stub's jobs: staging posts none, and Review game posts some.
 - **Bench** (`pnpm bench`): 8 fixed positions on the engine bundled the way the worker ships. Measured on a 12-thread dev machine at about 1.7M nodes per second per core:
 
   | Level    | Per position (avg) | Typical middlegame depth | Bound that binds         |
