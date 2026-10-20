@@ -251,7 +251,7 @@ function Viewer({ loaded }: { loaded: Loaded }) {
 
   return (
     <>
-      <div className="grid gap-x-5 gap-y-5 xl:grid-cols-[14rem_minmax(0,1fr)_20rem] xl:grid-rows-[repeat(4,auto)_1fr] xl:items-start">
+      <div className="grid gap-x-5 gap-y-5 xl:grid-cols-[minmax(14rem,1fr)_minmax(22rem,max(22rem,calc(100svh-8.5rem)))_20rem] xl:grid-rows-[repeat(4,auto)_1fr] xl:items-start">
         <h1 className="sr-only">{loaded.source}</h1>
         <div
           ref={column}
@@ -259,7 +259,7 @@ function Viewer({ loaded }: { loaded: Loaded }) {
           // that its strips stay on screen, with the step buttons too until they move
           // beside it at xl. 2.5rem of the width is the eval bar and its gap; the
           // rem figure is everything else stacked above and below the board.
-          className="grid w-[min(100%,max(22rem,calc(100svh-11.5rem)))] grid-cols-[1.75rem_minmax(0,1fr)] gap-x-3 justify-self-center xl:col-start-2 xl:row-start-1 xl:row-span-5 xl:w-[min(100%,max(22rem,calc(100svh-8.5rem)))]"
+          className="grid w-[min(100%,max(22rem,calc(100svh-11.5rem)))] grid-cols-[1.75rem_minmax(0,1fr)] gap-x-3 justify-self-center xl:col-start-2 xl:row-span-5 xl:row-start-1 xl:w-[min(100%,max(22rem,calc(100svh-8.5rem)))]"
           style={size === null ? undefined : { width: size }}
         >
           <div className="col-start-2">{strip(top)}</div>
@@ -372,7 +372,7 @@ function Viewer({ loaded }: { loaded: Loaded }) {
             <RotateCwIcon aria-hidden />
           </Button>
         </div>
-        <div className="w-full max-w-2xl min-w-0 justify-self-center xl:col-start-1 xl:row-span-5 xl:row-start-1 xl:max-w-none">
+        <div className="w-full max-w-2xl min-w-0 justify-self-center xl:col-start-1 xl:row-span-5 xl:row-start-1 xl:max-w-sm xl:justify-self-end">
           <CoachBubble
             grade={grade ?? undefined}
             move={ply && grade ? moveLabel(ply) : undefined}

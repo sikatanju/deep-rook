@@ -1,4 +1,8 @@
-import type { LucideIcon } from 'lucide-react';
+import {
+  PanelLeftCloseIcon,
+  PanelLeftOpenIcon,
+  type LucideIcon,
+} from 'lucide-react';
 
 import { cn } from '@/lib/utils';
 
@@ -12,21 +16,39 @@ export type NavItem<Id extends string> = {
 
 /**
  * Left rail on wide screens: logo tile and page links as pills, with any
- * `pinned` link at the bottom. On small screens it is a top bar with the links
- * as a fixed bottom bar.
+ * `pinned` link at the bottom. Collapsed, the rail keeps only the icons. On
+ * small screens it is a top bar with the links as a fixed bottom bar, and
+ * collapsing does not apply.
  */
 export function NavRail<Id extends string>({
   active,
   items,
+  collapsed = false,
+  onToggle,
 }: {
   active: Id;
   items: readonly NavItem<Id>[];
+  collapsed?: boolean;
+  onToggle?: () => void;
 }) {
+  // Names stay in the DOM when collapsed, so links keep their accessible name.
+  const hideLabel = collapsed && 'md:sr-only';
+  const pill =
+    'md:rounded-pill text-ink hover:border-line hover:bg-surface-alt flex flex-1 flex-col items-center gap-0.5 rounded-sm border-3 border-transparent px-3 py-2 text-xs font-bold md:flex-none md:flex-row md:gap-3 md:py-2.5 md:text-[15px]';
   return (
-    <aside className="border-line bg-surface flex items-center justify-between border-b-3 p-4 md:sticky md:top-0 md:h-svh md:flex-col md:items-stretch md:justify-start md:gap-2 md:border-r-3 md:border-b-0 md:px-4 md:py-6">
+    <aside
+      className={cn(
+        'border-line bg-surface flex items-center justify-between border-b-3 p-4 md:sticky md:top-0 md:h-svh md:flex-col md:items-stretch md:justify-start md:gap-2 md:border-r-3 md:border-b-0 md:py-6',
+        collapsed ? 'md:px-3' : 'md:px-4',
+      )}
+    >
       <a
         href="#/games"
-        className="font-display flex items-center gap-2 text-2xl font-extrabold tracking-[-0.02em] md:mb-4"
+        title={collapsed ? 'DeepRook' : undefined}
+        className={cn(
+          'font-display flex items-center gap-2 text-2xl font-extrabold tracking-[-0.02em] md:mb-4',
+          collapsed && 'md:justify-center',
+        )}
       >
         {/* The rook glyph on a tilted tile is a placeholder mark, not a drawn logo. */}
         <span
@@ -35,7 +57,7 @@ export function NavRail<Id extends string>({
         >
           ♜
         </span>
-        DeepRook
+        <span className={hideLabel || undefined}>DeepRook</span>
       </a>
       <nav
         aria-label="Main"
@@ -46,17 +68,41 @@ export function NavRail<Id extends string>({
             key={id}
             href={`#/${id}`}
             aria-current={id === active ? 'page' : undefined}
+            title={collapsed ? label : undefined}
             className={cn(
               pinned && 'md:mt-auto',
-              'md:rounded-pill text-ink hover:border-line hover:bg-surface-alt flex flex-1 flex-col items-center gap-0.5 rounded-sm border-3 border-transparent px-3 py-2 text-xs font-bold md:flex-none md:flex-row md:gap-3 md:py-2.5 md:text-[15px]',
+              pill,
+              collapsed && 'md:justify-center md:px-0',
               'aria-[current=page]:border-line aria-[current=page]:bg-accent aria-[current=page]:text-sticker-ink aria-[current=page]:shadow-sm md:aria-[current=page]:shadow-md',
             )}
           >
             <Icon aria-hidden className="size-5" />
-            {label}
+            <span className={hideLabel || undefined}>{label}</span>
           </a>
         ))}
       </nav>
+      {onToggle && (
+        <button
+          type="button"
+          onClick={onToggle}
+          aria-expanded={!collapsed}
+          title={collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          className={cn(
+            pill,
+            'hidden cursor-pointer md:flex',
+            collapsed && 'md:justify-center md:px-0',
+          )}
+        >
+          {collapsed ? (
+            <PanelLeftOpenIcon aria-hidden className="size-5" />
+          ) : (
+            <PanelLeftCloseIcon aria-hidden className="size-5" />
+          )}
+          <span className={hideLabel || undefined}>
+            {collapsed ? 'Expand sidebar' : 'Collapse sidebar'}
+          </span>
+        </button>
+      )}
     </aside>
   );
 }
