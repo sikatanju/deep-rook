@@ -106,6 +106,7 @@ test('choosing a palette sets data-theme and is remembered', async () => {
   const user = userEvent.setup();
   render(<App />);
   expect(document.documentElement.dataset.theme).toBe('pop');
+  await user.click(screen.getByRole('link', { name: 'Settings' }));
   await user.click(screen.getByRole('button', { name: 'Arcade Night' }));
   expect(document.documentElement.dataset.theme).toBe('arcade');
   expect(JSON.parse(localStorage.getItem('settings')!)).toMatchObject({
