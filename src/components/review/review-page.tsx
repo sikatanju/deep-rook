@@ -237,9 +237,6 @@ function Viewer({ loaded }: { loaded: Loaded }) {
     [replay, analysis],
   );
 
-  const versus = /^(.+) vs (.+)$/.exec(loaded.source);
-  const timeControl = headers.TimeControl && `${headers.TimeControl}s`;
-
   const stepButton = (
     label: string,
     icon: React.ReactNode,
@@ -254,36 +251,15 @@ function Viewer({ loaded }: { loaded: Loaded }) {
 
   return (
     <>
-      <div className="grid gap-x-8 gap-y-5 lg:grid-cols-[auto_minmax(0,1fr)] xl:grid-cols-[auto_minmax(0,1fr)_20rem] xl:grid-rows-[repeat(4,auto)_1fr] xl:items-start">
-        <PageHeader
-          // From lg up the title stands on the left of the board, turned a
-          // quarter anticlockwise so it reads bottom to top, ending at the top of the page.
-          // `h-0 min-h-full` lets it take the board's height without setting it.
-          className="min-w-0 lg:col-start-1 lg:row-span-2 lg:row-start-1 lg:h-0 lg:min-h-full lg:rotate-180 lg:text-end lg:[writing-mode:vertical-rl] xl:row-span-5"
-          titleClassName="lg:mt-0 lg:mr-2 lg:text-3xl"
-          eyebrow={[
-            opening,
-            timeControl,
-            `${ANALYSIS_LEVELS[loaded.level].label} review`,
-          ]
-            .filter(Boolean)
-            .join(' · ')}
-        >
-          {versus ? (
-            <>
-              {versus[1]} <Highlight>vs</Highlight> {versus[2]}
-            </>
-          ) : (
-            loaded.source
-          )}
-        </PageHeader>
+      <div className="grid gap-x-5 gap-y-5 xl:grid-cols-[14rem_minmax(0,1fr)_20rem] xl:grid-rows-[repeat(4,auto)_1fr] xl:items-start">
+        <h1 className="sr-only">{loaded.source}</h1>
         <div
           ref={column}
           // The board is the page: as wide as the space allows, but short enough
           // that its strips stay on screen, with the step buttons too until they move
           // beside it at xl. 2.5rem of the width is the eval bar and its gap; the
           // rem figure is everything else stacked above and below the board.
-          className="grid w-[min(100%,max(22rem,calc(100svh-11.5rem)))] grid-cols-[1.75rem_minmax(0,1fr)] gap-x-3 justify-self-center lg:col-start-2 lg:row-start-1 xl:row-span-5 xl:w-[min(100%,max(22rem,calc(100svh-8.5rem)))]"
+          className="grid w-[min(100%,max(22rem,calc(100svh-11.5rem)))] grid-cols-[1.75rem_minmax(0,1fr)] gap-x-3 justify-self-center xl:col-start-2 xl:row-start-1 xl:row-span-5 xl:w-[min(100%,max(22rem,calc(100svh-8.5rem)))]"
           style={size === null ? undefined : { width: size }}
         >
           <div className="col-start-2">{strip(top)}</div>
@@ -350,7 +326,7 @@ function Viewer({ loaded }: { loaded: Loaded }) {
           <div className="col-start-2">{strip(bottom)}</div>
         </div>
 
-        <div className="ml-10 flex flex-wrap items-center justify-center gap-2 justify-self-center lg:col-start-2 lg:row-start-2 xl:col-start-3 xl:row-start-3 xl:ml-0 xl:justify-self-stretch">
+        <div className="ml-10 flex flex-wrap items-center justify-center gap-2 justify-self-center xl:col-start-3 xl:row-start-3 xl:ml-0 xl:justify-self-stretch">
           {stepButton(
             'First move',
             <ChevronsLeftIcon aria-hidden />,
@@ -396,24 +372,7 @@ function Viewer({ loaded }: { loaded: Loaded }) {
             <RotateCwIcon aria-hidden />
           </Button>
         </div>
-        <div className="w-full max-w-2xl min-w-0 justify-self-center lg:col-span-2 xl:col-span-1 xl:col-start-3 xl:row-start-1 xl:max-w-none">
-          <LevelPicker
-            compact
-            legend="Analysis depth"
-            name="review-analysis-level"
-            value={loaded.level}
-            onChange={setReviewLevel}
-          />
-        </div>
-        <div className="border-line bg-surface max-h-[236px] w-full max-w-2xl min-w-0 justify-self-center overflow-y-auto rounded-sm border-3 lg:col-span-2 xl:col-span-1 xl:col-start-3 xl:row-start-2 xl:max-w-none">
-          <MoveList
-            plies={plies}
-            grades={grades}
-            index={index}
-            onSelect={(i) => goTo(i)}
-          />
-        </div>
-        <div className="flex w-full max-w-2xl min-w-0 flex-col gap-5 justify-self-center lg:col-span-2 xl:col-span-1 xl:col-start-3 xl:row-start-4 xl:max-w-none">
+        <div className="w-full max-w-2xl min-w-0 justify-self-center xl:col-start-1 xl:row-span-5 xl:row-start-1 xl:max-w-none">
           <CoachBubble
             grade={grade ?? undefined}
             move={ply && grade ? moveLabel(ply) : undefined}
@@ -430,6 +389,40 @@ function Viewer({ loaded }: { loaded: Loaded }) {
           >
             {coach.body}
           </CoachBubble>
+        </div>
+        <div className="w-full max-w-2xl min-w-0 justify-self-center xl:col-start-3 xl:row-start-1 xl:max-w-none">
+          <LevelPicker
+            compact
+            legend="Analysis depth"
+            name="review-analysis-level"
+            value={loaded.level}
+            onChange={setReviewLevel}
+          />
+        </div>
+        <section
+          aria-label="Moves"
+          // The sheet is tall enough that the step buttons under it sit near the
+          // bottom of the screen.
+          className="border-line bg-surface flex h-72 w-full max-w-2xl min-w-0 flex-col justify-self-center overflow-hidden rounded-md border-3 shadow-md xl:col-start-3 xl:row-start-2 xl:h-[max(18rem,calc(100svh-12.5rem))] xl:max-w-none"
+        >
+          <header className="border-line bg-surface-alt border-b-3 px-3 py-2">
+            <p className="text-ink-muted text-xs leading-4 font-extrabold tracking-[0.08em] uppercase">
+              Opening
+            </p>
+            <h2 className="font-display text-lg leading-6 font-extrabold">
+              {opening ?? 'Moves'}
+            </h2>
+          </header>
+          <div className="min-h-0 flex-1 overflow-y-auto">
+            <MoveList
+              plies={plies}
+              grades={grades}
+              index={index}
+              onSelect={(i) => goTo(i)}
+            />
+          </div>
+        </section>
+        <div className="flex w-full max-w-2xl min-w-0 flex-col gap-5 justify-self-center xl:col-start-3 xl:row-start-4 xl:max-w-none">
           <AnalysisMeter
             done={analysis?.done ?? 0}
             total={analysis?.positions.length ?? plies.length + 1}
