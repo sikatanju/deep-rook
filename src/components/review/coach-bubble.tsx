@@ -1,20 +1,26 @@
 import type { ReactNode } from 'react';
 
-import type { Classification } from '@/lib/analysis/classify';
+import { CLASSIFICATIONS, type Classification } from '@/lib/analysis/classify';
 import { cn } from '@/lib/utils';
 
 import { GradeSticker } from './grade-sticker';
+
+const article = (word: string) => (/^[aeiou]/i.test(word) ? 'an' : 'a');
 
 /**
  * The coach: a rook tile and a speech bubble that says what just happened in
  * plain, punchy words. `title` is one line in the coach's voice (cheeky, never
  * mean), the children are the plain sentence or two behind it. One bubble per
  * screen; it replaces explanatory text, so don't repeat its words elsewhere.
+ *
+ * With a `move` the bubble leads with a verdict the way chess.com's review
+ * does: grade glyph, "1… e6 is best", the eval pushed to the far edge.
  */
 export function CoachBubble({
   grade,
   move,
   eval: score,
+  best,
   title,
   actions,
   children,
@@ -25,40 +31,64 @@ export function CoachBubble({
   move?: string;
   /** Already formatted: "+1.4", "M2". */
   eval?: string;
+  /** SAN of the engine's preferred move, when it is not the one played. */
+  best?: string;
   title: ReactNode;
   actions?: ReactNode;
   children?: ReactNode;
   className?: string;
 }) {
+  const word = grade && CLASSIFICATIONS[grade].label.toLowerCase();
+  const eval_ = score && (
+    <span className="border-line bg-surface-alt ml-auto flex-none rounded-sm border-2 px-1.5 font-mono text-sm font-bold">
+      {score}
+    </span>
+  );
   return (
     <section
       aria-label="Coach"
-      className={cn('flex items-start gap-3', className)}
+      className={cn(
+        'border-line bg-surface overflow-hidden rounded-md border-3 shadow-lg',
+        className,
+      )}
     >
-      <span
-        aria-hidden
-        className="border-line bg-pop-3 text-sticker-ink grid size-12 flex-none rotate-[4deg] place-items-center rounded-sm border-3 text-3xl leading-none shadow-sm"
-      >
-        ♜
-      </span>
-      <div className="border-line bg-surface before:border-line before:bg-surface relative min-w-0 flex-1 rounded-md border-3 px-4 py-3 shadow-lg before:absolute before:top-4 before:-left-3 before:size-[18px] before:rotate-45 before:border-b-3 before:border-l-3 before:content-['']">
-        {(grade || move || score) && (
-          <div className="flex flex-wrap items-center gap-2">
-            {grade && <GradeSticker grade={grade} tilt={-2} />}
-            {move && (
-              <span className="font-mono text-sm font-bold">{move}</span>
-            )}
-            {score && (
-              <span className="border-line bg-surface-alt rounded-sm border-2 px-1.5 font-mono text-sm font-bold">
-                {score}
-              </span>
-            )}
-          </div>
+      <header className="border-line bg-surface-alt flex min-h-12 items-center gap-3 border-b-3 px-3 py-2">
+        <span
+          aria-hidden
+          className="border-line bg-pop-3 text-sticker-ink grid size-8 flex-none place-items-center rounded-sm border-2 text-xl leading-none shadow-sm"
+        >
+          ♜
+        </span>
+        {move && grade && word ? (
+          <>
+            <GradeSticker grade={grade} iconOnly className="flex-none" />
+            <p className="font-display min-w-0 text-lg leading-6 font-extrabold">
+              <span className="font-mono">{move}</span> is {article(word)}{' '}
+              {word}
+            </p>
+          </>
+        ) : grade ? (
+          <GradeSticker grade={grade} />
+        ) : (
+          <p className="text-ink-muted text-xs leading-4 font-extrabold tracking-[0.08em] uppercase">
+            Coach
+          </p>
         )}
-        <p className="font-display mt-2 mb-1 text-xl leading-6 font-extrabold">
+        {eval_}
+      </header>
+      <div className="px-4 py-3">
+        <p className="font-display mb-1 text-xl leading-6 font-extrabold">
           {title}
         </p>
         {children && <p className="text-ink-muted">{children}</p>}
+        {best && (
+          <p className="mt-2 flex items-center gap-2 font-bold">
+            <GradeSticker grade="best" iconOnly className="scale-90" />
+            <span>
+              Best was <span className="font-mono">{best}</span>
+            </span>
+          </p>
+        )}
         {actions && <div className="mt-3 flex flex-wrap gap-2">{actions}</div>}
       </div>
     </section>

@@ -75,8 +75,9 @@ function Shell() {
       <div className="flex min-w-0 flex-col">
         <main
           className={cn(
-            'flex w-full flex-1 flex-col gap-8 p-4 pb-24 md:p-8',
-            !wide && 'mx-auto max-w-6xl',
+            'flex w-full flex-1 flex-col gap-8 p-4 pb-24',
+            // The review page is the board, so it gets the room the padding took.
+            wide ? 'md:px-5 md:py-4' : 'mx-auto max-w-6xl md:p-8',
           )}
         >
           <Page />

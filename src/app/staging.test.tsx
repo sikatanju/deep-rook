@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from '@testing-library/react';
+import { render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, test, vi } from 'vitest';
 
@@ -67,11 +67,8 @@ test('the mode chosen before pressing Review game is the mode of the review', as
   expect(screen.getByText(/Strongest lines/)).toBeInTheDocument();
   await user.click(screen.getByRole('button', { name: 'Review game' }));
 
-  expect(screen.getByRole('radio', { name: 'Deep' })).toBeChecked();
-  await waitFor(() =>
-    expect(
-      within(screen.getByRole('region', { name: 'Engine' })).getByText(/^Deep/),
-    ).toBeInTheDocument(),
+  expect(screen.getByRole('region', { name: 'Game report' })).toHaveTextContent(
+    'Deep review',
   );
 });
 
@@ -80,7 +77,6 @@ test('changing the mode for the next game leaves the running review alone', asyn
   render(<App />);
   await stageOperaGame(user);
   await user.click(screen.getByRole('button', { name: 'Review game' }));
-  expect(screen.getByRole('radio', { name: 'Balanced' })).toBeChecked();
 
   await user.click(screen.getByRole('link', { name: 'Games' }));
   await user.type(screen.getByLabelText('PGN'), '1. e4 e5');
@@ -89,13 +85,8 @@ test('changing the mode for the next game leaves the running review alone', asyn
   await user.click(reviewLink());
 
   expect(screen.getByText('The Opera Game')).toBeInTheDocument();
-  expect(screen.getByRole('radio', { name: 'Balanced' })).toBeChecked();
-  await waitFor(() =>
-    expect(
-      within(screen.getByRole('region', { name: 'Engine' })).getByText(
-        /^Balanced/,
-      ),
-    ).toBeInTheDocument(),
+  expect(screen.getByRole('region', { name: 'Game report' })).toHaveTextContent(
+    'Balanced review',
   );
 });
 
@@ -104,17 +95,18 @@ test('continuing the review of the same game keeps its analysis', async () => {
   render(<App />);
   await stageOperaGame(user);
   await user.click(screen.getByRole('button', { name: 'Review game' }));
-  await waitFor(
-    () =>
-      expect(screen.getByLabelText('Evaluation')).not.toHaveTextContent('…'),
-    { timeout: 5_000 },
-  );
-  const evaluation = screen.getByLabelText('Evaluation').textContent;
+  const bar = () =>
+    screen.getByRole('meter', { name: "White's winning chances" });
+  // The last position is mate, so its bar is full once the engine has been there.
+  await user.keyboard('{End}');
+  await waitFor(() => expect(bar()).toHaveAttribute('aria-valuenow', '100'), {
+    timeout: 5_000,
+  });
 
   await user.click(screen.getByRole('link', { name: 'Games' }));
   await user.click(screen.getByRole('button', { name: 'Continue review' }));
 
-  expect(screen.getByLabelText('Evaluation')).toHaveTextContent(
-    evaluation as string,
-  );
+  // Straight away, with no new search: the analysis was kept.
+  await user.keyboard('{End}');
+  expect(bar()).toHaveAttribute('aria-valuenow', '100');
 });

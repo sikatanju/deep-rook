@@ -31,7 +31,7 @@
   --board-light: #fff1d0;
   --board-dark: #ff9f68;
   --board-move: #ffd23fcc;
-  --board-arrow: #2f5bff;
+  --board-arrow: #000000;
   --eval-white: #ffffff;
   --eval-black: #111111;
   --grade-brilliant: #3df0ff;
@@ -65,7 +65,7 @@
   --board-light: #f4fff8;
   --board-dark: #5fbf8f;
   --board-move: #ffd447cc;
-  --board-arrow: #1f4dff;
+  --board-arrow: #000000;
   --eval-white: #ffffff;
   --eval-black: #0f1f17;
   --grade-brilliant: #3df0ff;
@@ -99,7 +99,7 @@
   --board-light: #f2f6ff;
   --board-dark: #6f93ff;
   --board-move: #ffc93ccc;
-  --board-arrow: #ff3d8b;
+  --board-arrow: #000000;
   --eval-white: #ffffff;
   --eval-black: #0b1533;
   --grade-brilliant: #3df0ff;
@@ -133,7 +133,7 @@
   --board-light: #fdf1e1;
   --board-dark: #cf7a45;
   --board-move: #f2c14ecc;
-  --board-arrow: #1d4ed8;
+  --board-arrow: #000000;
   --eval-white: #fffaf3;
   --eval-black: #2a160b;
   --grade-brilliant: #3df0ff;
@@ -167,7 +167,7 @@
   --board-light: #fff5fa;
   --board-dark: #f59ac8;
   --board-move: #fff07acc;
-  --board-arrow: #6b2bd9;
+  --board-arrow: #000000;
   --eval-white: #ffffff;
   --eval-black: #1e0f2e;
   --grade-brilliant: #3df0ff;
@@ -201,7 +201,7 @@
   --board-light: #fffff0;
   --board-dark: #2ec4b6;
   --board-move: #ff6b2cb3;
-  --board-arrow: #3f2bff;
+  --board-arrow: #000000;
   --eval-white: #ffffff;
   --eval-black: #111111;
   --grade-brilliant: #3df0ff;
@@ -235,7 +235,7 @@
   --board-light: #f7f5ef;
   --board-dark: #9a9a9a;
   --board-move: #ffe14dcc;
-  --board-arrow: #0047ff;
+  --board-arrow: #000000;
   --eval-white: #ffffff;
   --eval-black: #0a0a0a;
   --grade-brilliant: #3df0ff;
@@ -269,7 +269,7 @@
   --board-light: #e9e3ff;
   --board-dark: #7b61ff;
   --board-move: #c6ff3dbf;
-  --board-arrow: #ff4fd8;
+  --board-arrow: #000000;
   --eval-white: #f5f0ff;
   --eval-black: #0a0910;
   --grade-brilliant: #3df0ff;

@@ -13,31 +13,22 @@ import { navigate } from '@/app/router';
 import { useStore, type Loaded } from '@/app/store';
 import { Board, movingPiece } from '@/components/board/board';
 import { Highlight, PageHeader } from '@/components/layout/page-header';
-import { LevelPicker } from '@/components/level-picker';
 import { Panel } from '@/components/panel';
 import { Button } from '@/components/ui/button';
 import { useGameAnalysis } from '@/hooks/use-game-analysis';
 import { classifyMoves, type Classification } from '@/lib/analysis/classify';
 import { ANALYSIS_LEVELS } from '@/lib/analysis/levels';
-import {
-  analysisPhase,
-  evalSeries,
-  gameReport,
-  nextMistake,
-} from '@/lib/analysis/report';
+import { evalSeries, gameReport } from '@/lib/analysis/report';
 import {
   fenAt,
   materialOf,
-  openingName,
   sanLine,
   type Ply,
   type Replay,
 } from '@/lib/chess/replay';
 import { formatScore } from '@/lib/chess/score';
 
-import { AnalysisMeter } from './analysis-meter';
 import { CoachBubble } from './coach-bubble';
-import { EnginePanel } from './engine-panel';
 import { EvalBar } from './eval-bar';
 import { EvalGraph } from './eval-graph';
 import { MoveList } from './move-list';
@@ -84,7 +75,7 @@ const moveLabel = (ply: Ply) =>
 
 function Viewer({ loaded }: { loaded: Loaded }) {
   const { replay, orientation } = loaded;
-  const { settings, setReviewLevel } = useStore();
+  const { settings } = useStore();
   const last = replay.plies.length;
   const [index, setIndex] = useState(0);
   const [flipped, setFlipped] = useState(orientation === 'b');
@@ -183,7 +174,6 @@ function Viewer({ loaded }: { loaded: Loaded }) {
   const fen = fenAt(replay, index);
   const material = materialOf(fen);
   const sideToMove = fen.split(' ')[1] as 'w' | 'b';
-  const opening = openingName(headers);
   const atEnd = index === last;
 
   const strip = (color: 'w' | 'b') => (
@@ -199,7 +189,6 @@ function Viewer({ loaded }: { loaded: Loaded }) {
   );
   const [top, bottom] = flipped ? (['w', 'b'] as const) : (['b', 'w'] as const);
 
-  const nextAt = nextMistake(grades, index);
   const eval_ = line ? formatScore(line.score) : undefined;
   const coach = (() => {
     if (index === 0)
@@ -212,15 +201,13 @@ function Viewer({ loaded }: { loaded: Loaded }) {
         title: 'Still thinking about this one.',
         body: 'The coach speaks up once the engine has settled this move.',
       };
-    const sentences = [
-      better && better !== ply.san
-        ? `The engine liked ${better} more.`
-        : 'That matches the engine’s first choice.',
-    ];
+    const sentences = [];
     if (prior?.status === 'done' && here?.status === 'done')
       sentences.push(
         `The eval went from ${formatScore(prior.line.score)} to ${formatScore(here.line.score)}.`,
       );
+    const result = headers.Termination ?? headers.Result;
+    if (atEnd && result) sentences.push(`${result}.`);
     return { title: COACH_LINE[grade], body: sentences.join(' ') };
   })();
 
@@ -251,7 +238,7 @@ function Viewer({ loaded }: { loaded: Loaded }) {
 
   return (
     <>
-      <div className="grid gap-x-5 gap-y-5 xl:grid-cols-[14rem_minmax(0,1fr)_20rem] xl:grid-rows-[repeat(4,auto)_1fr] xl:items-start">
+      <div className="grid gap-x-5 gap-y-5 xl:mx-auto xl:w-full xl:max-w-[calc(max(22rem,100svh-6rem)+25.25rem)] xl:grid-cols-[minmax(0,1fr)_24rem] xl:grid-rows-[auto_minmax(0,1fr)_auto] xl:items-start 2xl:max-w-[calc(max(22rem,100svh-6rem)+29.25rem)] 2xl:grid-cols-[minmax(0,1fr)_28rem]">
         <h1 className="sr-only">{loaded.source}</h1>
         <div
           ref={column}
@@ -259,7 +246,7 @@ function Viewer({ loaded }: { loaded: Loaded }) {
           // that its strips stay on screen, with the step buttons too until they move
           // beside it at xl. 2.5rem of the width is the eval bar and its gap; the
           // rem figure is everything else stacked above and below the board.
-          className="grid w-[min(100%,max(22rem,calc(100svh-11.5rem)))] grid-cols-[1.75rem_minmax(0,1fr)] gap-x-3 justify-self-center xl:col-start-2 xl:row-start-1 xl:row-span-5 xl:w-[min(100%,max(22rem,calc(100svh-8.5rem)))]"
+          className="grid w-[min(100%,max(22rem,calc(100svh-11.5rem)))] grid-cols-[1.75rem_minmax(0,1fr)] gap-x-3 justify-self-center xl:col-start-1 xl:row-span-3 xl:row-start-1 xl:w-[min(100%,max(22rem,calc(100svh-6rem)))] xl:justify-self-start"
           style={size === null ? undefined : { width: size }}
         >
           <div className="col-start-2">{strip(top)}</div>
@@ -326,7 +313,7 @@ function Viewer({ loaded }: { loaded: Loaded }) {
           <div className="col-start-2">{strip(bottom)}</div>
         </div>
 
-        <div className="ml-10 flex flex-wrap items-center justify-center gap-2 justify-self-center xl:col-start-3 xl:row-start-3 xl:ml-0 xl:justify-self-stretch">
+        <div className="ml-10 flex flex-wrap items-center justify-center gap-2 justify-self-center xl:col-start-2 xl:row-start-3 xl:-mt-5 xl:ml-0 xl:h-13 xl:justify-self-stretch">
           {stepButton(
             'First move',
             <ChevronsLeftIcon aria-hidden />,
@@ -372,48 +359,25 @@ function Viewer({ loaded }: { loaded: Loaded }) {
             <RotateCwIcon aria-hidden />
           </Button>
         </div>
-        <div className="w-full max-w-2xl min-w-0 justify-self-center xl:col-start-1 xl:row-span-5 xl:row-start-1 xl:max-w-none">
+        <div className="w-full max-w-2xl min-w-0 justify-self-center xl:col-start-2 xl:row-start-1 xl:mt-13 xl:max-w-none">
           <CoachBubble
             grade={grade ?? undefined}
             move={ply && grade ? moveLabel(ply) : undefined}
             eval={grade ? eval_ : undefined}
+            best={better && better !== ply?.san ? better : undefined}
             title={coach.title}
-            actions={
-              nextAt !== null && (
-                <Button size="sm" onClick={() => go(nextAt)}>
-                  Next mistake
-                  <ChevronRightIcon aria-hidden />
-                </Button>
-              )
-            }
           >
             {coach.body}
           </CoachBubble>
         </div>
-        <div className="w-full max-w-2xl min-w-0 justify-self-center xl:col-start-3 xl:row-start-1 xl:max-w-none">
-          <LevelPicker
-            compact
-            legend="Analysis depth"
-            name="review-analysis-level"
-            value={loaded.level}
-            onChange={setReviewLevel}
-          />
-        </div>
         <section
           aria-label="Moves"
-          // The sheet is tall enough that the step buttons under it sit near the
-          // bottom of the screen.
-          className="border-line bg-surface flex h-72 w-full max-w-2xl min-w-0 flex-col justify-self-center overflow-hidden rounded-md border-3 shadow-md xl:col-start-3 xl:row-start-2 xl:h-[max(18rem,calc(100svh-12.5rem))] xl:max-w-none"
+          // At xl the sheet takes whatever height the board leaves beside it: its
+          // list is absolute, so it adds none of its own and the step buttons
+          // end level with the board's bottom edge.
+          className="border-line bg-surface relative flex h-72 w-full max-w-2xl min-w-0 flex-col justify-self-center overflow-hidden rounded-md border-3 shadow-md xl:col-start-2 xl:row-start-2 xl:h-auto xl:max-w-none xl:self-stretch"
         >
-          <header className="border-line bg-surface-alt border-b-3 px-3 py-2">
-            <p className="text-ink-muted text-xs leading-4 font-extrabold tracking-[0.08em] uppercase">
-              Opening
-            </p>
-            <h2 className="font-display text-lg leading-6 font-extrabold">
-              {opening ?? 'Moves'}
-            </h2>
-          </header>
-          <div className="min-h-0 flex-1 overflow-y-auto">
+          <div className="min-h-0 flex-1 overflow-y-auto xl:absolute xl:inset-0">
             <MoveList
               plies={plies}
               grades={grades}
@@ -422,27 +386,6 @@ function Viewer({ loaded }: { loaded: Loaded }) {
             />
           </div>
         </section>
-        <div className="flex w-full max-w-2xl min-w-0 flex-col gap-5 justify-self-center xl:col-start-3 xl:row-start-4 xl:max-w-none">
-          <AnalysisMeter
-            done={analysis?.done ?? 0}
-            total={analysis?.positions.length ?? plies.length + 1}
-            phase={
-              analysis && !analysis.unavailable
-                ? analysisPhase(analysis, index)
-                : undefined
-            }
-            label={analysis?.unavailable ? 'Engine unavailable' : undefined}
-          />
-          <EnginePanel analysis={analysis} index={index} fen={fen} />
-          {atEnd && (
-            <p className="font-extrabold">
-              {headers.Termination ?? headers.Result ?? ''}
-            </p>
-          )}
-          <p className="text-ink-muted text-center text-xs">
-            Arrow keys step, space plays, F flips.
-          </p>
-        </div>
       </div>
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_400px] lg:items-start">

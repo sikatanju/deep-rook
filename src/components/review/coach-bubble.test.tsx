@@ -17,12 +17,28 @@ test('says what happened: grade, move, eval, the one-liner and the plain sentenc
     </CoachBubble>,
   );
   const coach = screen.getByRole('region', { name: 'Coach' });
-  expect(coach).toHaveTextContent('Brilliant');
-  expect(coach).toHaveTextContent('16. Qb8+');
+  expect(coach).toHaveTextContent('16. Qb8+ is a brilliant');
   expect(coach).toHaveTextContent('M1');
   expect(coach).toHaveTextContent('Queen sac! The board just gasped.');
   expect(coach).toHaveTextContent('Give the queen, mate next move.');
   expect(screen.getByRole('button', { name: 'Show line' })).toBeInTheDocument();
+});
+
+test('a played move that was not the engine’s pick names the better one', () => {
+  render(
+    <CoachBubble
+      grade="mistake"
+      move="1… e6"
+      eval="+0.2"
+      best="Nf6"
+      title="Oops."
+    >
+      Wobbly.
+    </CoachBubble>,
+  );
+  const coach = screen.getByRole('region', { name: 'Coach' });
+  expect(coach).toHaveTextContent('1… e6 is a mistake');
+  expect(coach).toHaveTextContent('Best was Nf6');
 });
 
 test('a bare bubble is just the line', () => {

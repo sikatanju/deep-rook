@@ -1,10 +1,4 @@
-import {
-  fireEvent,
-  render,
-  screen,
-  waitFor,
-  within,
-} from '@testing-library/react';
+import { fireEvent, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { expect, test, vi } from 'vitest';
 
@@ -44,7 +38,7 @@ async function openOperaGame(user: ReturnType<typeof userEvent.setup>) {
   await user.click(screen.getByRole('button', { name: 'Review game' }));
 }
 
-test('the review page shows the engine evaluation, best line, and arrow', async () => {
+test('the review page shows the engine evaluation on the bar, and its arrow', async () => {
   const user = userEvent.setup();
   render(<App />);
   await openOperaGame(user);
@@ -53,14 +47,13 @@ test('the review page shows the engine evaluation, best line, and arrow', async 
 
   // Position 30: Qb8+ Nxb8 Rd8# is mate in 2 for White.
   await waitFor(
-    () => expect(screen.getByLabelText('Evaluation')).toHaveTextContent('M2'),
+    () =>
+      expect(
+        screen.getByRole('meter', { name: "White's winning chances" }),
+      ).toHaveAttribute('aria-valuenow', '100'),
     { timeout: 5_000 },
   );
-  expect(screen.getByText('Qb8+ Nxb8 Rd8#')).toBeInTheDocument();
   expect(document.querySelector('[data-arrow="b3b8"]')).not.toBeNull();
-  expect(
-    screen.getByRole('meter', { name: "White's winning chances" }),
-  ).toHaveAttribute('aria-valuenow', '100');
 });
 
 test('the board carries the move grade on the piece, once the engine has graded it', async () => {
@@ -87,7 +80,7 @@ test('the board carries the move grade on the piece, once the engine has graded 
   expect(badge.closest('[data-square]')).toHaveAttribute('data-square', 'e4');
   // The coach says the same grade, in words.
   expect(screen.getByRole('region', { name: 'Coach' })).toHaveTextContent(
-    badge.getAttribute('aria-label')!,
+    new RegExp(badge.getAttribute('aria-label')!, 'i'),
   );
 
   // It is drawn over the destination square's piece, not in place of it.
@@ -109,22 +102,6 @@ test('the analysis depth setting persists across reloads', async () => {
 
   render(<App />);
   expect(screen.getByRole('radio', { name: /Deep/ })).toBeChecked();
-});
-
-test('the review page switches analysis depth', async () => {
-  const user = userEvent.setup();
-  render(<App />);
-  await openOperaGame(user);
-  await user.click(screen.getByRole('radio', { name: 'Fast' }));
-
-  await waitFor(() =>
-    expect(
-      within(screen.getByRole('region', { name: 'Engine' })).getByText(/^Fast/),
-    ).toBeInTheDocument(),
-  );
-  // The switch is also the remembered default for the next review.
-  await user.click(screen.getByRole('link', { name: 'Settings' }));
-  expect(screen.getByRole('radio', { name: /Fast/ })).toBeChecked();
 });
 
 test('the eval graph and game report fill in as analysis settles', async () => {
