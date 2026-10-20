@@ -254,8 +254,13 @@ function Viewer({ loaded }: { loaded: Loaded }) {
 
   return (
     <>
-      <div className="flex flex-wrap items-end justify-between gap-4">
+      <div className="grid gap-8 lg:grid-cols-[auto_minmax(0,1fr)] xl:grid-cols-[auto_minmax(0,1fr)_20rem] xl:items-start">
         <PageHeader
+          // From lg up the title stands on the left of the board, turned a
+          // quarter anticlockwise so it reads bottom to top and costs no height.
+          // `h-0 min-h-full` lets it take the board's height without setting it.
+          className="min-w-0 lg:h-0 lg:min-h-full lg:rotate-180 lg:[writing-mode:vertical-rl]"
+          titleClassName="lg:mt-0 lg:mr-2 lg:text-3xl"
           eyebrow={[
             opening,
             timeControl,
@@ -272,24 +277,13 @@ function Viewer({ loaded }: { loaded: Loaded }) {
             loaded.source
           )}
         </PageHeader>
-        <Button
-          size="sm"
-          aria-label="Flip board"
-          onClick={() => setFlipped((f) => !f)}
-        >
-          <RotateCwIcon aria-hidden />
-          Flip
-        </Button>
-      </div>
-
-      <div className="grid gap-8 xl:grid-cols-[minmax(0,1fr)_20rem] xl:items-start">
         <div
           ref={column}
           // The board is the page: as wide as the space allows, but short enough
           // that its strips and step buttons stay on screen. 2.5rem of the width
-          // is the eval bar and its gap; the 18.5rem is everything else stacked
+          // is the eval bar and its gap; the 11.5rem is everything else stacked
           // above and below the board.
-          className="grid w-[min(100%,max(22rem,calc(100svh-18.5rem)))] grid-cols-[1.75rem_minmax(0,1fr)] gap-x-3 justify-self-center"
+          className="grid w-[min(100%,max(22rem,calc(100svh-11.5rem)))] grid-cols-[1.75rem_minmax(0,1fr)] gap-x-3 justify-self-center"
           style={size === null ? undefined : { width: size }}
         >
           <div className="col-start-2">{strip(top)}</div>
@@ -391,10 +385,18 @@ function Viewer({ loaded }: { loaded: Loaded }) {
               last,
               atEnd,
             )}
+            <Button
+              size="sm"
+              aria-label="Flip board"
+              onClick={() => setFlipped((f) => !f)}
+            >
+              <RotateCwIcon aria-hidden />
+              Flip
+            </Button>
           </div>
         </div>
 
-        <div className="flex w-full max-w-2xl min-w-0 flex-col gap-5 justify-self-center xl:max-w-none">
+        <div className="flex w-full max-w-2xl min-w-0 flex-col gap-5 justify-self-center lg:col-span-2 xl:col-span-1 xl:max-w-none">
           <CoachBubble
             grade={grade ?? undefined}
             move={ply && grade ? moveLabel(ply) : undefined}
