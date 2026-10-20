@@ -1,0 +1,74 @@
+import { ResultStamp } from '@/components/game-picker/result-stamp';
+import type { Outcome } from '@/lib/chesscom/session';
+import { cn } from '@/lib/utils';
+
+/**
+ * One game in the picker: result stamp, opponent and their rating, time
+ * control, your rating after the game, when. The whole row is the button; it
+ * lifts on hover and drops flat on press, and fills with `primary` once staged.
+ */
+export function GameRow({
+  result,
+  opponent,
+  opponentRating,
+  playedWhite,
+  timeControl,
+  myRating,
+  when,
+  dateTime,
+  selected,
+  onSelect,
+}: {
+  result: Outcome;
+  opponent: string;
+  opponentRating: number;
+  playedWhite: boolean;
+  /** "blitz 180". */
+  timeControl: string;
+  myRating: number;
+  when: string;
+  dateTime: string;
+  selected: boolean;
+  onSelect: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      aria-pressed={selected}
+      onClick={onSelect}
+      className={cn(
+        'border-line text-ink grid w-full cursor-pointer grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 rounded-sm border-3 px-3 py-2.5 text-left transition-[translate,box-shadow] duration-[80ms] ease-in-out hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-md active:translate-x-0 active:translate-y-0 active:shadow-none sm:grid-cols-[72px_minmax(0,1fr)_auto_auto_auto]',
+        selected
+          ? 'bg-primary text-sticker-ink shadow-md'
+          : 'bg-surface hover:bg-surface-alt',
+      )}
+    >
+      <ResultStamp result={result} />
+      <span className="truncate font-bold">
+        <span className="sr-only">
+          {playedWhite ? 'White' : 'Black'} against{' '}
+        </span>
+        {opponent}
+        <small className="ml-1.5 font-mono text-xs opacity-80">
+          ({opponentRating})
+        </small>
+      </span>
+      <span className="border-line bg-surface-alt text-ink rounded-sm border-2 px-1.5 font-mono text-xs">
+        {timeControl}
+      </span>
+      <span className="hidden font-mono text-sm font-bold sm:inline">
+        <span className="sr-only">me </span>
+        {myRating}
+      </span>
+      <time
+        dateTime={dateTime}
+        className={cn(
+          'col-span-3 text-xs whitespace-nowrap sm:col-span-1',
+          selected ? 'text-sticker-ink' : 'text-ink-muted',
+        )}
+      >
+        {when}
+      </time>
+    </button>
+  );
+}

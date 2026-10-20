@@ -70,3 +70,30 @@ test('with no score the bar rests level with no label', () => {
   expect(fill.style.height).toBe('50%');
   expect(meter).toHaveTextContent(/^$/);
 });
+
+test('horizontal fills from White’s side, left unless flipped', () => {
+  render(
+    <EvalBar
+      orientation="horizontal"
+      score={{ kind: 'cp', cp: 120 }}
+      flipped={false}
+    />,
+  );
+  const fill = document.querySelector<HTMLElement>('[data-fill]')!;
+  expect(fill.style.left).toBe('0px');
+  expect(fill.style.width).toMatch(/%$/);
+  expect(fill.style.height).toBe('');
+  expect(screen.getByText('1.2').style.left).not.toBe('');
+  cleanup();
+
+  render(
+    <EvalBar
+      orientation="horizontal"
+      score={{ kind: 'cp', cp: 120 }}
+      flipped
+    />,
+  );
+  const flipped = document.querySelector<HTMLElement>('[data-fill]')!;
+  expect(flipped.style.right).toBe('0px');
+  expect(flipped.style.left).toBe('');
+});

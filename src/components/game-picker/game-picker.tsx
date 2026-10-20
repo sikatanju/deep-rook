@@ -1,13 +1,7 @@
 import { useState } from 'react';
 
 import { useStore } from '@/app/store';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Panel } from '@/components/panel';
 import {
   Select,
   SelectContent,
@@ -46,72 +40,68 @@ export function GamePicker() {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Find a game</CardTitle>
-        <CardDescription>
-          Enter a Chess.com username to list their recent games.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-4">
-        <UsernameForm busy={state.status === 'loading'} onSearch={search} />
-        <div aria-live="polite" className="flex flex-col gap-4">
-          {state.status === 'loading' && (
-            <p className="text-sm opacity-70">Loading {state.username}…</p>
-          )}
-          {state.status === 'error' && (
-            <p role="alert" className="text-destructive text-sm">
-              {errorMessages[state.error.kind]}
-            </p>
-          )}
-          {state.status === 'ready' && (
-            <>
-              <div className="flex items-center justify-between gap-3">
-                <p className="font-medium">
-                  {state.profile.title ? `${state.profile.title} ` : ''}
-                  {state.profile.username}
-                </p>
-                <Select
-                  value={state.month}
-                  onValueChange={(m) => selectMonth(m as MonthKey)}
-                >
-                  <SelectTrigger aria-label="Month" className="w-48">
-                    <SelectValue />
-                  </SelectTrigger>
-                  <SelectContent>
-                    {state.months.map((m) => (
-                      <SelectItem key={m} value={m}>
-                        {monthLabel(m)}
-                      </SelectItem>
-                    ))}
-                  </SelectContent>
-                </Select>
-              </div>
-              {state.games.kind === 'loading' && (
-                <p className="text-sm opacity-70">Loading games…</p>
-              )}
-              {state.games.kind === 'error' && (
-                <p role="alert" className="text-destructive text-sm">
-                  {errorMessages[state.games.error.kind]}
-                </p>
-              )}
-              {state.games.kind === 'loaded' && (
-                <GameList
-                  games={state.games.games}
-                  username={state.profile.username}
-                  selectedId={state.selected?.id}
-                  onSelect={stage}
-                />
-              )}
-              {openError && (
-                <p role="alert" className="text-destructive text-sm">
-                  {openError}
-                </p>
-              )}
-            </>
-          )}
-        </div>
-      </CardContent>
-    </Card>
+    <Panel
+      tag="Online"
+      title="Find a game"
+      subtitle="Enter a Chess.com username to list their recent games."
+    >
+      <UsernameForm busy={state.status === 'loading'} onSearch={search} />
+      <div aria-live="polite" className="flex flex-col gap-4">
+        {state.status === 'loading' && (
+          <p className="text-ink-muted">Loading {state.username}…</p>
+        )}
+        {state.status === 'error' && (
+          <p role="alert" className="text-ink font-bold">
+            {errorMessages[state.error.kind]}
+          </p>
+        )}
+        {state.status === 'ready' && (
+          <>
+            <div className="flex items-center justify-between gap-3">
+              <p className="text-lg font-extrabold">
+                {state.profile.title ? `${state.profile.title} ` : ''}
+                {state.profile.username}
+              </p>
+              <Select
+                value={state.month}
+                onValueChange={(m) => selectMonth(m as MonthKey)}
+              >
+                <SelectTrigger aria-label="Month" className="w-48">
+                  <SelectValue />
+                </SelectTrigger>
+                <SelectContent>
+                  {state.months.map((m) => (
+                    <SelectItem key={m} value={m}>
+                      {monthLabel(m)}
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
+            {state.games.kind === 'loading' && (
+              <p className="text-ink-muted">Loading games…</p>
+            )}
+            {state.games.kind === 'error' && (
+              <p role="alert" className="text-ink font-bold">
+                {errorMessages[state.games.error.kind]}
+              </p>
+            )}
+            {state.games.kind === 'loaded' && (
+              <GameList
+                games={state.games.games}
+                username={state.profile.username}
+                selectedId={state.selected?.id}
+                onSelect={stage}
+              />
+            )}
+            {openError && (
+              <p role="alert" className="text-ink font-bold">
+                {openError}
+              </p>
+            )}
+          </>
+        )}
+      </div>
+    </Panel>
   );
 }

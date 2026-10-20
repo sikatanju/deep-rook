@@ -7,22 +7,41 @@ function barLabel(score: Score): string {
 }
 
 /**
- * White's winning chances as a vertical bar beside the board. White fills
- * from White's side of the board, and the label sits at the winning side's
- * end. With no score yet the bar rests level and unlabelled.
+ * White's winning chances as a bar: vertical beside the board, horizontal
+ * under it on small screens and in the settings preview. White fills from
+ * White's side of the board, and the label sits at the winning side's end.
+ * With no score yet the bar rests level and unlabelled. A vertical bar takes
+ * its height from the row it stretches in; a horizontal one its width.
  */
 export function EvalBar({
   score,
   flipped,
+  orientation = 'vertical',
+  className,
 }: {
   score: Score | null;
   flipped: boolean;
+  orientation?: 'vertical' | 'horizontal';
+  className?: string;
 }) {
+  const horizontal = orientation === 'horizontal';
   const win = score ? winPercent(score) : 50;
-  const whiteEnd = flipped ? 'top' : 'bottom';
-  const blackEnd = flipped ? 'bottom' : 'top';
+  const [whiteEnd, blackEnd] = horizontal
+    ? flipped
+      ? (['right', 'left'] as const)
+      : (['left', 'right'] as const)
+    : flipped
+      ? (['top', 'bottom'] as const)
+      : (['bottom', 'top'] as const);
   const whiteLeads =
     score?.kind === 'mate' ? score.winner === 'w' : (score?.cp ?? 0) >= 0;
+  // The outline sits on the edge where White's share meets Black's.
+  const seam = {
+    left: 'border-r-2',
+    right: 'border-l-2',
+    top: 'border-b-2',
+    bottom: 'border-t-2',
+  }[whiteEnd];
 
   return (
     <div
@@ -31,18 +50,33 @@ export function EvalBar({
       aria-valuemin={0}
       aria-valuemax={100}
       aria-valuenow={Math.round(win)}
-      className="relative overflow-hidden rounded-sm bg-neutral-800"
+      className={cn(
+        'border-line bg-eval-black relative overflow-hidden border-3 shadow-md',
+        horizontal ? 'h-7 w-full' : 'w-7 flex-none',
+        className,
+      )}
     >
       <div
         data-fill=""
-        className="absolute inset-x-0 bg-neutral-100 transition-[height] duration-300 ease-out"
-        style={{ [whiteEnd]: 0, height: `${win}%` }}
+        className={cn(
+          'border-line bg-eval-white absolute transition-[height,width] duration-[350ms] ease-[cubic-bezier(0.2,1.4,0.4,1)] motion-reduce:transition-none',
+          horizontal ? 'inset-y-0' : 'inset-x-0',
+          win > 0 && seam,
+        )}
+        style={
+          horizontal
+            ? { [whiteEnd]: 0, width: `${win}%` }
+            : { [whiteEnd]: 0, height: `${win}%` }
+        }
       />
       {score && (
         <span
           className={cn(
-            'absolute inset-x-0 text-center text-[10px] leading-none font-semibold tabular-nums',
-            whiteLeads ? 'text-neutral-800' : 'text-neutral-100',
+            'absolute font-mono text-[10px] leading-none font-bold tabular-nums',
+            horizontal
+              ? 'inset-y-0 flex items-center'
+              : 'inset-x-0 text-center',
+            whiteLeads ? 'text-eval-black' : 'text-eval-white',
           )}
           style={{ [whiteLeads ? whiteEnd : blackEnd]: '0.375rem' }}
         >

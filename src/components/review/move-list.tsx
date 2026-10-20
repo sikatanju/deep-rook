@@ -1,23 +1,19 @@
 import { useEffect, useRef } from 'react';
 
-import { CLASSIFICATIONS, type Classification } from '@/lib/analysis/classify';
+import { GradeSticker } from '@/components/review/grade-sticker';
+import type { Classification } from '@/lib/analysis/classify';
 import type { Ply } from '@/lib/chess/replay';
 import { cn } from '@/lib/utils';
 
-export function GradeBadge({ grade }: { grade: Classification }) {
-  const { label, symbol, color } = CLASSIFICATIONS[grade];
-  return (
-    <span
-      role="img"
-      aria-label={label}
-      title={label}
-      className="inline-grid h-4 min-w-4 place-items-center rounded-full px-0.5 font-sans text-[10px] leading-none font-bold text-white"
-      style={{ background: color }}
-    >
-      {symbol}
-    </span>
-  );
-}
+/** Only these get a chip, so the list stays scannable. */
+const CHIPPED = new Set<Classification>([
+  'brilliant',
+  'great',
+  'inaccuracy',
+  'mistake',
+  'miss',
+  'blunder',
+]);
 
 export function MoveList({
   plies,
@@ -46,7 +42,8 @@ export function MoveList({
     rows.at(-1)![ply.color] = i;
   });
   const cell = (ply: number | undefined) => {
-    if (ply === undefined) return <span />;
+    if (ply === undefined)
+      return <span className="border-line border-b border-dashed" />;
     const move = plies[ply]!;
     const selected = index === ply + 1;
     const grade = grades[ply];
@@ -57,21 +54,29 @@ export function MoveList({
         aria-current={selected ? 'step' : undefined}
         onClick={() => onSelect(ply + 1)}
         className={cn(
-          'focus-visible:ring-ring flex items-center justify-between gap-1 rounded px-2 py-1 text-left font-mono text-sm outline-none focus-visible:ring-2',
-          selected ? 'bg-primary text-primary-foreground' : 'hover:bg-accent',
+          'border-line flex cursor-pointer items-center justify-between gap-1.5 border-b border-dashed px-2 py-1 text-left font-mono text-sm font-bold',
+          selected
+            ? 'bg-primary text-sticker-ink shadow-[inset_0_0_0_2px_var(--line)]'
+            : 'hover:bg-surface-alt',
         )}
       >
         {move.san}
-        {grade && <GradeBadge grade={grade} />}
+        {grade && CHIPPED.has(grade) && (
+          <GradeSticker
+            grade={grade}
+            iconOnly
+            className="scale-90 shadow-none"
+          />
+        )}
       </button>
     );
   };
 
   return (
-    <ol className="grid grid-cols-[2.5rem_1fr_1fr] content-start gap-y-0.5">
+    <ol className="grid grid-cols-[2.5rem_1fr_1fr] content-start">
       {rows.map((row) => (
         <li key={row.number} className="contents">
-          <span className="py-1 pr-1 text-right font-mono text-sm opacity-50">
+          <span className="border-line bg-surface-alt text-ink-muted border-b border-dashed p-1.5 text-right font-mono text-xs shadow-[inset_-2px_0_0_var(--line)]">
             {row.number}.
           </span>
           {cell(row.w)}

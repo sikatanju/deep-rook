@@ -10,16 +10,30 @@ import { winPercent, type Line } from '@/lib/chess/score';
 
 import type { PositionAnalysis } from './game-analysis';
 
+// `color` is a design-system token, so a grade looks the same in every palette
+// and in places that cannot take a class (an SVG attribute).
 export const CLASSIFICATIONS = {
-  brilliant: { label: 'Brilliant', symbol: '!!', color: '#1baca6' },
-  great: { label: 'Great', symbol: '!', color: '#5c8bb0' },
-  best: { label: 'Best', symbol: '★', color: '#81b64c' },
-  excellent: { label: 'Excellent', symbol: '✓', color: '#96bc4b' },
-  good: { label: 'Good', symbol: '✓', color: '#96af8b' },
-  inaccuracy: { label: 'Inaccuracy', symbol: '?!', color: '#e6b422' },
-  mistake: { label: 'Mistake', symbol: '?', color: '#ffa459' },
-  miss: { label: 'Miss', symbol: '✗', color: '#ff7769' },
-  blunder: { label: 'Blunder', symbol: '??', color: '#fa412d' },
+  brilliant: {
+    label: 'Brilliant',
+    symbol: '!!',
+    color: 'var(--grade-brilliant)',
+  },
+  great: { label: 'Great', symbol: '!', color: 'var(--grade-great)' },
+  best: { label: 'Best', symbol: '★', color: 'var(--grade-best)' },
+  excellent: {
+    label: 'Excellent',
+    symbol: '+',
+    color: 'var(--grade-excellent)',
+  },
+  good: { label: 'Good', symbol: '✓', color: 'var(--grade-good)' },
+  inaccuracy: {
+    label: 'Inaccuracy',
+    symbol: '?!',
+    color: 'var(--grade-inaccuracy)',
+  },
+  mistake: { label: 'Mistake', symbol: '?', color: 'var(--grade-mistake)' },
+  miss: { label: 'Miss', symbol: '✕', color: 'var(--grade-miss)' },
+  blunder: { label: 'Blunder', symbol: '??', color: 'var(--grade-blunder)' },
 } as const;
 
 export type Classification = keyof typeof CLASSIFICATIONS;

@@ -18,17 +18,27 @@ const { title } = Astro.props;
     <link rel="icon" href="/favicon.ico" />
     <title>{title}</title>
     <script is:inline>
+      // First paint: the saved palette, so the page never flashes the default.
+      // Keep the ids and the old-toggle fallback in step with lib/palettes.ts
+      // and loadSettings in app/store.tsx.
       (() => {
-        let stored = null;
+        const ids = [
+          'pop',
+          'mint',
+          'blueprint',
+          'retro',
+          'bubblegum',
+          'citrus',
+          'newsprint',
+          'arcade',
+        ];
+        let palette = 'pop';
         try {
-          stored = localStorage.getItem('theme');
+          const saved = JSON.parse(localStorage.getItem('settings') || '{}');
+          if (saved && ids.includes(saved.palette)) palette = saved.palette;
+          else if (localStorage.getItem('theme') === 'dark') palette = 'arcade';
         } catch {}
-        const dark =
-          stored === 'dark' ||
-          (stored !== 'light' &&
-            matchMedia('(prefers-color-scheme: dark)').matches);
-        document.documentElement.classList.toggle('dark', dark);
-        document.documentElement.style.colorScheme = dark ? 'dark' : 'light';
+        document.documentElement.dataset.theme = palette;
       })();
     </script>
   </head>

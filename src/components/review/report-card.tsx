@@ -1,10 +1,9 @@
 import { ChevronDownIcon } from 'lucide-react';
 
+import { GradeSticker } from '@/components/review/grade-sticker';
 import { CLASSIFICATIONS, type Classification } from '@/lib/analysis/classify';
 import type { GameReport, PlayerReport } from '@/lib/analysis/report';
 import { cn } from '@/lib/utils';
-
-import { GradeBadge } from './move-list';
 
 /** The nothing-graded half: every slot the streaming report will fill in. */
 const UNGRADED: PlayerReport = {
@@ -18,135 +17,160 @@ const UNGRADED: PlayerReport = {
   ) as Record<Classification, number>,
 };
 
+const GRADES = Object.keys(CLASSIFICATIONS) as Classification[];
+
+type Who = { name?: string; rating?: string };
+
 /**
- * Whole-game summary of the analysis: accuracy estimates, per-grade counts,
- * and jump-to moments, collapsed until opened. Keeps its layout while `report`
- * is null (before the first analyzer flush) so the review card does not jump:
- * the accuracy slots show ellipses, both nine-cell count grids render their
- * zeros, and the open moments list holds its height. Reads back through data-*
- * attributes only, like the board and engine panel.
+ * Whole-game summary of the analysis: both players' accuracy as big mono
+ * numerals, a count of every grade (White left, Black right), and the
+ * jump-to moments, collapsed until opened. The one card per screen that gets
+ * the 4px border and the biggest shadow. Keeps its layout while `report` is
+ * null (before the first analyzer flush) so the page does not jump: the
+ * accuracy slots show ellipses, every count renders its zero, and the open
+ * moments list holds its height. Reads back through data-* attributes only,
+ * like the board and engine panel.
  */
 export function ReportCard({
   report,
   onJump,
+  level,
+  white: whoWhite,
+  black: whoBlack,
 }: {
   report: GameReport | null;
   onJump: (index: number) => void;
+  /** The review mode that produced it, e.g. "Balanced". */
+  level?: string;
+  white?: Who;
+  black?: Who;
 }) {
   const white = report?.white ?? UNGRADED;
   const black = report?.black ?? UNGRADED;
   const moments = report?.keyMoments ?? [];
 
+  const player = (
+    color: 'w' | 'b',
+    word: string,
+    who: Who | undefined,
+    half: PlayerReport,
+  ) => (
+    <div className="p-4 text-center">
+      <p className="truncate font-extrabold">
+        {who?.name ?? word}
+        {who?.rating && (
+          <span className="text-ink-muted ml-1.5 font-mono font-bold">
+            ({who.rating})
+          </span>
+        )}
+      </p>
+      <span
+        data-accuracy={color}
+        aria-label={`${word} accuracy estimate`}
+        className={cn(
+          'border-line my-2 inline-block rounded-sm border-3 px-3 py-2 font-mono text-[40px] leading-none font-bold tracking-[-0.04em] tabular-nums shadow-md',
+          color === 'w'
+            ? 'bg-eval-white text-sticker-ink'
+            : 'bg-eval-black text-white',
+        )}
+      >
+        {half.accuracy?.toFixed(1) ?? '…'}
+      </span>
+      <p className="text-ink-muted text-xs leading-4 font-extrabold tracking-[0.08em] uppercase">
+        Accuracy (est.)
+      </p>
+    </div>
+  );
+
+  const count = (
+    color: 'w' | 'b',
+    grade: Classification,
+    half: PlayerReport,
+  ) => {
+    const n = half.counts[grade] ?? 0;
+    return (
+      <span data-color={color} className="p-1 text-center">
+        <span
+          data-grade={grade}
+          data-count={n}
+          className={cn(
+            'font-mono font-bold tabular-nums',
+            n === 0 && 'text-ink-muted',
+          )}
+        >
+          {n}
+        </span>
+      </span>
+    );
+  };
+
   return (
-    <section aria-label="Game report" className="flex flex-col gap-3">
-      <div className="flex items-baseline justify-between gap-2">
-        <p className="text-xs font-medium opacity-70">Accuracy (est.)</p>
-        <div className="flex items-baseline gap-3">
-          <span className="flex items-baseline gap-1.5">
-            <span className="text-xs opacity-70">White</span>
-            <span
-              data-accuracy="w"
-              aria-label="White accuracy estimate"
-              className="font-mono text-xl font-semibold tabular-nums"
-            >
-              {white.accuracy?.toFixed(1) ?? '…'}
-            </span>
+    <section
+      aria-label="Game report"
+      className="border-line bg-surface overflow-hidden rounded-md border-4 shadow-xl"
+    >
+      <header className="border-line bg-accent text-sticker-ink flex items-center justify-between gap-3 border-b-3 px-4 py-3">
+        <h3 className="font-display text-xl leading-6 font-extrabold">
+          Game report
+        </h3>
+        {level && (
+          <span className="text-xs leading-4 font-extrabold tracking-[0.08em] uppercase">
+            {level} review
           </span>
-          <span className="flex items-baseline gap-1.5">
-            <span className="text-xs opacity-70">Black</span>
-            <span
-              data-accuracy="b"
-              aria-label="Black accuracy estimate"
-              className="font-mono text-xl font-semibold tabular-nums"
-            >
-              {black.accuracy?.toFixed(1) ?? '…'}
-            </span>
-          </span>
-        </div>
+        )}
+      </header>
+
+      <div className="border-line [&>*+*]:border-line grid grid-cols-2 border-b-3 [&>*+*]:border-l-3">
+        {player('w', 'White', whoWhite, white)}
+        {player('b', 'Black', whoBlack, black)}
       </div>
 
-      <div className="flex flex-col gap-1">
-        <p className="text-xs font-medium opacity-70">Move quality</p>
-        {(
-          [
-            ['w', 'White', white],
-            ['b', 'Black', black],
-          ] as const
-        ).map(([color, name, half]) => (
-          <div key={color} data-color={color} className="flex items-center gap-2">
-            <span className="w-9 shrink-0 text-xs opacity-70">{name}</span>
-            <div className="flex flex-1 items-center justify-between">
-              {(Object.keys(CLASSIFICATIONS) as Classification[]).map((grade) => {
-                const count = half.counts[grade] ?? 0;
-                const { label, symbol, color: gradeColor } =
-                  CLASSIFICATIONS[grade];
-                return (
-                  <span
-                    key={grade}
-                    data-grade={grade}
-                    data-count={count}
-                    title={label}
-                    className="flex items-center gap-0.5"
-                  >
-                    <span
-                      aria-hidden
-                      className="text-[10px] font-bold leading-none"
-                      style={{ color: gradeColor }}
-                    >
-                      {symbol}
-                    </span>
-                    <span
-                      className={cn(
-                        'font-mono text-xs tabular-nums',
-                        count === 0 && 'opacity-50',
-                      )}
-                    >
-                      {count}
-                    </span>
-                  </span>
-                );
-              })}
-            </div>
+      <div className="border-line grid grid-cols-[1fr_auto_1fr] items-center border-b-3 py-1">
+        {GRADES.map((grade) => (
+          <div key={grade} className="contents">
+            {count('w', grade, white)}
+            <GradeSticker grade={grade} className="my-0.5 shadow-none" />
+            {count('b', grade, black)}
           </div>
         ))}
       </div>
 
-      <details className="group">
-        <summary className="focus-visible:ring-ring flex cursor-pointer items-center gap-1.5 rounded text-xs font-medium outline-none focus-visible:ring-2 [&::-webkit-details-marker]:hidden">
-          <span className="opacity-70">Key moments</span>
-          <span className="font-mono tabular-nums opacity-50">
+      <details className="group px-4 py-3">
+        <summary className="flex cursor-pointer items-center gap-1.5 rounded-sm text-xs leading-4 font-extrabold tracking-[0.08em] uppercase [&::-webkit-details-marker]:hidden">
+          <span>Key moments</span>
+          <span className="text-ink-muted font-mono tabular-nums">
             {report ? moments.length : '…'}
           </span>
           <ChevronDownIcon
             aria-hidden
-            className="ml-auto size-3.5 opacity-70 transition-transform group-open:rotate-180"
+            className="ml-auto size-4 transition-transform group-open:rotate-180"
           />
         </summary>
         {/* Five rows reserved: the report keeps at most five moments, so the
             card reaches its final height on the first flush and never jumps. */}
-        <div className="mt-1 min-h-28">
+        <div className="mt-2 min-h-32">
           {moments.length > 0 ? (
-            <ol className="flex flex-col gap-0.5">
+            <ol className="flex flex-col gap-1">
               {moments.map((moment) => (
                 <li key={moment.index}>
                   <button
                     type="button"
                     onClick={() => onJump(moment.index)}
-                    className="focus-visible:ring-ring hover:bg-accent flex w-full items-center gap-2 rounded px-1.5 py-1 text-left text-sm outline-none focus-visible:ring-2"
+                    className="hover:border-line hover:bg-surface-alt flex w-full cursor-pointer items-center gap-2 rounded-sm border-2 border-transparent px-1.5 py-1 text-left"
                   >
                     {/* One text node: accessible-name computation trims
                         whitespace at element boundaries, so a split
                         "16." + "Qb8" would name the button "16.Qb8". */}
-                    <span className="font-mono text-sm tabular-nums">
+                    <span className="font-mono text-sm font-bold tabular-nums">
                       {`${moment.moveNumber}${moment.color === 'w' ? '.' : '…'} ${moment.san}`}
                     </span>
-                    <GradeBadge grade={moment.grade} />
+                    <GradeSticker grade={moment.grade} iconOnly />
                   </button>
                 </li>
               ))}
             </ol>
           ) : (
-            <p className="px-1.5 py-1 text-sm opacity-50">
+            <p className="text-ink-muted px-1.5 py-1">
               {report ? 'None' : '…'}
             </p>
           )}
@@ -154,7 +178,7 @@ export function ReportCard({
       </details>
 
       {report && (
-        <p className="text-xs opacity-60">
+        <p className="border-line text-ink-muted border-t-2 px-4 py-2 font-mono text-xs">
           {report.settled}/{report.total} positions
         </p>
       )}

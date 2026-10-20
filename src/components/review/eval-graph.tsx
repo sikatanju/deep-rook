@@ -4,7 +4,11 @@
 // lives in an attribute and the pointer math is the exported pure function,
 // pinned by tests without any layout.
 
-import { useRef, type PointerEvent as ReactPointerEvent } from 'react';
+import {
+  useRef,
+  useState,
+  type PointerEvent as ReactPointerEvent,
+} from 'react';
 
 import { CLASSIFICATIONS, type Classification } from '@/lib/analysis/classify';
 
@@ -37,6 +41,7 @@ export function EvalGraph({
   series,
   index,
   marks,
+  labels,
   onScrub,
 }: {
   /** White's win% per position, aligned with viewer index; null = unsettled. */
@@ -45,6 +50,8 @@ export function EvalGraph({
   index: number;
   /** Key moments, drawn as dots on the curve in their grade color. */
   marks?: readonly { index: number; grade: Classification }[];
+  /** One per position, shown in the hover tooltip: "16. Qb8+  M1". */
+  labels?: readonly string[];
   onScrub: (index: number) => void;
 }) {
   const count = series.length;
@@ -71,86 +78,125 @@ export function EvalGraph({
   if (run.length > 0) runs.push(run);
 
   const drag = useRef(false);
-  const scrub = (e: ReactPointerEvent<SVGSVGElement>) => {
+  const [hover, setHover] = useState<number | null>(null);
+  const at = (e: ReactPointerEvent<SVGSVGElement>) => {
     const rect = e.currentTarget.getBoundingClientRect();
-    onScrub(pointerToIndex(e.clientX - rect.left, rect.width, count));
+    return pointerToIndex(e.clientX - rect.left, rect.width, count);
   };
+  const scrub = (e: ReactPointerEvent<SVGSVGElement>) => onScrub(at(e));
+  const tip = hover !== null ? labels?.[hover] : undefined;
 
   return (
-    <svg
-      viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
-      preserveAspectRatio="none"
-      role="img"
-      aria-label={`Evaluation graph, position ${index + 1} of ${count}, ${settled}/${count} analyzed`}
-      className="block h-20 w-full touch-none"
-      onPointerDown={(e) => {
-        // jsdom lacks pointer capture and may throw on a stray pointer id;
-        // capture is best-effort, the drag itself must not depend on it.
-        try {
-          e.currentTarget.setPointerCapture?.(e.pointerId);
-        } catch {
-          // un-captured moves still reach the svg while the pointer is over
-          // it, which is where a drag lives anyway.
-        }
-        drag.current = true;
-        scrub(e);
-      }}
-      onPointerMove={(e) => {
-        if (drag.current) scrub(e);
-      }}
-      onPointerUp={() => {
-        drag.current = false;
-      }}
-      onPointerCancel={() => {
-        drag.current = false;
-      }}
-    >
-      {/* The even-game midline, faint under the curve. */}
-      <line
-        x1="0"
-        y1={HEIGHT / 2}
-        x2={WIDTH}
-        y2={HEIGHT / 2}
-        stroke="currentColor"
-        strokeWidth={2}
-        opacity={0.2}
-        vectorEffect="non-scaling-stroke"
-      />
-      {runs.map((points, k) => (
-        <polyline
-          key={k}
-          data-seg={k}
-          points={points.join(' ')}
-          fill="none"
-          stroke="currentColor"
-          strokeWidth={2}
+    <div className="border-line bg-eval-black relative border-3 shadow-md">
+      <svg
+        viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+        preserveAspectRatio="none"
+        role="img"
+        aria-label={`Evaluation graph, position ${index + 1} of ${count}, ${settled}/${count} analyzed`}
+        className="block h-[120px] w-full cursor-crosshair touch-none"
+        onPointerDown={(e) => {
+          // jsdom lacks pointer capture and may throw on a stray pointer id;
+          // capture is best-effort, the drag itself must not depend on it.
+          try {
+            e.currentTarget.setPointerCapture?.(e.pointerId);
+          } catch {
+            // un-captured moves still reach the svg while the pointer is over
+            // it, which is where a drag lives anyway.
+          }
+          drag.current = true;
+          scrub(e);
+        }}
+        onPointerMove={(e) => {
+          if (drag.current) scrub(e);
+          setHover(at(e));
+        }}
+        onPointerLeave={() => setHover(null)}
+        onPointerUp={() => {
+          drag.current = false;
+        }}
+        onPointerCancel={() => {
+          drag.current = false;
+        }}
+      >
+        {/* The even-game midline, faint under the curve. */}
+        <line
+          x1="0"
+          y1={HEIGHT / 2}
+          x2={WIDTH}
+          y2={HEIGHT / 2}
+          stroke="var(--draw)"
+          strokeWidth={1}
+          strokeDasharray="4 4"
           vectorEffect="non-scaling-stroke"
         />
-      ))}
-      {/* A mark only lands on a settled point, so its dot is always on a
-          drawn piece of the curve. */}
-      {marks
-        ?.filter((m) => point(m.index) !== null)
-        .map((m) => (
-          <circle
-            key={m.index}
-            data-mark={m.index}
-            cx={fixed(x(m.index))}
-            cy={fixed(y(point(m.index)!))}
-            r={6}
-            fill={CLASSIFICATIONS[m.grade].color}
+        {/* White's share: the area under each settled run. */}
+        {runs.map((points, k) => (
+          <polygon
+            key={k}
+            data-area={k}
+            points={`${points[0]!.split(',')[0]},${HEIGHT} ${points.join(' ')} ${points.at(-1)!.split(',')[0]},${HEIGHT}`}
+            fill="var(--eval-white)"
           />
         ))}
-      <line
-        data-cursor=""
-        x1={fixed(x(index))}
-        x2={fixed(x(index))}
-        y1={0}
-        y2={HEIGHT}
-        stroke="currentColor"
-        strokeWidth={2}
-        vectorEffect="non-scaling-stroke"
-      />
-    </svg>
+        {runs.map((points, k) => (
+          <polyline
+            key={k}
+            data-seg={k}
+            points={points.join(' ')}
+            fill="none"
+            stroke="var(--line)"
+            strokeWidth={2}
+            vectorEffect="non-scaling-stroke"
+          />
+        ))}
+        {/* A mark only lands on a settled point, so its dot is always on a
+          drawn piece of the curve. */}
+        {marks
+          ?.filter((m) => point(m.index) !== null)
+          .map((m) => (
+            <circle
+              key={m.index}
+              data-mark={m.index}
+              cx={fixed(x(m.index))}
+              cy={fixed(y(point(m.index)!))}
+              r={6}
+              fill={CLASSIFICATIONS[m.grade].color}
+              stroke="var(--line)"
+              strokeWidth={2}
+              vectorEffect="non-scaling-stroke"
+            />
+          ))}
+        {hover !== null && hover !== index && (
+          <line
+            data-hover={hover}
+            x1={fixed(x(hover))}
+            x2={fixed(x(hover))}
+            y1={0}
+            y2={HEIGHT}
+            stroke="var(--accent)"
+            strokeWidth={2}
+            vectorEffect="non-scaling-stroke"
+          />
+        )}
+        <line
+          data-cursor=""
+          x1={fixed(x(index))}
+          x2={fixed(x(index))}
+          y1={0}
+          y2={HEIGHT}
+          stroke="var(--primary)"
+          strokeWidth={3}
+          vectorEffect="non-scaling-stroke"
+        />
+      </svg>
+      {tip && hover !== null && (
+        <span
+          className="border-line bg-surface text-ink pointer-events-none absolute top-1.5 -translate-x-1/2 rounded-sm border-2 px-2 font-mono text-xs font-bold whitespace-nowrap shadow-sm"
+          style={{ left: `${count > 1 ? (hover / (count - 1)) * 100 : 0}%` }}
+        >
+          {tip}
+        </span>
+      )}
+    </div>
   );
 }

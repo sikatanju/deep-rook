@@ -35,7 +35,7 @@ export function UsernameForm({
   }
 
   return (
-    <form onSubmit={submit} className="flex gap-2">
+    <form onSubmit={submit} className="flex gap-3">
       <Input
         aria-label="Chess.com username"
         placeholder="Chess.com username"
@@ -45,7 +45,7 @@ export function UsernameForm({
         autoCapitalize="none"
         spellCheck={false}
       />
-      <Button type="submit" disabled={busy || !value.trim()}>
+      <Button type="submit" variant="primary" disabled={busy || !value.trim()}>
         {busy ? 'Loading…' : 'Find games'}
       </Button>
     </form>

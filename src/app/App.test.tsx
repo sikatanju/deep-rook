@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, expect, test, vi } from 'vitest';
 
@@ -8,7 +8,10 @@ afterEach(() => vi.unstubAllGlobals());
 
 test('renders the app shell with the username form', () => {
   render(<App />);
-  expect(screen.getByRole('heading', { name: 'DeepRook' })).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: 'DeepRook' })).toBeInTheDocument();
+  expect(
+    screen.getByRole('heading', { name: /Pick a game to roast/ }),
+  ).toBeInTheDocument();
   expect(screen.getByLabelText('Chess.com username')).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Find games' })).toBeDisabled();
 });
@@ -58,7 +61,11 @@ test('lists games for a user and opens one in the review page', async () => {
   expect(
     await screen.findByRole('img', { name: /Chess board/ }),
   ).toBeInTheDocument();
-  expect(screen.getByText('Rival')).toBeInTheDocument();
+  expect(
+    within(screen.getByRole('group', { name: 'Black player' })).getByText(
+      'Rival',
+    ),
+  ).toBeInTheDocument();
 });
 
 test('picking a game row only stages it until Review game is pressed', async () => {
@@ -93,4 +100,65 @@ test('shows a message when the user does not exist', async () => {
   expect(await screen.findByRole('alert')).toHaveTextContent(
     'No Chess.com player',
   );
+});
+
+test('choosing a palette sets data-theme and is remembered', async () => {
+  const user = userEvent.setup();
+  render(<App />);
+  expect(document.documentElement.dataset.theme).toBe('pop');
+  await user.click(screen.getByRole('button', { name: 'Arcade Night' }));
+  expect(document.documentElement.dataset.theme).toBe('arcade');
+  expect(JSON.parse(localStorage.getItem('settings')!)).toMatchObject({
+    palette: 'arcade',
+  });
+  localStorage.clear();
+});
+
+function stubLosingDay() {
+  const json = (body: unknown) =>
+    Promise.resolve(new Response(JSON.stringify(body)));
+  const lost = (n: number) => ({
+    url: `https://www.chess.com/game/live/${n}`,
+    pgn: `[White "Me"]\n[Black "Rival${n}"]\n\n1. e4 e5`,
+    end_time: 1735949652 + n * 60,
+    time_control: '60',
+    time_class: 'bullet',
+    rules: 'chess',
+    rated: true,
+    white: { username: 'Me', rating: 1500 - n, result: 'resigned' },
+    black: { username: `Rival${n}`, rating: 1490, result: 'win' },
+  });
+  vi.stubGlobal(
+    'fetch',
+    vi.fn((url: string) => {
+      if (url.endsWith('/games/archives'))
+        return json({ archives: ['https://x/pub/player/me/games/2025/01'] });
+      if (url.includes('/games/2025/01'))
+        return json({ games: [lost(1), lost(2), lost(3)] });
+      return json({ username: 'Me', joined: 1 });
+    }),
+  );
+}
+
+test('three straight losses get a coach word, and Review last loss stages the latest', async () => {
+  stubLosingDay();
+  const user = userEvent.setup();
+  render(<App />);
+  expect(screen.getByText('Step 1 of 2')).toBeInTheDocument();
+  await user.type(screen.getByLabelText('Chess.com username'), 'Me');
+  await user.click(screen.getByRole('button', { name: 'Find games' }));
+
+  const coach = await screen.findByRole('region', { name: 'Coach' });
+  expect(coach).toHaveTextContent('3 losses in a row');
+  await user.click(screen.getByRole('button', { name: 'Review last loss' }));
+
+  expect(screen.getByText('Me vs Rival3')).toBeInTheDocument();
+  expect(screen.getByText('Step 2 of 2')).toBeInTheDocument();
+  localStorage.clear();
+});
+
+test('a single loss draws no coach', async () => {
+  stubChessCom();
+  await findGameRow();
+  expect(screen.queryByRole('region', { name: 'Coach' })).toBeNull();
 });

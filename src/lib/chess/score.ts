@@ -17,14 +17,18 @@ export type Score =
  */
 export type Line = { score: Score; pv: readonly string[]; depth: number };
 
-/** "+1.24", "-0.30", "0.00", "#3" (White mates in 3), "#-2" (Black mates in 2), "#" for mate on the board. */
+/**
+ * How a score reads on screen: one decimal with a sign ("+1.4", "-0.6", "0.0"),
+ * "M2" when White mates in 2, "-M2" when Black does, "#" for mate on the board.
+ * Never raw centipawns.
+ */
 export function formatScore(score: Score): string {
   if (score.kind === 'mate') {
     if (score.moves === 0) return '#';
-    return score.winner === 'w' ? `#${score.moves}` : `#-${score.moves}`;
+    return score.winner === 'w' ? `M${score.moves}` : `-M${score.moves}`;
   }
-  const pawns = score.cp / 100;
-  return `${pawns > 0 ? '+' : ''}${pawns.toFixed(2)}`;
+  const pawns = Math.round(score.cp / 10) / 10;
+  return `${pawns > 0 ? '+' : ''}${pawns.toFixed(1)}`;
 }
 
 /**

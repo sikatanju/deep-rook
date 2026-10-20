@@ -17,8 +17,11 @@ import {
 } from '@/lib/analysis/levels';
 import type { Game } from '@/lib/chesscom/types';
 import { parseReplay, type Replay } from '@/lib/chess/replay';
+import { DEFAULT_PALETTE, isPaletteId, type PaletteId } from '@/lib/palettes';
 
 export const BOARD_THEMES = {
+  // Follows the active palette, so the board changes with it.
+  palette: { light: 'var(--board-light)', dark: 'var(--board-dark)' },
   green: { light: '#eeeed2', dark: '#769656' },
   brown: { light: '#f0d9b5', dark: '#b58863' },
   blue: { light: '#dee3e6', dark: '#8ca2ad' },
@@ -27,6 +30,7 @@ export const BOARD_THEMES = {
 export type BoardTheme = keyof typeof BOARD_THEMES;
 
 export type Settings = {
+  palette: PaletteId;
   boardTheme: BoardTheme;
   coordinates: boolean;
   autoplayMs: number;
@@ -34,7 +38,8 @@ export type Settings = {
 };
 
 const DEFAULT_SETTINGS: Settings = {
-  boardTheme: 'green',
+  palette: DEFAULT_PALETTE,
+  boardTheme: 'palette',
   coordinates: true,
   autoplayMs: 900,
   analysisLevel: DEFAULT_LEVEL,
@@ -53,8 +58,9 @@ export function parseSettings(raw: string | null): Settings {
     // Corrupt JSON: defaults.
   }
   const d = DEFAULT_SETTINGS;
-  const { boardTheme, coordinates, autoplayMs, analysisLevel } = data;
+  const { palette, boardTheme, coordinates, autoplayMs, analysisLevel } = data;
   return {
+    palette: isPaletteId(palette) ? palette : d.palette,
     boardTheme:
       typeof boardTheme === 'string' && Object.hasOwn(BOARD_THEMES, boardTheme)
         ? (boardTheme as BoardTheme)
@@ -70,9 +76,19 @@ export function parseSettings(raw: string | null): Settings {
   };
 }
 
-function loadSettings(): Settings {
+/**
+ * A saved palette wins. Without one, the old light/dark toggle's "dark" maps to
+ * Arcade Night, the dark palette. layouts/main.astro makes the same choice
+ * before first paint.
+ */
+export function loadSettings(): Settings {
   try {
-    return parseSettings(localStorage.getItem(SETTINGS_KEY));
+    const raw = localStorage.getItem(SETTINGS_KEY);
+    const settings = parseSettings(raw);
+    const saved = (raw && (JSON.parse(raw) as { palette?: unknown })) || {};
+    if (!isPaletteId(saved.palette) && localStorage.getItem('theme') === 'dark')
+      return { ...settings, palette: 'arcade' };
+    return settings;
   } catch {
     return DEFAULT_SETTINGS; // storage blocked
   }
@@ -169,6 +185,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     },
     [setSettings],
   );
+
+  useEffect(() => {
+    document.documentElement.dataset.theme = settings.palette;
+  }, [settings.palette]);
 
   useEffect(() => {
     try {

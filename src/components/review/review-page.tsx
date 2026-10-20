@@ -9,28 +9,38 @@ import {
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
-import { cn } from '@/lib/utils';
 import { navigate } from '@/app/router';
 import { useStore, type Loaded } from '@/app/store';
 import { Board, movingPiece } from '@/components/board/board';
+import { Highlight, PageHeader } from '@/components/layout/page-header';
+import { LevelPicker } from '@/components/level-picker';
+import { Panel } from '@/components/panel';
 import { Button } from '@/components/ui/button';
-import { Card, CardContent } from '@/components/ui/card';
 import { useGameAnalysis } from '@/hooks/use-game-analysis';
-import { CLASSIFICATIONS, classifyMoves } from '@/lib/analysis/classify';
-import { ANALYSIS_LEVELS, LEVELS } from '@/lib/analysis/levels';
-import { evalSeries, gameReport } from '@/lib/analysis/report';
+import { classifyMoves, type Classification } from '@/lib/analysis/classify';
+import { ANALYSIS_LEVELS } from '@/lib/analysis/levels';
+import {
+  analysisPhase,
+  evalSeries,
+  gameReport,
+  nextMistake,
+} from '@/lib/analysis/report';
 import {
   fenAt,
   materialOf,
   openingName,
   sanLine,
+  type Ply,
   type Replay,
 } from '@/lib/chess/replay';
+import { formatScore } from '@/lib/chess/score';
 
+import { AnalysisMeter } from './analysis-meter';
+import { CoachBubble } from './coach-bubble';
 import { EnginePanel } from './engine-panel';
 import { EvalBar } from './eval-bar';
 import { EvalGraph } from './eval-graph';
-import { GradeBadge, MoveList } from './move-list';
+import { MoveList } from './move-list';
 import { PlayerStrip } from './player-strip';
 import { ReportCard } from './report-card';
 
@@ -54,6 +64,23 @@ function isTyping(target: EventTarget | null) {
       /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))
   );
 }
+
+/** The coach's one-liner per grade: cheeky, never mean, under 45 characters. */
+const COACH_LINE: Record<Classification, string> = {
+  brilliant: 'Brilliant! The board just gasped.',
+  great: 'Great find. That punishes the slip.',
+  best: 'Engine-approved. Nothing to add.',
+  excellent: 'Basically perfect.',
+  good: 'Solid. There was a sharper try.',
+  inaccuracy: 'Wobbly. Not fatal, just loose.',
+  miss: 'A tactic was sitting right there.',
+  mistake: 'That hands over the initiative.',
+  blunder: 'Oof. That hangs the game.',
+};
+
+/** "16. Qb8+" for White's move, "16… Nxb8" for Black's. */
+const moveLabel = (ply: Ply) =>
+  `${ply.moveNumber}${ply.color === 'w' ? '.' : '…'} ${ply.san}`;
 
 function Viewer({ loaded }: { loaded: Loaded }) {
   const { replay, orientation } = loaded;
@@ -172,140 +199,234 @@ function Viewer({ loaded }: { loaded: Loaded }) {
   );
   const [top, bottom] = flipped ? (['w', 'b'] as const) : (['b', 'w'] as const);
 
+  const nextAt = nextMistake(grades, index);
+  const eval_ = line ? formatScore(line.score) : undefined;
+  const coach = (() => {
+    if (index === 0)
+      return {
+        title: 'Ready when you are.',
+        body: 'Step through with the arrow keys or click the graph.',
+      };
+    if (!grade || !ply)
+      return {
+        title: 'Still thinking about this one.',
+        body: 'The coach speaks up once the engine has settled this move.',
+      };
+    const sentences = [
+      better && better !== ply.san
+        ? `The engine liked ${better} more.`
+        : 'That matches the engine’s first choice.',
+    ];
+    if (prior?.status === 'done' && here?.status === 'done')
+      sentences.push(
+        `The eval went from ${formatScore(prior.line.score)} to ${formatScore(here.line.score)}.`,
+      );
+    return { title: COACH_LINE[grade], body: sentences.join(' ') };
+  })();
+
+  const labels = useMemo(
+    () => [
+      'Start',
+      ...replay.plies.map((p, i) => {
+        const at = analysis?.positions[i + 1];
+        return at?.status === 'done'
+          ? `${moveLabel(p)}  ${formatScore(at.line.score)}`
+          : moveLabel(p);
+      }),
+    ],
+    [replay, analysis],
+  );
+
+  const versus = /^(.+) vs (.+)$/.exec(loaded.source);
+  const timeControl = headers.TimeControl && `${headers.TimeControl}s`;
+
+  const stepButton = (
+    label: string,
+    icon: React.ReactNode,
+    to: number,
+    disabled: boolean,
+  ) => (
+    <Button size="icon-sm" onClick={() => go(to)} disabled={disabled}>
+      {icon}
+      <span className="sr-only">{label}</span>
+    </Button>
+  );
+
   return (
-    <div className="flex flex-col items-center gap-6 lg:flex-row lg:items-start lg:justify-center">
-      <div
-        ref={column}
-        // The board's side is the window height less 8.5rem for two h-13
-        // player strips and main's lg:p-4 above and below. The 2rem holds the
-        // eval bar's track and its gap.
-        className="grid w-[min(100%,var(--fit))] grid-cols-[1.5rem_minmax(0,1fr)] gap-x-2 [--chrome:8.5rem] [--fit:calc(100svh_-_var(--chrome)_+_2rem)] lg:min-w-0 lg:flex-[0_1_var(--fit)]"
-        style={size === null ? undefined : { width: size, flex: 'none' }}
-      >
-        <div className="col-start-2">{strip(top)}</div>
-        <EvalBar score={line?.score ?? null} flipped={flipped} />
-        <div className="relative">
-          <Board
-            fen={fen}
-            flipped={flipped}
-            theme={settings.boardTheme}
-            coordinates={settings.coordinates}
-            lastMove={ply}
-            checkOn={ply?.check ? (sideToMove === 'w' ? 'K' : 'k') : undefined}
-            arrow={line?.pv[0]}
-            moving={moving}
-            grade={grade ? CLASSIFICATIONS[grade] : null}
-          />
-          <div
-            role="slider"
-            tabIndex={0}
-            aria-label="Board size"
-            aria-valuemin={MIN_SIZE}
-            aria-valuemax={MAX_SIZE}
-            aria-valuenow={Math.round(size ?? MIN_SIZE)}
-            title="Drag to resize, double-click to reset"
-            className="bg-background/90 after:bg-foreground/50 absolute -right-2 -bottom-2 z-20 size-6 cursor-nwse-resize touch-none rounded-full border shadow after:absolute after:inset-1.5 after:rounded-full"
-            onDoubleClick={() => setSize(null)}
-            onPointerDown={(e) => {
-              const el = column.current;
-              if (!el) return;
-              e.currentTarget.setPointerCapture?.(e.pointerId);
-              resize.current = {
-                x: e.clientX,
-                y: e.clientY,
-                w: el.offsetWidth,
-              };
-            }}
-            onPointerMove={(e) => {
-              const r = resize.current;
-              if (!r) return;
-              const delta = (e.clientX - r.x + (e.clientY - r.y)) / 2;
-              setSize(clampSize(r.w + delta));
-            }}
-            onPointerUp={() => (resize.current = null)}
-            onKeyDown={(e) => {
-              const dir = {
-                ArrowRight: 1,
-                ArrowUp: 1,
-                ArrowLeft: -1,
-                ArrowDown: -1,
-              }[e.key];
-              if (!dir) return;
-              e.preventDefault();
-              e.stopPropagation();
-              setSize(
-                clampSize((column.current?.offsetWidth ?? MIN_SIZE) + dir * 24),
-              );
-            }}
-          />
-        </div>
-        <div className="col-start-2">{strip(bottom)}</div>
+    <>
+      <div className="flex flex-wrap items-end justify-between gap-4">
+        <PageHeader
+          eyebrow={[
+            opening,
+            timeControl,
+            `${ANALYSIS_LEVELS[loaded.level].label} review`,
+          ]
+            .filter(Boolean)
+            .join(' · ')}
+        >
+          {versus ? (
+            <>
+              {versus[1]} <Highlight>vs</Highlight> {versus[2]}
+            </>
+          ) : (
+            loaded.source
+          )}
+        </PageHeader>
+        <Button
+          size="sm"
+          aria-label="Flip board"
+          onClick={() => setFlipped((f) => !f)}
+        >
+          <RotateCwIcon aria-hidden />
+          Flip
+        </Button>
       </div>
 
-      {/* Positioned so the absolutely placed sr-only inputs stay inside this
-          scroll box. Left static, they escape it and make the page scroll. */}
-      <Card className="w-full lg:relative lg:h-[calc(100svh-2rem)] lg:flex-[0_0_22rem] lg:overflow-y-auto">
-        <CardContent className="flex flex-col gap-3 lg:min-h-0 lg:flex-1">
-          {series.length > 1 && (
-            <EvalGraph
-              series={series}
-              index={index}
-              marks={report?.keyMoments.map((m) => ({
-                index: m.index,
-                grade: m.grade,
-              }))}
-              // `go`, not `goTo`: a drag is user navigation and must stop
-              // autoplay, or the two fight over the index.
-              onScrub={go}
+      <div className="flex flex-col items-center gap-8 lg:flex-row lg:items-start">
+        <div
+          ref={column}
+          // 28px for the eval bar, 12px gap, and a 448px board by default.
+          className="grid w-[min(100%,30.5rem)] flex-none grid-cols-[1.75rem_minmax(0,1fr)] gap-x-3"
+          style={size === null ? undefined : { width: size }}
+        >
+          <div className="col-start-2">{strip(top)}</div>
+          <EvalBar score={line?.score ?? null} flipped={flipped} />
+          <div className="relative">
+            <Board
+              fen={fen}
+              flipped={flipped}
+              theme={settings.boardTheme}
+              coordinates={settings.coordinates}
+              lastMove={ply}
+              checkOn={
+                ply?.check ? (sideToMove === 'w' ? 'K' : 'k') : undefined
+              }
+              arrow={line?.pv[0]}
+              moving={moving}
+              grade={grade ?? null}
             />
-          )}
-          <div>
-            <p className="font-medium">{loaded.source}</p>
-            <p className="text-sm opacity-70">
-              {[opening, headers.TimeControl && `${headers.TimeControl}s`]
-                .filter(Boolean)
-                .join(' · ')}
-            </p>
+            <div
+              role="slider"
+              tabIndex={0}
+              aria-label="Board size"
+              aria-valuemin={MIN_SIZE}
+              aria-valuemax={MAX_SIZE}
+              aria-valuenow={Math.round(size ?? MIN_SIZE)}
+              title="Drag to resize, double-click to reset"
+              className="border-line bg-accent absolute -right-3 -bottom-3 z-20 size-6 cursor-nwse-resize touch-none rounded-sm border-3 shadow-sm"
+              onDoubleClick={() => setSize(null)}
+              onPointerDown={(e) => {
+                const el = column.current;
+                if (!el) return;
+                e.currentTarget.setPointerCapture?.(e.pointerId);
+                resize.current = {
+                  x: e.clientX,
+                  y: e.clientY,
+                  w: el.offsetWidth,
+                };
+              }}
+              onPointerMove={(e) => {
+                const r = resize.current;
+                if (!r) return;
+                const delta = (e.clientX - r.x + (e.clientY - r.y)) / 2;
+                setSize(clampSize(r.w + delta));
+              }}
+              onPointerUp={() => (resize.current = null)}
+              onKeyDown={(e) => {
+                const dir = {
+                  ArrowRight: 1,
+                  ArrowUp: 1,
+                  ArrowLeft: -1,
+                  ArrowDown: -1,
+                }[e.key];
+                if (!dir) return;
+                e.preventDefault();
+                e.stopPropagation();
+                setSize(
+                  clampSize(
+                    (column.current?.offsetWidth ?? MIN_SIZE) + dir * 24,
+                  ),
+                );
+              }}
+            />
           </div>
-          <fieldset className="flex gap-1 rounded-md border p-1">
-            <legend className="sr-only">Analysis depth</legend>
-            {LEVELS.map((level) => (
-              <label
-                key={level}
-                title={ANALYSIS_LEVELS[level].blurb}
-                className={cn(
-                  'has-[:focus-visible]:ring-ring flex-1 cursor-pointer rounded px-2 py-1 text-center text-sm has-[:focus-visible]:ring-2',
-                  loaded.level === level
-                    ? 'bg-accent font-medium'
-                    : 'opacity-70',
-                )}
-              >
-                <input
-                  type="radio"
-                  name="review-analysis-level"
-                  className="sr-only"
-                  checked={loaded.level === level}
-                  onChange={() => setReviewLevel(level)}
-                />
-                {ANALYSIS_LEVELS[level].label}
-              </label>
-            ))}
-          </fieldset>
+          <div className="col-start-2">{strip(bottom)}</div>
+          <div className="col-start-2 mt-3 flex flex-wrap items-center justify-center gap-2">
+            {stepButton(
+              'First move',
+              <ChevronsLeftIcon aria-hidden />,
+              0,
+              index === 0,
+            )}
+            {stepButton(
+              'Previous move',
+              <ChevronLeftIcon aria-hidden />,
+              index - 1,
+              index === 0,
+            )}
+            <Button
+              variant="primary"
+              size="sm"
+              aria-pressed={running}
+              onClick={() => {
+                if (atEnd) goTo(0);
+                setPlaying(atEnd || !playing);
+              }}
+            >
+              {running ? <PauseIcon aria-hidden /> : <PlayIcon aria-hidden />}
+              {running ? 'Pause' : 'Autoplay'}
+            </Button>
+            {stepButton(
+              'Next move',
+              <ChevronRightIcon aria-hidden />,
+              index + 1,
+              atEnd,
+            )}
+            {stepButton(
+              'Last move',
+              <ChevronsRightIcon aria-hidden />,
+              last,
+              atEnd,
+            )}
+          </div>
+        </div>
+
+        <div className="flex w-full min-w-0 flex-col gap-5 lg:flex-1">
+          <CoachBubble
+            grade={grade ?? undefined}
+            move={ply && grade ? moveLabel(ply) : undefined}
+            eval={grade ? eval_ : undefined}
+            title={coach.title}
+            actions={
+              nextAt !== null && (
+                <Button size="sm" onClick={() => go(nextAt)}>
+                  Next mistake
+                  <ChevronRightIcon aria-hidden />
+                </Button>
+              )
+            }
+          >
+            {coach.body}
+          </CoachBubble>
+          <AnalysisMeter
+            done={analysis?.done ?? 0}
+            total={analysis?.positions.length ?? plies.length + 1}
+            phase={
+              analysis && !analysis.unavailable
+                ? analysisPhase(analysis, index)
+                : undefined
+            }
+            label={analysis?.unavailable ? 'Engine unavailable' : undefined}
+          />
           <EnginePanel analysis={analysis} index={index} fen={fen} />
-          <ReportCard report={report} onJump={go} />
-          {grade && ply && (
-            <p className="flex items-center gap-2 text-sm">
-              <GradeBadge grade={grade} />
-              <span>
-                <span className="font-medium">{ply.san}</span> is{' '}
-                {CLASSIFICATIONS[grade].label.toLowerCase()}
-                {better && better !== ply.san && (
-                  <span className="opacity-70"> · best was {better}</span>
-                )}
-              </span>
-            </p>
-          )}
-          <div className="h-64 overflow-y-auto rounded-md border p-1 lg:h-auto lg:min-h-40 lg:flex-1">
+          <LevelPicker
+            compact
+            legend="Analysis depth"
+            name="review-analysis-level"
+            value={loaded.level}
+            onChange={setReviewLevel}
+          />
+          <div className="border-line bg-surface max-h-[236px] overflow-y-auto rounded-sm border-3">
             <MoveList
               plies={plies}
               grades={grades}
@@ -314,73 +435,52 @@ function Viewer({ loaded }: { loaded: Loaded }) {
             />
           </div>
           {atEnd && (
-            <p className="text-sm font-medium">
+            <p className="font-extrabold">
               {headers.Termination ?? headers.Result ?? ''}
             </p>
           )}
-          <div className="flex items-center justify-center gap-1">
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => go(0)}
-              disabled={index === 0}
-            >
-              <ChevronsLeftIcon aria-hidden />
-              <span className="sr-only">First move</span>
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => go(index - 1)}
-              disabled={index === 0}
-            >
-              <ChevronLeftIcon aria-hidden />
-              <span className="sr-only">Previous move</span>
-            </Button>
-            <Button
-              size="icon"
-              aria-pressed={running}
-              onClick={() => {
-                if (atEnd) goTo(0);
-                setPlaying(atEnd || !playing);
-              }}
-            >
-              {running ? <PauseIcon aria-hidden /> : <PlayIcon aria-hidden />}
-              <span className="sr-only">{running ? 'Pause' : 'Play'}</span>
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => go(index + 1)}
-              disabled={atEnd}
-            >
-              <ChevronRightIcon aria-hidden />
-              <span className="sr-only">Next move</span>
-            </Button>
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => go(last)}
-              disabled={atEnd}
-            >
-              <ChevronsRightIcon aria-hidden />
-              <span className="sr-only">Last move</span>
-            </Button>
-            <Button
-              variant="ghost"
-              size="icon"
-              onClick={() => setFlipped((f) => !f)}
-            >
-              <RotateCwIcon aria-hidden />
-              <span className="sr-only">Flip board</span>
-            </Button>
-          </div>
-          <p className="text-center text-xs opacity-60">
+          <p className="text-ink-muted text-center text-xs">
             Arrow keys step, space plays, F flips.
           </p>
-        </CardContent>
-      </Card>
-    </div>
+        </div>
+      </div>
+
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_400px] lg:items-start">
+        <Panel
+          tag="Eval"
+          title="How it went"
+          subtitle="Click anywhere on the graph to jump to that move."
+        >
+          {series.length > 1 && (
+            <EvalGraph
+              series={series}
+              index={index}
+              marks={report?.keyMoments.map((m) => ({
+                index: m.index,
+                grade: m.grade,
+              }))}
+              labels={labels}
+              // `go`, not `goTo`: a drag is user navigation and must stop
+              // autoplay, or the two fight over the index.
+              onScrub={go}
+            />
+          )}
+        </Panel>
+        <ReportCard
+          report={report}
+          onJump={go}
+          level={ANALYSIS_LEVELS[loaded.level].label}
+          white={{
+            name: headers.White,
+            rating: headers.WhiteElo,
+          }}
+          black={{
+            name: headers.Black,
+            rating: headers.BlackElo,
+          }}
+        />
+      </div>
+    </>
   );
 }
 
@@ -388,15 +488,22 @@ export function ReviewPage() {
   const { loaded } = useStore();
   if (!loaded) {
     return (
-      <Card>
-        <CardContent className="flex flex-col items-start gap-3">
-          <p className="font-medium">No game loaded.</p>
-          <p className="text-sm opacity-70">
-            Pick a game, choose a review mode, and press Review game.
-          </p>
-          <Button onClick={() => navigate('games')}>Choose a game</Button>
-        </CardContent>
-      </Card>
+      <>
+        <PageHeader eyebrow="Nothing here yet">
+          Review a <Highlight>game</Highlight>
+        </PageHeader>
+        <Panel
+          title="No game loaded."
+          subtitle="Pick a game, choose a review mode, and press Review game."
+          className="max-w-xl"
+        >
+          <div>
+            <Button variant="primary" onClick={() => navigate('games')}>
+              Choose a game
+            </Button>
+          </div>
+        </Panel>
+      </>
     );
   }
   return <Viewer key={loaded.id} loaded={loaded} />;

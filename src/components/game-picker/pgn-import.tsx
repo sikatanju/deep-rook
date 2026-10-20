@@ -2,13 +2,7 @@ import { useState } from 'react';
 
 import { useStore } from '@/app/store';
 import { Button } from '@/components/ui/button';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
+import { Panel } from '@/components/panel';
 import { OPERA_GAME } from '@/lib/chess/replay';
 
 export function PgnImport() {
@@ -26,43 +20,39 @@ export function PgnImport() {
   }
 
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Paste a PGN</CardTitle>
-        <CardDescription>
-          Works offline. Any game from any site.
-        </CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-3">
-        <textarea
-          aria-label="PGN"
-          value={pgn}
-          onChange={(e) => setPgn(e.target.value)}
-          rows={5}
-          spellCheck={false}
-          placeholder={'1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 ...'}
-          className="border-input bg-background focus-visible:ring-ring w-full rounded-md border p-3 font-mono text-sm outline-none focus-visible:ring-2"
-        />
-        {error && (
-          <p role="alert" className="text-destructive text-sm">
-            {error}
-          </p>
-        )}
-        <div className="flex gap-2">
-          <Button
-            onClick={() => stage(pgn, 'Pasted game')}
-            disabled={!pgn.trim()}
-          >
-            Load PGN
-          </Button>
-          <Button
-            variant="outline"
-            onClick={() => stage(OPERA_GAME, 'The Opera Game')}
-          >
-            Try the Opera Game
-          </Button>
-        </div>
-      </CardContent>
-    </Card>
+    <Panel
+      tag="Offline"
+      title="Paste a PGN"
+      subtitle="Works offline. Any game from any site."
+    >
+      <textarea
+        aria-label="PGN"
+        value={pgn}
+        onChange={(e) => setPgn(e.target.value)}
+        rows={5}
+        spellCheck={false}
+        placeholder={'1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 ...'}
+        className="border-line bg-surface-alt text-ink placeholder:text-ink-muted min-h-[104px] w-full resize-y rounded-sm border-3 p-3 font-mono text-[13px] shadow-[inset_3px_3px_0_0_rgb(0_0_0/0.08)]"
+      />
+      {error && (
+        <p role="alert" className="text-ink font-bold">
+          {error}
+        </p>
+      )}
+      <div className="flex flex-wrap gap-3">
+        <Button
+          onClick={() => stage(pgn, 'Pasted game')}
+          disabled={!pgn.trim()}
+        >
+          Load PGN
+        </Button>
+        <Button
+          variant="ghost"
+          onClick={() => stage(OPERA_GAME, 'The Opera Game')}
+        >
+          Try the Opera Game
+        </Button>
+      </div>
+    </Panel>
   );
 }

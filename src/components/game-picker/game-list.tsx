@@ -1,29 +1,22 @@
-import { Badge } from '@/components/ui/badge';
+import { GameRow } from '@/components/game-picker/game-row';
+import {
+  SessionStrip,
+  type SessionResult,
+} from '@/components/game-picker/session-strip';
+import { groupByDay, outcomeFor, type Outcome } from '@/lib/chesscom/session';
 import type { Game } from '@/lib/chesscom/types';
-import { cn } from '@/lib/utils';
 
-type Outcome = 'win' | 'loss' | 'draw';
-
-function outcomeFor(game: Game, username: string) {
-  const white = game.white.username.toLowerCase() === username.toLowerCase();
-  const me = white ? game.white : game.black;
-  const opponent = white ? game.black : game.white;
-  const outcome: Outcome =
-    me.result === 'win' ? 'win' : opponent.result === 'win' ? 'loss' : 'draw';
-  return { white, me, opponent, outcome };
-}
-
-const OUTCOME_LABEL: Record<Outcome, string> = {
-  win: 'Won',
-  loss: 'Lost',
-  draw: 'Draw',
+const RESULT: Record<Outcome, SessionResult> = {
+  win: 'W',
+  loss: 'L',
+  draw: 'D',
 };
 
-const OUTCOME_VARIANT = {
-  win: 'default',
-  loss: 'destructive',
-  draw: 'secondary',
-} as const;
+const dayFormat = new Intl.DateTimeFormat(undefined, {
+  weekday: 'short',
+  month: 'short',
+  day: 'numeric',
+});
 
 const dateFormat = new Intl.DateTimeFormat(undefined, {
   month: 'short',
@@ -32,6 +25,7 @@ const dateFormat = new Intl.DateTimeFormat(undefined, {
   minute: '2-digit',
 });
 
+/** Games newest first, one section per calendar day with its session strip. */
 export function GameList({
   games,
   username,
@@ -45,50 +39,53 @@ export function GameList({
 }) {
   if (games.length === 0) {
     return (
-      <p className="text-sm opacity-70">No standard chess games this month.</p>
+      <p className="text-ink-muted">No standard chess games this month.</p>
     );
   }
   return (
-    <ul className="flex flex-col gap-1">
-      {games.map((game) => {
-        const { white, me, opponent, outcome } = outcomeFor(game, username);
-        const selected = game.id === selectedId;
+    <div className="flex flex-col gap-8">
+      {groupByDay(games).map((day) => {
+        // The strip reads oldest to newest, the list newest to oldest.
+        const played = day.games
+          .map((game) => outcomeFor(game, username))
+          .reverse();
         return (
-          <li key={game.id}>
-            <button
-              type="button"
-              aria-pressed={selected}
-              onClick={() => onSelect(game)}
-              className={cn(
-                'focus-visible:ring-ring flex w-full items-center gap-3 rounded-md border px-3 py-2 text-left text-sm outline-none focus-visible:ring-2',
-                selected ? 'bg-accent' : 'hover:bg-accent/50',
-              )}
-            >
-              <Badge variant={OUTCOME_VARIANT[outcome]}>
-                {OUTCOME_LABEL[outcome]}
-              </Badge>
-              <span className="flex-1 truncate">
-                <span className="sr-only">
-                  {white ? 'White' : 'Black'} against{' '}
-                </span>
-                {opponent.username} ({opponent.rating})
-              </span>
-              <span className="opacity-70">
-                {game.timeClass} {game.timeControl}
-              </span>
-              <span className="hidden opacity-70 sm:inline">
-                me {me.rating}
-              </span>
-              <time
-                className="opacity-70"
-                dateTime={game.endedAt.toISOString()}
-              >
-                {dateFormat.format(game.endedAt)}
-              </time>
-            </button>
-          </li>
+          <section key={day.key}>
+            <h3 className="text-ink-muted text-xs leading-4 font-extrabold tracking-[0.08em] uppercase">
+              {dayFormat.format(day.date)} · {day.games.length}{' '}
+              {day.games.length === 1 ? 'game' : 'games'}
+            </h3>
+            <SessionStrip
+              results={played.map((g) => RESULT[g.outcome])}
+              ratings={played.map((g) => g.me.rating)}
+            />
+            <ul className="mt-6 flex flex-col gap-2">
+              {day.games.map((game) => {
+                const { white, me, opponent, outcome } = outcomeFor(
+                  game,
+                  username,
+                );
+                return (
+                  <li key={game.id}>
+                    <GameRow
+                      result={outcome}
+                      opponent={opponent.username}
+                      opponentRating={opponent.rating}
+                      playedWhite={white}
+                      timeControl={`${game.timeClass} ${game.timeControl}`}
+                      myRating={me.rating}
+                      when={dateFormat.format(game.endedAt)}
+                      dateTime={game.endedAt.toISOString()}
+                      selected={game.id === selectedId}
+                      onSelect={() => onSelect(game)}
+                    />
+                  </li>
+                );
+              })}
+            </ul>
+          </section>
         );
       })}
-    </ul>
+    </div>
   );
 }

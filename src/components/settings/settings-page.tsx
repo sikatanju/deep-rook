@@ -1,137 +1,161 @@
-import { BOARD_THEMES, useStore, type BoardTheme } from '@/app/store';
-import {
-  Card,
-  CardContent,
-  CardDescription,
-  CardHeader,
-  CardTitle,
-} from '@/components/ui/card';
-import { ANALYSIS_LEVELS, LEVELS } from '@/lib/analysis/levels';
-import { cn } from '@/lib/utils';
+import { useMemo } from 'react';
+
+import { useStore } from '@/app/store';
+import { Board } from '@/components/board/board';
+import { Highlight, PageHeader } from '@/components/layout/page-header';
+import { LevelPicker } from '@/components/level-picker';
+import { Panel } from '@/components/panel';
+import { EvalBar } from '@/components/review/eval-bar';
+import { BoardThemePicker } from '@/components/settings/board-theme-picker';
+import { Button } from '@/components/ui/button';
+import { Checkbox } from '@/components/ui/checkbox';
+import { Slider } from '@/components/ui/slider';
+import { fenAt, OPERA_GAME, parseReplay } from '@/lib/chess/replay';
+import { PALETTES } from '@/lib/palettes';
+
+// 22... Nbd7 in the Opera Game: a position with a last move, a grade and a next
+// move to point at, so every setting below shows up in the preview.
+const PREVIEW_PLY = 22;
+
+const label = 'text-xs leading-4 font-extrabold tracking-[0.08em] uppercase';
 
 export function SettingsPage() {
   const { settings, setSettings } = useStore();
+  const replay = useMemo(() => parseReplay(OPERA_GAME), []);
   return (
-    <Card>
-      <CardHeader>
-        <CardTitle>Settings</CardTitle>
-        <CardDescription>Saved in this browser.</CardDescription>
-      </CardHeader>
-      <CardContent className="flex flex-col gap-6">
-        <fieldset className="flex flex-col gap-2">
-          <legend className="mb-1 text-sm font-medium">Review mode</legend>
-          <p className="text-sm opacity-70">
-            The mode preselected when you start a review. The engine runs on
-            your device, and deeper modes are stronger and take longer.
-          </p>
-          <div className="grid gap-2 sm:grid-cols-3">
-            {LEVELS.map((level) => (
-              <label
-                key={level}
-                className={cn(
-                  'has-[:focus-visible]:ring-ring flex cursor-pointer flex-col gap-1 rounded-md border p-3 text-sm has-[:focus-visible]:ring-2',
-                  settings.analysisLevel === level &&
-                    'border-primary bg-accent',
-                )}
-              >
-                <input
-                  type="radio"
-                  name="analysis-level"
-                  className="sr-only"
-                  checked={settings.analysisLevel === level}
-                  onChange={() => setSettings({ analysisLevel: level })}
-                />
-                <span className="font-medium">
-                  {ANALYSIS_LEVELS[level].label}
-                </span>
-                <span className="opacity-70">
-                  {ANALYSIS_LEVELS[level].blurb}
-                </span>
-              </label>
-            ))}
-          </div>
-        </fieldset>
+    <>
+      <PageHeader eyebrow="Saved in this browser">
+        Make it <Highlight>yours</Highlight>
+      </PageHeader>
+      <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
+        <div className="flex flex-col gap-8">
+          <Panel
+            tag="Engine"
+            title="Review mode"
+            subtitle="The mode preselected when you start a review. The engine runs on your device, and deeper modes are stronger and take longer."
+          >
+            <LevelPicker
+              name="analysis-level"
+              value={settings.analysisLevel}
+              onChange={(analysisLevel) => setSettings({ analysisLevel })}
+            />
+          </Panel>
 
-        <fieldset className="flex flex-col gap-2">
-          <legend className="mb-1 text-sm font-medium">Board colors</legend>
-          <div className="flex flex-wrap gap-3">
-            {(Object.keys(BOARD_THEMES) as BoardTheme[]).map((name) => (
-              <label
-                key={name}
-                className={cn(
-                  'has-[:focus-visible]:ring-ring flex cursor-pointer flex-col items-center gap-1 rounded-md border p-2 text-sm capitalize has-[:focus-visible]:ring-2',
-                  settings.boardTheme === name && 'border-primary bg-accent',
-                )}
+          <Panel tag="Look" title="Palette & board">
+            <div className="flex flex-col gap-3">
+              <p className={label}>Palette</p>
+              <div
+                role="group"
+                aria-label="Palette"
+                className="flex flex-wrap gap-3"
               >
-                <input
-                  type="radio"
-                  name="board-theme"
-                  className="sr-only"
-                  checked={settings.boardTheme === name}
-                  onChange={() => setSettings({ boardTheme: name })}
-                />
-                <span className="grid size-12 grid-cols-2 overflow-hidden rounded">
-                  {[0, 1, 1, 0].map((dark, i) => (
+                {PALETTES.map((p) => (
+                  <Button
+                    key={p.id}
+                    size="sm"
+                    variant={settings.palette === p.id ? 'primary' : 'default'}
+                    aria-pressed={settings.palette === p.id}
+                    onClick={() => setSettings({ palette: p.id })}
+                  >
                     <span
-                      key={i}
+                      aria-hidden
+                      className="rounded-pill size-3.5 border-2 border-current"
                       style={{
-                        background: dark
-                          ? BOARD_THEMES[name].dark
-                          : BOARD_THEMES[name].light,
+                        background: `linear-gradient(90deg, ${p.a} 50%, ${p.b} 50%)`,
                       }}
                     />
-                  ))}
-                </span>
-                {name}
+                    {p.name}
+                  </Button>
+                ))}
+              </div>
+            </div>
+
+            <div className="flex flex-col gap-3">
+              <p className={label}>Board colors</p>
+              <BoardThemePicker
+                value={settings.boardTheme}
+                onChange={(boardTheme) => setSettings({ boardTheme })}
+              />
+            </div>
+
+            <div className="flex flex-wrap items-end gap-8">
+              <label
+                htmlFor="coordinates"
+                className="inline-flex cursor-pointer items-center gap-2 font-bold"
+              >
+                <Checkbox
+                  id="coordinates"
+                  checked={settings.coordinates}
+                  onChange={(e) =>
+                    setSettings({ coordinates: e.target.checked })
+                  }
+                />
+                Show board coordinates
               </label>
-            ))}
-          </div>
-        </fieldset>
+              <label
+                htmlFor="autoplay-speed"
+                className="flex w-full max-w-[340px] flex-col gap-2 font-bold"
+              >
+                <span className="flex items-center justify-between gap-3">
+                  Autoplay speed
+                  <output className="border-line bg-surface-alt rounded-sm border-2 px-1.5 font-mono text-sm">
+                    {(settings.autoplayMs / 1000).toFixed(1)}s per move
+                  </output>
+                </span>
+                <Slider
+                  id="autoplay-speed"
+                  min={300}
+                  max={2500}
+                  step={100}
+                  value={settings.autoplayMs}
+                  onChange={(e) =>
+                    setSettings({ autoplayMs: Number(e.target.value) })
+                  }
+                />
+              </label>
+            </div>
+          </Panel>
 
-        <label className="flex items-center gap-2 text-sm">
-          <input
-            type="checkbox"
-            checked={settings.coordinates}
-            onChange={(e) => setSettings({ coordinates: e.target.checked })}
+          <p className="text-ink-muted text-xs leading-4">
+            Pieces are{' '}
+            <a
+              href="https://github.com/neverRare/kiwen-suwi"
+              className="underline"
+            >
+              Kiwen Suwi
+            </a>{' '}
+            by neverRare,{' '}
+            <a
+              href="https://creativecommons.org/licenses/by/4.0/"
+              className="underline"
+            >
+              CC BY 4.0
+            </a>
+            .
+          </p>
+        </div>
+
+        <aside
+          aria-label="Live preview"
+          className="flex w-full max-w-80 flex-col gap-4 lg:sticky lg:top-8 lg:w-80"
+        >
+          <p className={label}>Live preview</p>
+          <Board
+            fen={fenAt(replay, PREVIEW_PLY)}
+            flipped={false}
+            theme={settings.boardTheme}
+            coordinates={settings.coordinates}
+            lastMove={replay.plies[PREVIEW_PLY - 1]}
+            arrow="e1c1"
+            grade="good"
           />
-          Show board coordinates
-        </label>
-
-        <label className="flex flex-col gap-1 text-sm">
-          <span className="font-medium">
-            Autoplay speed ({(settings.autoplayMs / 1000).toFixed(1)}s per move)
-          </span>
-          <input
-            type="range"
-            min={300}
-            max={2500}
-            step={100}
-            value={settings.autoplayMs}
-            onChange={(e) =>
-              setSettings({ autoplayMs: Number(e.target.value) })
-            }
-            className="max-w-xs"
+          <EvalBar
+            orientation="horizontal"
+            flipped={false}
+            score={{ kind: 'cp', cp: 300 }}
           />
-        </label>
-
-        <p className="text-xs opacity-60">
-          Pieces are{' '}
-          <a
-            href="https://github.com/neverRare/kiwen-suwi"
-            className="underline"
-          >
-            Kiwen Suwi
-          </a>{' '}
-          by neverRare,{' '}
-          <a
-            href="https://creativecommons.org/licenses/by/4.0/"
-            className="underline"
-          >
-            CC BY 4.0
-          </a>
-          .
-        </p>
-      </CardContent>
-    </Card>
+        </aside>
+      </div>
+    </>
   );
 }

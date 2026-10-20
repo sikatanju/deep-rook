@@ -1,4 +1,6 @@
 import { BOARD_THEMES, type BoardTheme } from '@/app/store';
+import { GradeSticker } from '@/components/review/grade-sticker';
+import type { Classification } from '@/lib/analysis/classify';
 import { fenAt, type Replay } from '@/lib/chess/replay';
 import { cn } from '@/lib/utils';
 
@@ -14,12 +16,9 @@ export type MovingPiece = {
   key: number;
 };
 
-/** A move grade, as CLASSIFICATIONS holds it. */
-type Grade = { label: string; symbol: string; color: string };
-
-// Written as inline longhands by the flight and the badge rather than through a
-// stylesheet, because jsdom applies no cascade to getComputedStyle and rects are
-// all zero there; inline longhands are what a jsdom test can actually assert.
+// Written as inline longhands by the flight rather than through a stylesheet,
+// because jsdom applies no cascade to getComputedStyle and rects are all zero
+// there; inline longhands are what a jsdom test can actually assert.
 /** How long a piece takes to travel between two squares. */
 export const MOVE_MS = '220ms';
 
@@ -170,8 +169,8 @@ export function Board({
   arrow?: string;
   /** The piece to slide, when the viewer arrived here by a single step. */
   moving?: MovingPiece | null;
-  /** Grade of the ply that produced this position, drawn on `moving.to`. */
-  grade?: Grade | null;
+  /** Grade of the ply that produced this position, stuck on `lastMove.to`. */
+  grade?: Classification | null;
 }) {
   const colors = BOARD_THEMES[theme];
   const rows = cells(fen);
@@ -180,12 +179,14 @@ export function Board({
   );
   const flight = moving ? flightOffset(moving, flipped) : null;
   return (
-    <div className="relative">
+    // The frame is on this box, not the grid: the flight and arrow layers are
+    // absolutely placed against its inside, so they stay aligned with the squares.
+    <div className="border-line bg-line relative border-4 shadow-lg">
       <style>{MOVE_CSS}</style>
       <div
         role="img"
         aria-label={`Chess board, ${flipped ? 'black' : 'white'} at the bottom`}
-        className="grid aspect-square w-full grid-cols-[repeat(8,minmax(0,1fr))] grid-rows-[repeat(8,minmax(0,1fr))] overflow-hidden rounded-md shadow-md"
+        className="grid aspect-square w-full grid-cols-[repeat(8,minmax(0,1fr))] grid-rows-[repeat(8,minmax(0,1fr))]"
         style={{ containerType: 'inline-size' }}
       >
         {ordered.flat().map(({ square, piece }, i) => {
@@ -205,7 +206,7 @@ export function Board({
               style={{ background: light ? colors.light : colors.dark }}
             >
               {lastTouched && (
-                <span className="absolute inset-0 bg-yellow-300/50" />
+                <span className="bg-board-move absolute inset-0" />
               )}
               {inCheck && (
                 <span className="absolute inset-0 bg-[radial-gradient(circle,rgba(239,68,68,0.9)_0%,rgba(239,68,68,0)_70%)]" />
@@ -214,13 +215,13 @@ export function Board({
                 <Piece
                   type={piece.toLowerCase()}
                   white={piece === piece.toUpperCase()}
-                  className="relative z-10 size-[88%] drop-shadow-[0_1px_1px_rgba(0,0,0,0.35)]"
+                  className="relative z-10 size-[88%] drop-shadow-[1px_2px_0_rgb(0_0_0/0.3)]"
                 />
               )}
               {coordinates && left && (
                 <span
                   aria-hidden
-                  className="pointer-events-none absolute top-[0.5cqw] left-[0.6cqw] text-[2.4cqw] leading-none font-semibold"
+                  className="pointer-events-none absolute top-[0.5cqw] left-[0.6cqw] font-mono text-[2.4cqw] leading-none font-bold"
                   style={{ color: light ? colors.dark : colors.light }}
                 >
                   {rank}
@@ -229,28 +230,18 @@ export function Board({
               {coordinates && bottom && (
                 <span
                   aria-hidden
-                  className="pointer-events-none absolute right-[0.6cqw] bottom-[0.5cqw] text-[2.4cqw] leading-none font-semibold"
+                  className="pointer-events-none absolute right-[0.6cqw] bottom-[0.5cqw] font-mono text-[2.4cqw] leading-none font-bold"
                   style={{ color: light ? colors.dark : colors.light }}
                 >
                   {square[0]}
                 </span>
               )}
-              {grade && square === moving?.to && (
-                <span
-                  key={`${moving.key}-${grade.label}`}
-                  role="img"
-                  aria-label={grade.label}
-                  title={grade.label}
-                  data-grade={grade.label.toLowerCase()}
-                  className="pointer-events-none absolute top-[0.8cqw] right-[0.8cqw] z-30 grid aspect-square w-[6cqw] place-items-center rounded-full font-sans leading-none font-bold text-white"
-                  style={{
-                    background: grade.color,
-                    fontSize: '3.4cqw',
-                    boxShadow: '0 0 0 1px rgba(0,0,0,0.25)',
-                  }}
-                >
-                  {grade.symbol}
-                </span>
+              {grade && square === lastMove?.to && (
+                <GradeSticker
+                  grade={grade}
+                  iconOnly
+                  className="pointer-events-none absolute -top-[1.2cqw] -right-[1.2cqw] z-30 scale-90"
+                />
               )}
             </div>
           );
@@ -285,7 +276,7 @@ export function Board({
             <Piece
               type={moving.code[1]!.toLowerCase()}
               white={moving.code[0] === 'w'}
-              className="size-[88%] drop-shadow-[0_1px_1px_rgba(0,0,0,0.35)]"
+              className="size-[88%] drop-shadow-[1px_2px_0_rgb(0_0_0/0.3)]"
             />
           </div>
         </div>
@@ -308,11 +299,24 @@ function Arrow({ uci, flipped }: { uci: string; flipped: boolean }) {
   const from = center(uci.slice(0, 2), flipped);
   const to = center(uci.slice(2, 4), flipped);
   const len = Math.hypot(to.x - from.x, to.y - from.y);
-  // Stop short of the target center so the head sits on the square.
-  const end = {
-    x: to.x - ((to.x - from.x) / len) * 0.3,
-    y: to.y - ((to.y - from.y) / len) * 0.3,
-  };
+  const u = { x: (to.x - from.x) / len, y: (to.y - from.y) / len };
+  const n = { x: -u.y, y: u.x };
+  // A block arrow: a shaft, then a head whose tip stops short of the target's
+  // centre so the piece underneath stays readable.
+  const tail = { x: from.x + u.x * 0.2, y: from.y + u.y * 0.2 };
+  const tip = { x: to.x - u.x * 0.12, y: to.y - u.y * 0.12 };
+  const neck = { x: tip.x - u.x * 0.4, y: tip.y - u.y * 0.4 };
+  const at = (p: { x: number; y: number }, w: number) =>
+    `${(p.x + n.x * w).toFixed(3)},${(p.y + n.y * w).toFixed(3)}`;
+  const points = [
+    at(tail, 0.1),
+    at(neck, 0.1),
+    at(neck, 0.26),
+    `${tip.x.toFixed(3)},${tip.y.toFixed(3)}`,
+    at(neck, -0.26),
+    at(neck, -0.1),
+    at(tail, -0.1),
+  ].join(' ');
   return (
     <svg
       viewBox="0 0 8 8"
@@ -320,28 +324,12 @@ function Arrow({ uci, flipped }: { uci: string; flipped: boolean }) {
       data-arrow={uci}
       className="pointer-events-none absolute inset-0 z-20 size-full"
     >
-      <defs>
-        <marker
-          id="best-move-head"
-          viewBox="0 0 4 4"
-          refX="1.2"
-          refY="2"
-          markerWidth="3"
-          markerHeight="3"
-          orient="auto"
-        >
-          <path d="M0 0L4 2L0 4z" fill="rgba(21,128,61,0.85)" />
-        </marker>
-      </defs>
-      <line
-        x1={from.x}
-        y1={from.y}
-        x2={end.x}
-        y2={end.y}
-        stroke="rgba(21,128,61,0.85)"
-        strokeWidth="0.16"
-        strokeLinecap="round"
-        markerEnd="url(#best-move-head)"
+      <polygon
+        points={points}
+        fill="var(--board-arrow)"
+        stroke="var(--line)"
+        strokeWidth="0.05"
+        strokeLinejoin="round"
       />
     </svg>
   );

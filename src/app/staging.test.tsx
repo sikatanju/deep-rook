@@ -1,4 +1,4 @@
-import { render, screen, waitFor } from '@testing-library/react';
+import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { beforeEach, expect, test, vi } from 'vitest';
 
@@ -69,7 +69,9 @@ test('the mode chosen before pressing Review game is the mode of the review', as
 
   expect(screen.getByRole('radio', { name: 'Deep' })).toBeChecked();
   await waitFor(() =>
-    expect(screen.getByText(/^Deep/, { selector: 'span' })).toBeInTheDocument(),
+    expect(
+      within(screen.getByRole('region', { name: 'Engine' })).getByText(/^Deep/),
+    ).toBeInTheDocument(),
   );
 });
 
@@ -90,7 +92,9 @@ test('changing the mode for the next game leaves the running review alone', asyn
   expect(screen.getByRole('radio', { name: 'Balanced' })).toBeChecked();
   await waitFor(() =>
     expect(
-      screen.getByText(/^Balanced/, { selector: 'span' }),
+      within(screen.getByRole('region', { name: 'Engine' })).getByText(
+        /^Balanced/,
+      ),
     ).toBeInTheDocument(),
   );
 });

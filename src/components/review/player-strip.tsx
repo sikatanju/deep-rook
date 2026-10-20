@@ -22,18 +22,26 @@ export function PlayerStrip({
   toMove: boolean;
 }) {
   return (
-    <div className="flex h-13 items-center gap-3 px-1">
+    <div
+      role="group"
+      aria-label={`${color === 'w' ? 'White' : 'Black'} player`}
+      className="flex h-13 items-center gap-3 px-1"
+    >
       <span
         aria-hidden
         className={cn(
-          'size-3 rounded-sm border',
-          color === 'w' ? 'bg-white' : 'bg-neutral-900',
+          'border-line size-4 flex-none border-2',
+          color === 'w' ? 'bg-eval-white' : 'bg-eval-black',
         )}
       />
       <div className="min-w-0 flex-1">
-        <p className="truncate text-sm font-medium">
+        <p className="truncate text-sm font-extrabold">
           {name}
-          {rating && <span className="ml-1.5 opacity-60">({rating})</span>}
+          {rating && (
+            <span className="text-ink-muted ml-1.5 font-mono font-bold">
+              ({rating})
+            </span>
+          )}
         </p>
         <p className="flex h-5 items-center text-xs" aria-label="Captured">
           {captured.map((type, i) => (
@@ -44,14 +52,16 @@ export function PlayerStrip({
               className="-mr-1.5 size-5"
             />
           ))}
-          {lead > 0 && <span className="ml-2 opacity-70">+{lead}</span>}
+          {lead > 0 && (
+            <span className="ml-2 font-mono font-bold">+{lead}</span>
+          )}
         </p>
       </div>
       {clock !== undefined && (
         <span
           className={cn(
-            'rounded px-2 py-1 font-mono text-sm tabular-nums',
-            toMove ? 'bg-foreground text-background' : 'bg-muted',
+            'border-line rounded-sm border-2 px-2 py-1 font-mono text-sm font-bold tabular-nums shadow-sm',
+            toMove ? 'bg-primary text-sticker-ink' : 'bg-surface-alt',
           )}
         >
           {formatClock(clock)}

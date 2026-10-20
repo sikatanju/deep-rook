@@ -4,7 +4,8 @@ import { sanLine } from '@/lib/chess/replay';
 import { formatScore } from '@/lib/chess/score';
 
 /**
- * Eval, best line, and whole-game progress for one position.
+ * Eval and best line for one position (whole-game progress is the
+ * AnalysisMeter's).
  * Keeps its layout while `analysis` is null so the card does not jump.
  */
 export function EnginePanel({
@@ -29,29 +30,23 @@ export function EnginePanel({
 
   return (
     <section aria-label="Engine" className="flex flex-col gap-2">
-      <div className="flex items-baseline justify-between gap-2">
+      <div className="flex items-center justify-between gap-2">
         <output
           aria-label="Evaluation"
-          className="font-mono text-2xl font-semibold tabular-nums"
+          className="border-line bg-surface-alt rounded-sm border-3 px-2 py-0.5 font-mono text-2xl font-bold tabular-nums shadow-sm"
         >
           {line ? formatScore(line.score) : analysis?.unavailable ? '–' : '…'}
         </output>
-        <span className="text-xs opacity-70">{status}</span>
+        <span className="text-ink-muted text-right text-xs font-bold">
+          {status}
+        </span>
       </div>
       {moves.length > 0 && (
-        <p className="text-sm">
-          <span className="opacity-70">Best: </span>
-          <span className="font-medium">{moves.join(' ')}</span>
+        <p>
+          <span className="text-ink-muted">Best: </span>
+          <span className="font-mono font-bold">{moves.join(' ')}</span>
         </p>
       )}
-      {analysis &&
-        !analysis.unavailable &&
-        analysis.done < analysis.positions.length && (
-          <p className="text-xs opacity-60">
-            Analyzing game: {analysis.done}/{analysis.positions.length}{' '}
-            positions
-          </p>
-        )}
     </section>
   );
 }

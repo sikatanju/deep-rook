@@ -204,8 +204,10 @@ test('a game set up with Black to move shows each clock on its own player', asyn
 20... d5 {[%clk 0:01:00]} 21. exd5 {[%clk 0:02:00]} 21... Qxd5 {[%clk 0:00:50]} *`);
   await user.click(screen.getByRole('button', { name: 'Load PGN' }));
   await user.click(screen.getByRole('button', { name: 'Review game' }));
-  const strip = (name: string) =>
-    screen.getByText(name).parentElement!.parentElement!;
+  const strip = (name: 'Alice' | 'Bob') =>
+    screen.getByRole('group', {
+      name: name === 'Alice' ? 'White player' : 'Black player',
+    });
 
   await user.click(screen.getByRole('button', { name: 'Next move' }));
   expect(strip('Alice')).toHaveTextContent('3:00');

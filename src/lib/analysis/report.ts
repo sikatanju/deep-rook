@@ -7,7 +7,7 @@ import type { Replay } from '@/lib/chess/replay';
 import { winPercent } from '@/lib/chess/score';
 
 import type { Classification } from './classify';
-import type { PositionAnalysis } from './game-analysis';
+import type { GameAnalysis, PositionAnalysis } from './game-analysis';
 
 /**
  * White's win% per position, index-aligned with `positions`
@@ -171,4 +171,43 @@ export function gameReport(
     ).length,
     total: positions.length,
   };
+}
+
+/**
+ * Where the scheduler's work stands, from the document alone (the UI never
+ * sees the scheduler). Outstanding work in priority order:
+ *
+ * - `focus`: the viewed position is not settled yet.
+ * - `first-light`: some position has no line at all.
+ * - `upgrade`: every position has a line, but some are below the requested level.
+ * - `done`: everything settled.
+ *
+ * The scheduler runs these side by side on different lanes; this names the
+ * most urgent one still open.
+ */
+export type AnalysisPhase = 'focus' | 'first-light' | 'upgrade' | 'done';
+
+export function analysisPhase(
+  analysis: Pick<GameAnalysis, 'positions' | 'done'>,
+  index: number,
+): AnalysisPhase {
+  const { positions } = analysis;
+  if (analysis.done >= positions.length) return 'done';
+  const here = positions[index];
+  if (here && here.status !== 'done' && here.status !== 'failed')
+    return 'focus';
+  const blank = positions.some((p) => p.status === 'queued' && p.line === null);
+  return blank ? 'first-light' : 'upgrade';
+}
+
+/** The next position index after `index` whose move is a mistake, miss or blunder. */
+export function nextMistake(
+  grades: readonly (Classification | null)[],
+  index: number,
+): number | null {
+  for (let ply = index; ply < grades.length; ply++) {
+    const grade = grades[ply];
+    if (grade && MOMENT_GRADES.has(grade)) return ply + 1;
+  }
+  return null;
 }

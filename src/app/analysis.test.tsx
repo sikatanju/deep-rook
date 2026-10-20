@@ -1,4 +1,10 @@
-import { fireEvent, render, screen, waitFor } from '@testing-library/react';
+import {
+  fireEvent,
+  render,
+  screen,
+  waitFor,
+  within,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { expect, test, vi } from 'vitest';
 
@@ -47,7 +53,7 @@ test('the review page shows the engine evaluation, best line, and arrow', async 
 
   // Position 30: Qb8+ Nxb8 Rd8# is mate in 2 for White.
   await waitFor(
-    () => expect(screen.getByLabelText('Evaluation')).toHaveTextContent('#2'),
+    () => expect(screen.getByLabelText('Evaluation')).toHaveTextContent('M2'),
     { timeout: 5_000 },
   );
   expect(screen.getByText('Qb8+ Nxb8 Rd8#')).toBeInTheDocument();
@@ -79,6 +85,10 @@ test('the board carries the move grade on the piece, once the engine has graded 
   expect(badge).toHaveAttribute('role', 'img');
   expect(badge.getAttribute('aria-label')).toBeTruthy();
   expect(badge.closest('[data-square]')).toHaveAttribute('data-square', 'e4');
+  // The coach says the same grade, in words.
+  expect(screen.getByRole('region', { name: 'Coach' })).toHaveTextContent(
+    badge.getAttribute('aria-label')!,
+  );
 
   // It is drawn over the destination square's piece, not in place of it.
   expect(
@@ -108,7 +118,9 @@ test('the review page switches analysis depth', async () => {
   await user.click(screen.getByRole('radio', { name: 'Fast' }));
 
   await waitFor(() =>
-    expect(screen.getByText(/^Fast/, { selector: 'span' })).toBeInTheDocument(),
+    expect(
+      within(screen.getByRole('region', { name: 'Engine' })).getByText(/^Fast/),
+    ).toBeInTheDocument(),
   );
   // The switch is also the remembered default for the next review.
   await user.click(screen.getByRole('link', { name: 'Settings' }));

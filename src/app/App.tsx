@@ -1,5 +1,4 @@
 import {
-  CastleIcon,
   LibraryIcon,
   PlayCircleIcon,
   SettingsIcon,
@@ -8,13 +7,11 @@ import {
 
 import { ROUTES, useRoute, type Route } from '@/app/router';
 import { AppProvider, useStore } from '@/app/store';
-import { GamePicker } from '@/components/game-picker/game-picker';
-import { PgnImport } from '@/components/game-picker/pgn-import';
-import { ReviewSetup } from '@/components/game-picker/review-setup';
+import { GamesPage } from '@/components/game-picker/games-page';
+import { NavRail } from '@/components/layout/nav-rail';
+import { Ticker } from '@/components/layout/ticker';
 import { ReviewPage } from '@/components/review/review-page';
 import { SettingsPage } from '@/components/settings/settings-page';
-import { ThemeProvider } from '@/components/theme-provider';
-import { ThemeToggle } from '@/components/theme-toggle';
 import { cn } from '@/lib/utils';
 
 const NAV: Record<Route, { label: string; icon: LucideIcon }> = {
@@ -23,22 +20,6 @@ const NAV: Record<Route, { label: string; icon: LucideIcon }> = {
   settings: { label: 'Settings', icon: SettingsIcon },
 };
 
-function GamesPage() {
-  const { staged } = useStore();
-  // A sticky element only moves inside its parent. Small screens stack the
-  // cards in this flex column, so the setup card can follow the game list. At
-  // lg the second column stretches to the list's height for the same reason.
-  return (
-    <div className="flex flex-col gap-6 lg:grid lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:items-start">
-      <GamePicker />
-      <div className="contents lg:flex lg:flex-col lg:gap-6 lg:self-stretch">
-        {staged && <ReviewSetup staged={staged} />}
-        <PgnImport />
-      </div>
-    </div>
-  );
-}
-
 const PAGES: Record<Route, { Page: () => React.ReactElement; wide: boolean }> =
   {
     games: { Page: GamesPage, wide: false },
@@ -46,62 +27,44 @@ const PAGES: Record<Route, { Page: () => React.ReactElement; wide: boolean }> =
     settings: { Page: SettingsPage, wide: false },
   };
 
+const TICKER = [
+  'Engine runs on your device',
+  'Works offline',
+  'Same game, same numbers, any machine',
+  'No account needed',
+];
+
 function Shell() {
   const route = useRoute();
+  const { settings, setSettings } = useStore();
   const { Page, wide } = PAGES[route];
   return (
-    <div className="min-h-svh md:grid md:grid-cols-[13rem_minmax(0,1fr)]">
-      <aside className="flex items-center justify-between border-b p-4 md:sticky md:top-0 md:h-svh md:flex-col md:items-stretch md:justify-start md:border-r md:border-b-0">
-        <h1 className="flex items-center gap-2 text-xl font-semibold">
-          <CastleIcon aria-hidden className="size-6" />
-          DeepRook
-        </h1>
-        <nav
-          aria-label="Main"
-          className="bg-background fixed inset-x-0 bottom-0 z-10 flex justify-around border-t p-1 md:static md:mt-6 md:flex-col md:justify-start md:gap-1 md:border-0 md:bg-transparent md:p-0"
+    <div className="min-h-svh md:grid md:grid-cols-[220px_minmax(0,1fr)]">
+      <NavRail
+        active={route}
+        items={ROUTES.map((id) => ({ id, ...NAV[id] }))}
+        palette={settings.palette}
+        onPalette={(palette) => setSettings({ palette })}
+      />
+      <div className="flex min-w-0 flex-col">
+        <Ticker items={TICKER} />
+        <main
+          className={cn(
+            'flex w-full flex-1 flex-col gap-8 p-4 pb-24 md:p-8',
+            !wide && 'mx-auto max-w-6xl',
+          )}
         >
-          {ROUTES.map((r) => {
-            const { label, icon: Icon } = NAV[r];
-            return (
-              <a
-                key={r}
-                href={`#/${r}`}
-                aria-current={r === route ? 'page' : undefined}
-                className={cn(
-                  'focus-visible:ring-ring flex flex-1 flex-col items-center gap-0.5 rounded-md px-3 py-2 text-xs outline-none focus-visible:ring-2 md:flex-none md:flex-row md:gap-3 md:text-sm',
-                  r === route
-                    ? 'bg-accent font-medium'
-                    : 'opacity-70 hover:opacity-100',
-                )}
-              >
-                <Icon aria-hidden className="size-5" />
-                {label}
-              </a>
-            );
-          })}
-        </nav>
-        <div className="md:mt-auto">
-          <ThemeToggle />
-        </div>
-      </aside>
-      <main
-        className={cn(
-          'w-full p-4 pb-24 md:p-8',
-          wide ? 'lg:p-4' : 'mx-auto max-w-5xl',
-        )}
-      >
-        <Page />
-      </main>
+          <Page />
+        </main>
+      </div>
     </div>
   );
 }
 
 export default function App() {
   return (
-    <ThemeProvider>
-      <AppProvider>
-        <Shell />
-      </AppProvider>
-    </ThemeProvider>
+    <AppProvider>
+      <Shell />
+    </AppProvider>
   );
 }
