@@ -11,9 +11,13 @@ import { expect, test } from 'vitest';
 import { OPERA_GAME, parseReplay } from '@/lib/chess/replay';
 import type { Score } from '@/lib/chess/score';
 
-import { CLASSIFICATIONS, classifyMoves, type Classification } from './classify';
+import {
+  CLASSIFICATIONS,
+  classifyMoves,
+  type Classification,
+} from './classify';
 import type { PositionAnalysis } from './game-analysis';
-import { evalSeries, gameReport } from './report';
+import { evalSeries, gameReport, mistakesOf } from './report';
 
 const replay = parseReplay(OPERA_GAME);
 const cp = (n: number): Score => ({ kind: 'cp', cp: n });
@@ -169,6 +173,33 @@ test('key moments rank by loss, break ties by earlier ply, cap at five', () => {
     grade: 'blunder',
   });
   expect(last.loss).toBeCloseTo(31.35, 1);
+});
+
+test('mistakesOf keeps every mistake of both colors, uncapped, in game order', () => {
+  // The six White slips above plus 14...Qe6 (ply 27, Black) dropping a level
+  // game to +4: seven qualifying plies, more than keyMoments' five.
+  const pos = positions({
+    ...swing(2, cp(-150)),
+    ...swing(6, cp(-150)),
+    ...swing(10, cp(-200)),
+    ...swing(14, cp(-200)),
+    ...swing(20, cp(-250)),
+    ...swing(24, cp(0)),
+    ...swing(27, cp(400)),
+    ...swing(30, cp(-400)),
+  });
+  const moments = mistakesOf(replay, pos, classifyMoves(replay, pos));
+  expect(moments.map((m) => [m.index, m.color, m.grade])).toEqual([
+    [3, 'w', 'mistake'],
+    [7, 'w', 'mistake'],
+    [11, 'w', 'mistake'],
+    [15, 'w', 'mistake'],
+    [21, 'w', 'blunder'],
+    [28, 'b', 'blunder'],
+    [31, 'w', 'blunder'],
+  ]);
+  expect(moments[5]).toMatchObject({ moveNumber: 14, san: 'Qe6' });
+  expect(moments[5]!.loss).toBeCloseTo(31.35, 1);
 });
 
 test('key moments of a game set up from a FEN carry its move numbers', () => {

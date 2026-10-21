@@ -47,7 +47,7 @@ const RESULT_BY_TAG: Record<string, Record<'w' | 'b', Outcome>> = {
 const STAGE_IDS = Object.keys(STAGES) as Stage[];
 const GRADES = Object.keys(CLASSIFICATIONS) as Classification[];
 
-function sideOf(
+export function sideOf(
   headers: Record<string, string>,
   username: string | null,
 ): 'w' | 'b' | null {

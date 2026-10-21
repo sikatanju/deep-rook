@@ -114,20 +114,19 @@ export const MOMENT_GRADES = new Set<Classification>([
 ]);
 
 /**
- * Derives the whole report. `grades` must be classifyMoves(replay,
- * positions) from the SAME snapshot; a ply is skipped defensively unless the
- * grade and both its bracketing series values are non-null. The loss uses
- * classify's sign rule: max(0, mover win% before − after).
+ * Every graded ply as a moment, in game order. `grades` must be
+ * classifyMoves(replay, positions) from the SAME snapshot; a ply is skipped
+ * defensively unless the grade and both its bracketing series values are
+ * non-null. The loss uses classify's sign rule: max(0, mover win% before −
+ * after).
  */
-export function gameReport(
+function gradedMoments(
   replay: Replay,
   positions: readonly PositionAnalysis[],
   grades: readonly (Classification | null)[],
-): GameReport {
+): KeyMoment[] {
   const series = evalSeries(positions);
-  const sides: Record<'w' | 'b', Tally> = { w: newTally(), b: newTally() };
   const moments: KeyMoment[] = [];
-
   for (let p = 0; p < grades.length && p < replay.plies.length; p++) {
     const grade = grades[p];
     if (!grade) continue;
@@ -138,24 +137,46 @@ export function gameReport(
     if (before === null || after === null) continue;
     const ply = replay.plies[p]!;
     const sign = ply.color === 'w' ? 1 : -1;
-    const loss = Math.max(0, sign * (before - after));
-    const side = sides[ply.color];
+    moments.push({
+      index: p + 1,
+      moveNumber: ply.moveNumber,
+      color: ply.color,
+      san: ply.san,
+      grade,
+      loss: Math.max(0, sign * (before - after)),
+    });
+  }
+  return moments;
+}
+
+/** Every mistake, miss and blunder of both colors, uncapped, in game order. */
+export function mistakesOf(
+  replay: Replay,
+  positions: readonly PositionAnalysis[],
+  grades: readonly (Classification | null)[],
+): KeyMoment[] {
+  return gradedMoments(replay, positions, grades).filter((m) =>
+    MOMENT_GRADES.has(m.grade),
+  );
+}
+
+/** Derives the whole report, under the same contract as `gradedMoments`. */
+export function gameReport(
+  replay: Replay,
+  positions: readonly PositionAnalysis[],
+  grades: readonly (Classification | null)[],
+): GameReport {
+  const sides: Record<'w' | 'b', Tally> = { w: newTally(), b: newTally() };
+  const moments = gradedMoments(replay, positions, grades);
+  for (const { color, grade, loss } of moments) {
+    const side = sides[color];
     side.counts[grade]++;
     side.sum += moveAccuracy(loss);
     side.graded++;
-    if (MOMENT_GRADES.has(grade)) {
-      moments.push({
-        index: p + 1,
-        moveNumber: ply.moveNumber,
-        color: ply.color,
-        san: ply.san,
-        grade,
-        loss,
-      });
-    }
   }
 
   const keyMoments = moments
+    .filter((m) => MOMENT_GRADES.has(m.grade))
     .sort((a, b) => b.loss - a.loss || a.index - b.index)
     .slice(0, 5)
     .sort((a, b) => a.index - b.index);
