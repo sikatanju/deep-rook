@@ -33,6 +33,7 @@ test('Overview sits second in the rail', () => {
   expect(links.map((l) => l.textContent)).toEqual([
     'Games',
     'Overview',
+    'Drill',
     'Review',
     'Settings',
   ]);

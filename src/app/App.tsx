@@ -3,12 +3,14 @@ import {
   LibraryIcon,
   PlayCircleIcon,
   SettingsIcon,
+  TargetIcon,
   type LucideIcon,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
 
 import { ROUTES, useRoute, type Route } from '@/app/router';
 import { AppProvider } from '@/app/store';
+import { DrillPage } from '@/components/drill/drill-page';
 import { GamesPage } from '@/components/game-picker/games-page';
 import { NavRail } from '@/components/layout/nav-rail';
 import { OverviewPage } from '@/components/overview/overview-page';
@@ -20,6 +22,7 @@ import { cn } from '@/lib/utils';
 const NAV: Record<Route, { label: string; icon: LucideIcon }> = {
   games: { label: 'Games', icon: LibraryIcon },
   overview: { label: 'Overview', icon: ChartColumnIcon },
+  drill: { label: 'Drill', icon: TargetIcon },
   review: { label: 'Review', icon: PlayCircleIcon },
   settings: { label: 'Settings', icon: SettingsIcon },
 };
@@ -28,6 +31,7 @@ const PAGES: Record<Route, { Page: () => React.ReactElement; wide: boolean }> =
   {
     games: { Page: GamesPage, wide: false },
     overview: { Page: OverviewPage, wide: false },
+    drill: { Page: DrillPage, wide: false },
     review: { Page: ReviewPage, wide: true },
     settings: { Page: SettingsPage, wide: false },
   };

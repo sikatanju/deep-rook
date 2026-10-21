@@ -3,6 +3,8 @@
 
 import { Chess, type Square } from 'chess.js';
 
+export type { Square };
+
 export type Move = {
   from: Square;
   to: Square;
