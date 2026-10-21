@@ -116,6 +116,17 @@ The analyzer has three verbs (`view`, `setLevel`, `dispose`) plus `subscribe`/`g
 
 `SpawnLane` has two implementations today: the Web Worker and an in-process lane used by tests. A server would be a third that sends the same self-contained `Job` (FEN, history FENs, limits) and calls back with the same `FromEngine` messages. Determinism means it would return the same answers. No interface is added for it now.
 
+### Persistence (`src/lib/analysis/cache.ts`)
+
+Determinism is what makes a finished analysis worth keeping: the same game at the same level always yields the same lines. They are stored in IndexedDB so a refresh or a reopened game skips the engine.
+
+- **One record per game, keyed by content.** `gameKey(replay)` is a 53-bit hash of the start FEN and every ply's FEN, so Chess.com and a pasted PGN of the same game share a record. `Loaded.id` is a per-session counter and cannot be the key. The record holds the best level reached, and `satisfies(record.level, wanted)` decides whether it covers a request. Nothing is keyed by level.
+- **Shape.** `StoredAnalysis = { v, key, level, lines, replay, analyzedAt }`, with one `Line` per position and the replay kept so the Overview can grade and list the game without its source. `level` is the lowest level any position settled at.
+- **Reads go through `parseStored`.** A wrong `CACHE_VERSION`, an unknown level, a line count other than plies + 1, or a malformed line or replay is a miss, never a throw. Bump `CACHE_VERSION` whenever the engine, its evaluation, or the `Line` shape changes.
+- **Never breaks a review.** `openIdbStore()` is null without IndexedDB, and every IndexedDB failure resolves like a miss. `save` keeps the higher level, inside one transaction. Failed positions are never cached, so a game with one is not saved.
+- **In the analyzer.** On a new game the analyzer marks it `loading` and plans nothing until the lookup settles, or until `CACHE_LOAD_MS` (1.5 s) passes so a hung database cannot stall analysis. A hit seeds each entry through `mergeLine` and `settle`, the same monotone writers the engine uses, so a late or repeated hit cannot make the document worse. A game is saved once every position has a line, none failed and all satisfy the current level, then again only after reaching a higher level.
+- **Overview.** `summarize` grades a record with `classifyMoves` and `gameReport` and keeps the player's half. `overview` aggregates the games where the saved Chess.com username matches a PGN name, and lists the rest without counting them. The trend covers the latest 20 games. Grade mix, mistakes per stage and openings cover every saved game. The stage split in `src/lib/chess/stage.ts` is an approximation (endgame at six or fewer pieces besides pawns and kings, else opening until ply 20).
+
 ### Module map
 
 ```
@@ -132,8 +143,11 @@ src/lib/analysis/game-analysis.ts  GameAnalysis, PositionAnalysis (the document)
 src/lib/analysis/schedule.ts     plan(): focus, first light, upgrade (pure)
 src/lib/analysis/protocol.ts     Job, FromEngine, Lane, SpawnLane, spawnWorkerLane
 src/lib/analysis/analyzer.ts     createAnalyzer: entries, lanes, job ids, flush
+src/lib/analysis/cache.ts        gameKey, parseStored, openIdbStore, memoryStore
+src/lib/analysis/overview.ts     summarize, overview (pure, over saved records)
+src/lib/chess/stage.ts           Stage, stageAt
 src/workers/engine.worker.ts     thin shell around createEngine
-src/hooks/use-game-analysis.tsx  AnalysisProvider, useGameAnalysis  <- the UI's only door
+src/hooks/use-game-analysis.tsx  AnalysisProvider, useGameAnalysis, useAnalysisStore  <- the UI's only door
 src/components/review/engine-panel.tsx  EnginePanel
 src/components/review/eval-bar.tsx      EvalBar
 ```

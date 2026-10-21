@@ -29,6 +29,7 @@ pnpm dev
 - All UI and state live under `src/app` and `src/components`. shadcn/ui (Radix, `radix-nova`) generates into `src/components/ui`, restyled to the design system below.
 - No client router yet. `App` is the single root, so a router can wrap it later without moving files.
 - The chess engine is written from scratch in `src/lib/engine` and runs in a pool of Web Workers (`src/workers`) on the user's machine. `src/lib/analysis` schedules it across a game. UI code reads it only through `useGameAnalysis`; a lint rule enforces that. Design: `docs/engine-design.md`.
+- Finished analyses are saved in IndexedDB, one record per game keyed by its positions, so a refresh or a reopened game skips the engine. The Overview route (`#/overview`) reads them to show accuracy over time, the grade mix, mistakes by game stage and the openings that cost the most. It matches games to you by the Chess.com username saved on the Games page. Settings can clear the saved reviews. Details: `docs/engine-design.md`, Persistence.
 - Anything prefixed `PUBLIC_` is exposed to the browser. Keep secrets out.
 
 ## Design system
