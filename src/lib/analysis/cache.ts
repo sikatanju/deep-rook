@@ -7,13 +7,13 @@
 // IndexedDB, blocked storage, quota, a corrupt record) resolves like a miss.
 
 import { fenAt, type Ply, type Replay } from '@/lib/chess/replay';
-import type { Line } from '@/lib/chess/score';
+import type { Line, Variation } from '@/lib/chess/score';
 
 import { isAnalysisLevel, rank, type AnalysisLevel } from './levels';
 
 export type GameKey = string & { readonly __brand: 'GameKey' };
 
-export const CACHE_VERSION = 1;
+export const CACHE_VERSION = 2;
 
 export type StoredAnalysis = {
   v: typeof CACHE_VERSION;
@@ -73,15 +73,25 @@ const isColor = (value: unknown) => value === 'w' || value === 'b';
 const isSquare = (value: unknown) =>
   typeof value === 'string' && /^[a-h][1-8]$/.test(value);
 
-function isLine(value: unknown): value is Line {
+function isVariation(value: unknown): value is Variation {
   if (!isRecord(value)) return false;
-  const { score, pv, depth } = value;
-  if (!isRecord(score) || !isNumber(depth)) return false;
+  const { score, pv } = value;
+  if (!isRecord(score)) return false;
   if (!Array.isArray(pv) || !pv.every((m) => typeof m === 'string'))
     return false;
   return score.kind === 'cp'
     ? isNumber(score.cp)
     : score.kind === 'mate' && isColor(score.winner) && isNumber(score.moves);
+}
+
+function isLine(value: unknown): value is Line {
+  if (!isRecord(value)) return false;
+  const { depth, second } = value;
+  return (
+    isVariation(value) &&
+    isNumber(depth) &&
+    (second === undefined || isVariation(second))
+  );
 }
 
 function isPly(value: unknown): value is Ply {

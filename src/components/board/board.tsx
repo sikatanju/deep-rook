@@ -178,6 +178,7 @@ export function Board({
   lastMove,
   checkOn,
   arrow,
+  second,
   moving,
   grade,
   play,
@@ -191,6 +192,8 @@ export function Board({
   checkOn?: 'K' | 'k';
   /** A UCI move ("e2e4") to draw as an arrow, e.g. the engine's best move. */
   arrow?: string;
+  /** A UCI move drawn fainter, under `arrow`: the engine's second choice. */
+  second?: string;
   /** The piece to slide, when the viewer arrived here by a single step. */
   moving?: MovingPiece | null;
   /** Grade of the ply that produced this position, stuck on `lastMove.to`. */
@@ -336,6 +339,7 @@ export function Board({
           </div>
         </div>
       )}
+      {second && <Arrow uci={second} flipped={flipped} faint />}
       {arrow && <Arrow uci={arrow} flipped={flipped} />}
     </div>
   );
@@ -350,7 +354,15 @@ function center(square: string, flipped: boolean) {
     : { x: file + 0.5, y: 7 - rank + 0.5 };
 }
 
-function Arrow({ uci, flipped }: { uci: string; flipped: boolean }) {
+function Arrow({
+  uci,
+  flipped,
+  faint = false,
+}: {
+  uci: string;
+  flipped: boolean;
+  faint?: boolean;
+}) {
   const from = center(uci.slice(0, 2), flipped);
   const to = center(uci.slice(2, 4), flipped);
   const len = Math.hypot(to.x - from.x, to.y - from.y);
@@ -377,6 +389,7 @@ function Arrow({ uci, flipped }: { uci: string; flipped: boolean }) {
       viewBox="0 0 8 8"
       aria-hidden
       data-arrow={uci}
+      opacity={faint ? 0.4 : undefined}
       className="pointer-events-none absolute inset-0 z-20 size-full"
     >
       <polygon

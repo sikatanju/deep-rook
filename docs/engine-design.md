@@ -26,7 +26,7 @@ const analysis = useGameAnalysis(loaded, index); // GameAnalysis | null
 const here = analysis?.positions[index];
 const line = here && here.status !== 'failed' ? here.line : null;
 <EvalBar score={line?.score ?? null} flipped={flipped} />
-<Board ... arrow={line?.pv[0]} />            // UCI, e.g. 'e2e4'
+<Board ... arrow={line?.pv[0]} second={line?.second?.pv[0]} />  // UCI, e.g. 'e2e4'; second is fainter
 <EnginePanel fen={fen} position={here} analysis={analysis} />
 
 // ReviewSetup: picking a game only stages it. The radio list derives from the
@@ -50,9 +50,12 @@ Components never see a worker, a job, a lane, or a side-to-move score. Lint bloc
 GameAnalysis     = { gameId; level; positions: readonly PositionAnalysis[]; done }
 PositionAnalysis = { status: 'queued' | 'searching'; line: Line | null }
                  | { status: 'done'; line: Line } | { status: 'failed' }
-Line             = { score: Score; pv: readonly string[] /* UCI */; depth }
+Line             = Variation & { depth; second?: Variation }
+Variation        = { score: Score; pv: readonly string[] /* UCI */ }
 Score            = { kind: 'cp'; cp } | { kind: 'mate'; winner: 'w' | 'b'; moves }  // White POV
 ```
+
+`second` is the engine's next best line: the best line whose first move differs from `pv[0]`, searched to the same depth. It is never better for the side to move than the best line. It is absent when the root has fewer than two legal moves, and readers treat a missing second line as unknown.
 
 The analyzer keeps one private `Entry = { line, settled, failed }` per position. It has two monotone writers. `mergeLine` keeps the deeper line. `settle` raises the settled level. A duplicate, late, or preempted message therefore cannot make the document worse (per make-operations-idempotent). Status is derived at flush time, not stored. Raising the level never blanks a position, and lowering it never discards deeper work.
 
@@ -70,11 +73,11 @@ Pool size, scheduling order, worker identity, and preemption therefore cannot ch
 
 | Level              | Depth | Node cap | Time cap |
 | ------------------ | ----- | -------- | -------- |
-| fast               | 8     | 250k     | 1 s      |
+| fast               | 8     | 500k     | 1 s      |
 | balanced (default) | 12    | 1.5M     | 5 s      |
 | deep               | 16    | 10M      | 20 s     |
 
-Per position, iterative deepening runs to `depth` and stops at whichever cap binds first. A partial iteration is discarded. The search also stops early on a proven mate. Key order is rank order, and a test asserts that every column strictly increases. Settings options, persisted-value validation, the scheduler, and the worker limits all derive from this table. The numbers are calibrated with `pnpm bench` (see Verification).
+Per position, iterative deepening runs to `depth` and stops at whichever cap binds first. Each iteration searches two lines (see Search), and both share the caps. A partial iteration is discarded, including one cut during its second line. The search also stops early on a proven mate. Key order is rank order, and a test asserts that every column strictly increases. Settings options, persisted-value validation, the scheduler, and the worker limits all derive from this table. The numbers are calibrated with `pnpm bench` (see Verification).
 
 ### Concurrency: lanes behind the document
 
@@ -99,6 +102,7 @@ Per position, iterative deepening runs to `depth` and stops at whichever cap bin
   - Quiescence over captures and queen promotions, with full evasions when in check, plus delta pruning.
   - Move ordering: TT move, MVV-LVA captures, promotions, two killers, butterfly history.
   - The PV comes from a triangular table.
+  - MultiPV 2. After the first line of each depth, a second root search to the same depth skips the first line's move at ply 0, and its aspiration window centres on the previous iteration's second score. The restricted root is never stored in the transposition table, so the next iteration still finds the first line's move there. A root with one legal move gets no second search, since excluding that move would read as mate or stalemate. When search instability scores the second line above the first (18 of 304 iterations over the Opera Game at depth 10), the two swap, so the best line is always the higher one. The mate early stop reads the best line.
 - **Scores.** Side-to-move ints internally; mate is `MATE - ply`. `toScore` in `engine.ts` is the only place the point of view flips. `winner` is explicit, so "mate in 0" is representable.
 - **Moves leave the engine as UCI strings.** chess.js, which already owns SAN, converts the one displayed PV at the UI.
 
@@ -122,14 +126,14 @@ Determinism is what makes a finished analysis worth keeping: the same game at th
 
 - **One record per game, keyed by content.** `gameKey(replay)` is a 53-bit hash of the start FEN and every ply's FEN, so Chess.com and a pasted PGN of the same game share a record. `Loaded.id` is a per-session counter and cannot be the key. The record holds the best level reached, and `satisfies(record.level, wanted)` decides whether it covers a request. Nothing is keyed by level.
 - **Shape.** `StoredAnalysis = { v, key, level, lines, replay, analyzedAt }`, with one `Line` per position and the replay kept so the Overview can grade and list the game without its source. `level` is the lowest level any position settled at.
-- **Reads go through `parseStored`.** A wrong `CACHE_VERSION`, an unknown level, a line count other than plies + 1, or a malformed line or replay is a miss, never a throw. Bump `CACHE_VERSION` whenever the engine, its evaluation, or the `Line` shape changes.
+- **Reads go through `parseStored`.** A wrong `CACHE_VERSION`, an unknown level, a line count other than plies + 1, or a malformed line or replay is a miss, never a throw. Bump `CACHE_VERSION` whenever the engine, its evaluation, or the `Line` shape changes. Version 2 added the optional `second` line, which is validated like the first.
 - **Never breaks a review.** `openIdbStore()` is null without IndexedDB, and every IndexedDB failure resolves like a miss. `save` keeps the higher level, inside one transaction. Failed positions are never cached, so a game with one is not saved.
 - **In the analyzer.** On a new game the analyzer marks it `loading` and plans nothing until the lookup settles, or until `CACHE_LOAD_MS` (1.5 s) passes so a hung database cannot stall analysis. A hit seeds each entry through `mergeLine` and `settle`, the same monotone writers the engine uses, so a late or repeated hit cannot make the document worse. A game is saved once every position has a line, none failed and all satisfy the current level, then again only after reaching a higher level.
 - **Overview.** `summarize` grades a record with `classifyMoves` and `gameReport` and keeps the player's half. `overview` aggregates the games where a saved Chess.com or Lichess username matches a PGN name (`sideOf` takes the list, and a game where both sides match counts as nobody's), and lists the rest without counting them. The trend covers the latest 20 games. Grade mix, mistakes per stage and openings cover every saved game. The stage split in `src/lib/chess/stage.ts` is an approximation (endgame at six or fewer pieces besides pawns and kings, else opening until ply 20).
 
 ### Drills (`src/lib/analysis/drill.ts`)
 
-The Drill route (`#/drill`) turns saved reviews into practice. `drillsOf` takes every mistake, miss and blunder the player made (from `mistakesOf`, the uncapped version of the report's key moments) in games where the saved username names their side. It asks for the move from the position before it, and drops any moment whose engine move is missing or illegal there. Judging is exact: only the engine's first choice (`pv[0]`) counts. The engine has no MultiPV, so a near-equal alternative cannot be told apart from a real mistake, and the page says so. `drill-session.ts` is the answer flow as a reducer. Nothing about a session is persisted, and leaving the page starts it over.
+The Drill route (`#/drill`) turns saved reviews into practice. `drillsOf` takes every mistake, miss and blunder the player made (from `mistakesOf`, the uncapped version of the report's key moments) in games where the saved username names their side. It asks for the move from the position before it, and drops any moment whose engine move is missing or illegal there. Judging is exact: only the engine's first choice (`pv[0]`) counts. Drills do not read the second line yet, so a near-equal alternative still counts as wrong, and the page says so. `drill-session.ts` is the answer flow as a reducer. Nothing about a session is persisted, and leaving the page starts it over.
 
 ### Sources and links
 
@@ -202,9 +206,10 @@ Rejected:
 
 - We accept no transposition-table reuse across positions (more nodes per position) in exchange for deterministic results that don't depend on order or pool size.
 - We accept losing a preempted job's work in exchange for real cancellation without `SharedArrayBuffer`. Only slot 0 is preempted, and only after the dwell.
-- We accept a first-light pass at `fast` (about 1% of Deep's node budget) in exchange for a whole-game picture within seconds.
+- We accept a first-light pass at `fast` (about 5% of Deep's node budget) in exchange for a whole-game picture within seconds.
 - We accept up to 8 workers × about 10 MiB in exchange for using the user's cores.
 - We accept that a time cap makes a result machine-dependent on slow devices. It's reported as `reason: 'time'`, and `Line.depth` shows what was reached.
+- We accept about one ply less at each level's node cap in exchange for a second line per position, which grades only-moves and names the next best move in the coach.
 - We accept a PeSTO-only evaluation, with no tuner and no SEE, in exchange for a known-good baseline. _ponytail: add SEE and a Texel tuner when the bench and tactics suite justify them._
 - We accept `!` on typed-array reads in the engine in exchange for zero-allocation hot loops.
 - We accept unbranded int moves inside the engine. They never leave it; UCI strings are the public form.
@@ -226,19 +231,25 @@ Rejected:
   - stalemate, a hanging queen, and a promotion suffix
   - color-symmetric static eval
   - a repetition through game history scores 0
-  - determinism (same request gives the same line and node count)
-  - the node cap binding, and iterations streaming in order
+  - determinism (same request gives the same line, second line included, and node count)
+  - the node cap binding with the kept iteration's second line intact, and iterations streaming in order
+  - on six positions, a second line that starts with another move and is never better for the mover, including one where search instability makes the lines swap
+  - no second line when the root has one legal move (Nxb8 after 16. Qb8+)
+  - 14. Rd1 in the Opera Game as an only-move, 3+ pawns ahead of the next best
+  - a plain recapture staying `best` however far behind the next best is
 - **Scheduling and analyzer** (`schedule.test.ts`, `analyzer.test.ts`): the plan's priority order, the dwell-gated preemption, and no duplicate or redone work. Also streaming into the document, stale messages after a game switch, raising and lowering the level, monotone lines, history FENs in jobs, and the no-Worker case. These use scripted lanes and fake timers.
-- **App** (`analysis.test.tsx`): an in-process `Worker` stub runs the real engine through the real analyzer, hook, panel, and arrow. On Opera position 30 it shows `#2`, `Qb8+ Nxb8 Rd8#`, and a b3→b8 arrow. The level setting persists across a remount. `staging.test.tsx` counts the stub's jobs: staging posts none, and Review game posts some.
-- **Bench** (`pnpm bench`): 8 fixed positions on the engine bundled the way the worker ships. Measured on a 12-thread dev machine at about 1.7M nodes per second per core:
+- **App** (`analysis.test.tsx`): an in-process `Worker` stub runs the real engine through the real analyzer, hook, panel, and arrow. On Opera position 30 it shows `#2`, `Qb8+ Nxb8 Rd8#`, a b3→b8 arrow and a fainter second arrow. After 17. Rd8#, the engine's own move, the coach names the next best move and no "Best was". The level setting persists across a remount. `staging.test.tsx` counts the stub's jobs: staging posts none, and Review game posts some.
+- **Bench** (`pnpm bench`): 8 fixed positions on the engine bundled the way the worker ships. Measured on a 12-thread dev machine at about 1.4M (fast) to 1.85M (deep) nodes per second per core, 3 runs each, with MultiPV 2:
 
   | Level    | Per position (avg) | Typical middlegame depth | Bound that binds         |
   | -------- | ------------------ | ------------------------ | ------------------------ |
-  | fast     | ~0.15 s            | 8                        | depth or nodes           |
-  | balanced | ~0.7 s             | 10–12                    | nodes; depth in endgames |
-  | deep     | ~5 s               | 13–16                    | nodes; depth in endgames |
+  | fast     | ~0.16 s            | 8                        | depth                    |
+  | balanced | ~0.8 s             | 9–11                     | nodes; depth in endgames |
+  | deep     | ~5 s               | 13–14                    | nodes; depth in endgames |
 
-  The time caps never bound on this machine, so results here are deterministic. A machine about 3× slower reaches the Deep time cap.
+  The time caps never bound on this machine, so results here are deterministic: node totals and depths were identical across runs. A machine about 3× slower reaches the Deep time cap.
+
+  The second line costs about 2× the nodes per depth: 7.43M to 15.37M over 37 positions searched to depth 9, and 1.9× to 2.5× at depths 4 to 11 on the bench positions. At unchanged node caps that is about one ply. Before MultiPV, the same positions reached depth 8 at fast, 10 to 12 at balanced and 13 to 16 at deep. Fast's cap went from 250k to 500k to get depth 8 back on every bench position, at about 1.3 s for all eight. Wall time per level rose 20% to 50%, because fewer positions now finish early on the depth cap, and nodes per second fell about 6%. With the second search switched off, the code searches the identical tree at the old rate, so the slowdown comes from the second search's tree and not from per-node overhead. Balanced and Deep keep their caps: doubling them would double review time and push Deep further past its time cap on slow devices.
 
 - **Real artifacts**:
   - `astro build` emits `engine.worker-*.js` as a self-contained IIFE. Run under Node with a fake `self`, the bundle streams 9 lines and returns `done` at depth 8.
@@ -249,7 +260,7 @@ Rejected:
 
 The orchestrator accepted every deviation below against this design.
 
-- **Fast node cap 150k → 250k.** The bench showed Fast reaching only depth 7 in middlegames at 150k. Contract unchanged: it's a table value.
+- **Fast node cap 150k → 250k → 500k.** The bench showed Fast reaching only depth 7 in middlegames at 150k, and the second line of MultiPV cost another one to two plies at 250k. Contract unchanged: it's a table value.
 - **Bench is a script, not a Vitest test.** Vitest's module transform turns imported constants into property lookups in the hot loop: 0.3M vs 1.7M nodes per second measured. `scripts/bench.mjs` bundles with Vite first. This is a local deviation with no contract impact.
 - **Engine tests run in jsdom, not the node environment.** The shared `vitest.setup.ts` touches `localStorage`. This is local.
 - **EvalBar is a vertical bar beside the board, as sketched in Usage.** It first shipped as a horizontal win-chance meter inside `EnginePanel`, because a vertical bar would have entangled the board column's resize logic. The full-height review layout made the board column a grid, and the bar now has its own track beside the board. It reads the same `line.score` that `EnginePanel` shows as text.

@@ -10,12 +10,18 @@ export type Score =
   | { kind: 'cp'; cp: number }
   | { kind: 'mate'; winner: 'w' | 'b'; moves: number };
 
+/** One line from the root: its score and its UCI moves ("e2e4", "a7a8q"). */
+export type Variation = { score: Score; pv: readonly string[] };
+
 /**
- * One completed search iteration.
- * `pv` holds UCI moves ("e2e4", "a7a8q"); `pv[0]` is the best move. It is
- * empty only when the position has no legal moves.
+ * One completed search iteration. `pv[0]` is the best move; `pv` is empty
+ * only when the position has no legal moves.
+ * `second` is the best line whose first move differs from `pv[0]`, searched
+ * to the same depth. It never scores better for the side to move than the
+ * best line. Absent when the root has fewer than two legal moves; readers
+ * treat a missing second line as unknown.
  */
-export type Line = { score: Score; pv: readonly string[]; depth: number };
+export type Line = Variation & { depth: number; second?: Variation };
 
 /**
  * How a score reads on screen: one decimal with a sign ("+1.4", "-0.6", "0.0"),

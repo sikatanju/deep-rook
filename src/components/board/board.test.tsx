@@ -65,6 +65,26 @@ test('in play mode every square is a button named by square and piece', async ()
   ).not.toBeNull();
 });
 
+test("the engine's second choice is a fainter arrow drawn under the best one", () => {
+  const { container } = render(
+    <Board
+      fen={START}
+      flipped={false}
+      theme="palette"
+      coordinates
+      arrow="g1f3"
+      second="d2d4"
+    />,
+  );
+  const best = container.querySelector('[data-arrow="g1f3"]')!;
+  const next = container.querySelector('[data-arrow="d2d4"]')!;
+  const opacity = (el: Element) => Number(el.getAttribute('opacity') ?? 1);
+  expect(opacity(next)).toBeLessThan(opacity(best));
+  expect(next.compareDocumentPosition(best)).toBe(
+    Node.DOCUMENT_POSITION_FOLLOWING,
+  );
+});
+
 test('play mode marks the selected square and each target', () => {
   const { container } = renderBoard({
     selected: 'g1',

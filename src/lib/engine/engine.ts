@@ -2,7 +2,7 @@
 // call it directly, and a server could run the same file. It owns the two
 // conversions that happen exactly once: FEN strings in, White-POV Line out.
 
-import type { Line, Score } from '@/lib/chess/score';
+import type { Line, Score, Variation } from '@/lib/chess/score';
 
 import {
   BLACK,
@@ -15,7 +15,12 @@ import {
 } from './board';
 import { legalMoves } from './moves';
 import { parseFen } from './position';
-import { Searcher, type Limits, type StopReason } from './search';
+import {
+  Searcher,
+  type Iteration,
+  type Limits,
+  type StopReason,
+} from './search';
 import { TranspositionTable } from './tt';
 
 /**
@@ -66,14 +71,14 @@ export function createEngine(): Engine {
           ms: 0,
         };
       }
-      const toLine = (it: {
-        depth: number;
-        score: number;
-        pv: Move[];
-      }): Line => ({
-        score: toScore(it.score, stm),
-        pv: it.pv.map(toUci),
+      const toVariation = (v: { score: number; pv: Move[] }): Variation => ({
+        score: toScore(v.score, stm),
+        pv: v.pv.map(toUci),
+      });
+      const toLine = (it: Iteration): Line => ({
+        ...toVariation(it),
         depth: it.depth,
+        ...(it.second && { second: toVariation(it.second) }),
       });
       const result = searcher.run(pos, request, (it) => onLine?.(toLine(it)));
       return {

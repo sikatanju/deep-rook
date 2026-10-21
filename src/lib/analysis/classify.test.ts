@@ -1,7 +1,7 @@
 import { expect, test } from 'vitest';
 
 import { OPERA_GAME, parseReplay } from '@/lib/chess/replay';
-import type { Score } from '@/lib/chess/score';
+import type { Score, Variation } from '@/lib/chess/score';
 
 import { classifyMoves } from './classify';
 import type { PositionAnalysis } from './game-analysis';
@@ -10,14 +10,18 @@ const replay = parseReplay(OPERA_GAME);
 const cp = (n: number): Score => ({ kind: 'cp', cp: n });
 const mate = (moves: number): Score => ({ kind: 'mate', winner: 'w', moves });
 
-function grade(lines: Record<number, [Score, string[]]>) {
+/** Each entry is [score, pv] or [score, pv, the engine's second line]. */
+function grade(lines: Record<number, [Score, string[], Variation?]>) {
   const positions = Array.from(
     { length: replay.plies.length + 1 },
     (_, i): PositionAnalysis => {
       const line = lines[i];
-      return line
-        ? { status: 'done', line: { score: line[0], pv: line[1], depth: 10 } }
-        : { status: 'queued', line: null };
+      if (!line) return { status: 'queued', line: null };
+      const [score, pv, second] = line;
+      return {
+        status: 'done',
+        line: { score, pv, depth: 10, ...(second && { second }) },
+      };
     },
   );
   return classifyMoves(replay, positions);
@@ -53,6 +57,57 @@ test('the engine move is best, and great when it punishes a mistake', () => {
     2: [cp(-400), ['g1f3']],
   });
   expect(punished[1]).toBe('great');
+});
+
+test('the engine move is great when the next best trails by 15 points of win chance', () => {
+  // +0.0 against -2.0 is about 17.6 points for White; -1.0 is about 9.1.
+  const only = grade({
+    0: [cp(0), ['e2e4'], { score: cp(-200), pv: ['d2d4'] }],
+    1: [cp(0), ['e7e5']],
+  });
+  expect(only[0]).toBe('great');
+  const roomy = grade({
+    0: [cp(0), ['e2e4'], { score: cp(-100), pv: ['d2d4'] }],
+    1: [cp(0), ['e7e5']],
+  });
+  expect(roomy[0]).toBe('best');
+});
+
+test("the only-move gap is measured from the mover's side", () => {
+  // Black to move: a second line at +2.0 is bad for Black, -2.0 is good.
+  const black = (second: number) =>
+    grade({
+      1: [cp(0), ['e7e5'], { score: cp(second), pv: ['c7c5'] }],
+      2: [cp(0), ['g1f3']],
+    })[1];
+  expect(black(200)).toBe('great');
+  expect(black(-200)).toBe('best');
+});
+
+test('an only-move that was not played grades by the loss as usual', () => {
+  const graded = grade({
+    0: [cp(0), ['d2d4'], { score: cp(-300), pv: ['c2c4'] }],
+    1: [cp(-200), ['e7e5']],
+  });
+  expect(graded[0]).toBe('mistake');
+});
+
+test('a mating line stays best however far behind the next best is', () => {
+  const graded = grade({
+    32: [mate(1), ['d1d8'], { score: cp(-1000), pv: ['d1d5'] }],
+    33: [mate(0), []],
+  });
+  expect(graded[32]).toBe('best');
+});
+
+test('a plain recapture stays best however far behind the next best is', () => {
+  // 4...Bxf3 5.Qxf3: White retakes on the square Black just captured on.
+  expect(replay.plies[8]!.san).toBe('Qxf3');
+  const graded = grade({
+    8: [cp(0), ['d1f3'], { score: cp(-200), pv: ['g1f3'] }],
+    9: [cp(0), ['d6e5']],
+  });
+  expect(graded[8]).toBe('best');
 });
 
 test('failing to punish a mistake is a miss', () => {

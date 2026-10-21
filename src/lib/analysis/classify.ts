@@ -6,7 +6,7 @@
 import { Chess } from 'chess.js';
 
 import { fenAt, materialOf, type Ply, type Replay } from '@/lib/chess/replay';
-import { winPercent, type Line } from '@/lib/chess/score';
+import { winPercent, type Variation } from '@/lib/chess/score';
 
 import type { PositionAnalysis } from './game-analysis';
 
@@ -48,15 +48,23 @@ const BY_LOSS: [number, Classification][] = [
 ];
 
 /**
+ * A best move is an only-move when the engine's next best line leaves the
+ * mover this many points of win chance worse.
+ */
+const ONLY_MOVE_GAP = 15;
+
+/**
  * One grade per ply; null while either side of the move is unsettled.
  *
- * - best: the engine's own move. great: best, and it punishes the opponent's
- *   mistake. brilliant: near-best, gives up 2+ points of material to the
- *   engine's reply, and leaves the mover not worse.
+ * - best: the engine's own move. great: best, and it either punishes the
+ *   opponent's mistake or is an only-move (the next best line trails by
+ *   ONLY_MOVE_GAP or more). A mate score for either side stays best, or
+ *   every move of a mating attack would read as great, and so does a plain
+ *   recapture. Without a second
+ *   line, only punishing counts.
+ * - brilliant: near-best, gives up 2+ points of material to the engine's
+ *   reply, and leaves the mover not worse.
  * - miss: an inaccuracy or mistake right after the opponent's mistake.
- *
- * ponytail: no MultiPV, so "great" cannot detect only-moves; add when the
- * engine reports a second line.
  */
 export function classifyMoves(
   replay: Replay,
@@ -69,7 +77,7 @@ export function classifyMoves(
     if (!before || !after) return null;
     const fen = fenAt(replay, p);
     const sign = fen.split(' ')[1] === 'w' ? 1 : -1;
-    const win = (l: Line) => 50 + sign * (winPercent(l.score) - 50);
+    const win = (v: Variation) => 50 + sign * (winPercent(v.score) - 50);
     return {
       fen,
       ply,
@@ -78,6 +86,11 @@ export function classifyMoves(
       loss: Math.max(0, win(before) - win(after)),
       winAfter: win(after),
       best: isPlayed(ply, before.pv[0]),
+      onlyMove:
+        !isRecapture(ply, replay.plies[p - 1]) &&
+        before.score.kind !== 'mate' &&
+        before.second !== undefined &&
+        win(before) - win(before.second) >= ONLY_MOVE_GAP,
     };
   });
 
@@ -85,12 +98,22 @@ export function classifyMoves(
     if (!m) return null;
     const punishes = (moves[p - 1]?.loss ?? 0) >= 10;
     if (m.loss < 2 && m.winAfter >= 50 && isSacrifice(m)) return 'brilliant';
-    if (m.best) return punishes ? 'great' : 'best';
+    if (m.best) return punishes || m.onlyMove ? 'great' : 'best';
     const kind = BY_LOSS.find(([max]) => m.loss < max)![1];
     return punishes && (kind === 'inaccuracy' || kind === 'mistake')
       ? 'miss'
       : kind;
   });
+}
+
+/** Taking back on the square the opponent just captured on: forced by nature, not a find. */
+function isRecapture(ply: Ply, previous: Ply | undefined) {
+  return (
+    previous !== undefined &&
+    previous.to === ply.to &&
+    ply.san.includes('x') &&
+    previous.san.includes('x')
+  );
 }
 
 function isPlayed(ply: Ply, uci: string | undefined) {

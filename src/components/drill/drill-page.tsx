@@ -213,7 +213,7 @@ function DrillCard({
     <CoachBubble
       grade={drill.grade}
       move={moveLabel(drill.moveNumber, drill.color, drill.played.san)}
-      best={drill.best.san}
+      best={{ san: drill.best.san }}
       title={
         phase === 'solved' ? 'You found it.' : "Here is the engine's move."
       }

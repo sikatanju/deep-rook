@@ -35,10 +35,16 @@ import {
  */
 export type Limits = { depth: number; nodes: number; maxMs: number };
 
-export type Iteration = {
+/** A line from the root: its side-to-move score and its moves. */
+export type Variation = { score: number; pv: Move[] };
+
+export type Iteration = Variation & {
   depth: number;
-  score: number;
-  pv: Move[];
+  /**
+   * The best line whose first move differs from `pv[0]`, searched to the same
+   * depth. Absent when the root has a single legal move.
+   */
+  second?: Variation;
   nodes: number;
 };
 
@@ -81,6 +87,8 @@ export class Searcher {
   private stop: StopReason | null = null;
   /** Limits apply only after depth 1, so every result has a best move. */
   private armed = false;
+  /** A root move the current search skips: the first line's move, while the second line is searched. */
+  private excluded: Move = NO_MOVE;
 
   constructor(private readonly tt: TranspositionTable) {}
 
@@ -100,28 +108,59 @@ export class Searcher {
     this.stop = null;
     this.armed = false;
 
-    let best: Iteration | null = null;
+    // With one legal move, excluding it would leave a root that reads as mate or stalemate.
+    const multi = legalMoves(pos).length >= 2;
+    let best: Iteration | undefined;
     let reason: StopReason = 'depth';
     for (let depth = 1; depth <= Math.min(limits.depth, MAX_PLY - 1); depth++) {
-      const score = this.aspiration(pos, depth, best?.score ?? 0);
+      const first = this.line(pos, depth, best?.score ?? 0, NO_MOVE);
+      const second =
+        multi && !this.stop
+          ? this.line(pos, depth, best?.second?.score ?? 0, first.pv[0]!)
+          : undefined;
       if (this.stop) {
         reason = this.stop;
         break;
       }
       this.armed = true;
+      // Search instability (a reduced search of the second move failing low)
+      // can score the second line above the first; the higher one is best.
+      const [top, next]: [Variation, Variation?] =
+        second && second.score > first.score
+          ? [second, first]
+          : [first, second];
       best = {
+        ...top,
         depth,
-        score,
-        pv: Array.from(this.pvTable.subarray(0, this.pvLength[0]!)),
+        ...(next && { second: next }),
         nodes: this.nodes,
       };
       onIteration(best);
-      if (isMateScore(score) && MATE - Math.abs(score) <= depth) {
+      if (isMateScore(top.score) && MATE - Math.abs(top.score) <= depth) {
         reason = 'mate';
         break;
       }
     }
     return { best: best!, reason, nodes: this.nodes, ms: now() - start };
+  }
+
+  /**
+   * One root search that skips `excluded`, with its aspiration window centred
+   * on `prev`. The PV is copied out before the next search overwrites it.
+   */
+  private line(
+    pos: Position,
+    depth: number,
+    prev: number,
+    excluded: Move,
+  ): Variation {
+    this.excluded = excluded;
+    const score = this.aspiration(pos, depth, prev);
+    this.excluded = NO_MOVE;
+    return {
+      score,
+      pv: Array.from(this.pvTable.subarray(0, this.pvLength[0]!)),
+    };
   }
 
   private aspiration(pos: Position, depth: number, prev: number): number {
@@ -241,6 +280,7 @@ export class Searcher {
     let legal = 0;
     for (let i = base; i < end; i++) {
       const m = this.pickNext(i, end);
+      if (ply === 0 && m === this.excluded) continue;
       if (!pos.make(m)) continue;
       legal++;
       const quiet = !isCapture(m) && !isPromotion(m);
@@ -283,7 +323,10 @@ export class Searcher {
         : bestScore > origAlpha
           ? BOUND_EXACT
           : BOUND_UPPER;
-    this.tt.store(keyLo, keyHi, depth, bound, bestScore, bestMove, ply);
+    // A root with a move excluded is not the position's value. Skipping the
+    // store also keeps the first line's move as the next iteration's TT move.
+    if (ply > 0 || this.excluded === NO_MOVE)
+      this.tt.store(keyLo, keyHi, depth, bound, bestScore, bestMove, ply);
     return bestScore;
   }
 

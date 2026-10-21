@@ -7,6 +7,36 @@ import { GradeSticker } from './grade-sticker';
 
 const article = (word: string) => (/^[aeiou]/i.test(word) ? 'an' : 'a');
 
+/** A move the engine names instead of the one played. */
+type EngineChoice = {
+  /** SAN, e.g. "Nf3". */
+  san: string;
+  /** Already formatted: "+0.4". */
+  eval?: string;
+};
+
+function Choice({
+  icon,
+  label,
+  choice,
+}: {
+  icon: ReactNode;
+  label: string;
+  choice: EngineChoice;
+}) {
+  return (
+    <p className="flex items-center gap-2">
+      {icon}
+      <span>
+        {label} <span className="font-mono">{choice.san}</span>
+        {choice.eval && (
+          <span className="text-ink-muted font-mono"> ({choice.eval})</span>
+        )}
+      </span>
+    </p>
+  );
+}
+
 /**
  * The coach: a rook tile and a speech bubble that says what just happened in
  * plain, punchy words. `title` is one line in the coach's voice (cheeky, never
@@ -21,6 +51,7 @@ export function CoachBubble({
   move,
   eval: score,
   best,
+  next,
   title,
   actions,
   children,
@@ -31,8 +62,10 @@ export function CoachBubble({
   move?: string;
   /** Already formatted: "+1.4", "M2". */
   eval?: string;
-  /** SAN of the engine's preferred move, when it is not the one played. */
-  best?: string;
+  /** The engine's preferred move, when it is not the one played. */
+  best?: EngineChoice;
+  /** The engine's next best move, when it is not the one played. */
+  next?: EngineChoice;
   title: ReactNode;
   actions?: ReactNode;
   children?: ReactNode;
@@ -81,13 +114,33 @@ export function CoachBubble({
           {title}
         </p>
         {children && <p className="text-ink-muted">{children}</p>}
-        {best && (
-          <p className="mt-2 flex items-center gap-2 font-bold">
-            <GradeSticker grade="best" iconOnly className="scale-90" />
-            <span>
-              Best was <span className="font-mono">{best}</span>
-            </span>
-          </p>
+        {(best || next) && (
+          <div className="mt-2 grid gap-1 font-bold">
+            {best && (
+              <Choice
+                icon={
+                  <GradeSticker grade="best" iconOnly className="scale-90" />
+                }
+                label="Best was"
+                choice={best}
+              />
+            )}
+            {next && (
+              <Choice
+                // The best sticker's footprint, neutral: a rank, not a grade.
+                icon={
+                  <span
+                    aria-hidden
+                    className="border-line bg-surface-alt grid h-6 min-w-[26px] scale-90 place-items-center rounded-sm border-2 px-[3px] font-mono text-xs font-bold shadow-sm"
+                  >
+                    2
+                  </span>
+                }
+                label="Next best was"
+                choice={next}
+              />
+            )}
+          </div>
         )}
         {actions && <div className="mt-3 flex flex-wrap gap-2">{actions}</div>}
       </div>

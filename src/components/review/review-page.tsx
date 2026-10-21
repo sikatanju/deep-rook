@@ -26,7 +26,7 @@ import {
   type Ply,
   type Replay,
 } from '@/lib/chess/replay';
-import { formatScore } from '@/lib/chess/score';
+import { formatScore, type Variation } from '@/lib/chess/score';
 
 import { CoachBubble } from './coach-bubble';
 import { CopyLink } from './copy-link';
@@ -60,7 +60,7 @@ function isTyping(target: EventTarget | null) {
 /** The coach's one-liner per grade: cheeky, never mean, under 45 characters. */
 const COACH_LINE: Record<Classification, string> = {
   brilliant: 'Brilliant! The board just gasped.',
-  great: 'Great find. That punishes the slip.',
+  great: 'Great find. That one really mattered.',
   best: 'Engine-approved. Nothing to add.',
   excellent: 'Basically perfect.',
   good: 'Solid. There was a sharper try.',
@@ -165,13 +165,18 @@ function Viewer({ loaded }: { loaded: Loaded }) {
   const grade = grades[index - 1];
   const moving = movingPiece(replay, nav.at, nav.from);
   const prior = analysis?.positions[index - 1];
-  const better =
-    grade && grade !== 'best' && grade !== 'great' && prior?.status === 'done'
-      ? sanLine(fenAt(replay, index - 1), prior.line.pv.slice(0, 1))[0]
-      : undefined;
 
   const { headers, plies } = replay;
   const ply = index > 0 ? plies[index - 1] : undefined;
+  /** A graded move's alternative from the engine line before it, unless it is the move played. */
+  const instead = (variation: Variation | undefined) => {
+    if (!grade || !ply || !variation) return undefined;
+    const san = sanLine(fenAt(replay, index - 1), variation.pv.slice(0, 1))[0];
+    return san && san !== ply.san
+      ? { san, eval: formatScore(variation.score) }
+      : undefined;
+  };
+  const before = prior?.status === 'done' ? prior.line : undefined;
   const fen = fenAt(replay, index);
   const material = materialOf(fen);
   const sideToMove = fen.split(' ')[1] as 'w' | 'b';
@@ -263,6 +268,7 @@ function Viewer({ loaded }: { loaded: Loaded }) {
                 ply?.check ? (sideToMove === 'w' ? 'K' : 'k') : undefined
               }
               arrow={line?.pv[0]}
+              second={line?.second?.pv[0]}
               moving={moving}
               grade={grade ?? null}
             />
@@ -366,7 +372,8 @@ function Viewer({ loaded }: { loaded: Loaded }) {
             grade={grade ?? undefined}
             move={ply && grade ? moveLabel(ply) : undefined}
             eval={grade ? eval_ : undefined}
-            best={better && better !== ply?.san ? better : undefined}
+            best={instead(before)}
+            next={instead(before?.second)}
             title={coach.title}
           >
             {coach.body}

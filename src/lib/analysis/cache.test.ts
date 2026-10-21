@@ -91,6 +91,18 @@ test('every malformed record is a miss, never a throw', () => {
       pv: [1],
       depth: 1,
     }),
+    'a second line that is null': withLine({
+      ...good.lines[0],
+      second: null,
+    }),
+    'a second line with no score': withLine({
+      ...good.lines[0],
+      second: { pv: ['d2d4'] },
+    }),
+    'a second line with a pv of numbers': withLine({
+      ...good.lines[0],
+      second: { score: { kind: 'cp', cp: 1 }, pv: [1] },
+    }),
     'a replay that is a string': { ...good, replay: 'e4' },
     'a replay with no start': { ...good, replay: { ...good.replay, start: 1 } },
     'headers with a non-string value': {
@@ -114,6 +126,23 @@ test('a mate score round-trips', () => {
     depth: 4,
   };
   expect(parseStored(structuredClone(record))).toEqual(record);
+});
+
+test("the engine's second line round-trips", () => {
+  const record = stored();
+  const second = {
+    score: { kind: 'mate', winner: 'b', moves: 3 },
+    pv: ['g2g4'],
+  } as const;
+  record.lines[0] = {
+    score: { kind: 'cp', cp: 30 },
+    pv: ['e2e4', 'e7e5'],
+    depth: 12,
+    second,
+  };
+  expect(parseStored(structuredClone(record))?.lines[0]?.second).toEqual(
+    second,
+  );
 });
 
 const stores = [

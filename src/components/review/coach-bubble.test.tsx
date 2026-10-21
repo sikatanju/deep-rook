@@ -30,7 +30,7 @@ test('a played move that was not the engine’s pick names the better one', () =
       grade="mistake"
       move="1… e6"
       eval="+0.2"
-      best="Nf6"
+      best={{ san: 'Nf6' }}
       title="Oops."
     >
       Wobbly.
@@ -39,6 +39,38 @@ test('a played move that was not the engine’s pick names the better one', () =
   const coach = screen.getByRole('region', { name: 'Coach' });
   expect(coach).toHaveTextContent('1… e6 is a mistake');
   expect(coach).toHaveTextContent('Best was Nf6');
+  expect(coach).not.toHaveTextContent('Next best');
+});
+
+test('names the best and the next best move, each with its eval', () => {
+  render(
+    <CoachBubble
+      grade="inaccuracy"
+      move="3. Bc4"
+      eval="-0.1"
+      best={{ san: 'Nf3', eval: '+0.4' }}
+      next={{ san: 'd4', eval: '+0.2' }}
+      title="Wobbly."
+    />,
+  );
+  const coach = screen.getByRole('region', { name: 'Coach' });
+  expect(coach).toHaveTextContent('Best was Nf3 (+0.4)');
+  expect(coach).toHaveTextContent('Next best was d4 (+0.2)');
+});
+
+test('a best move still shows the next best, and no "Best was"', () => {
+  render(
+    <CoachBubble
+      grade="great"
+      move="14. Rd1"
+      eval="+4.0"
+      next={{ san: 'Bxd7+', eval: '-0.5' }}
+      title="Great find."
+    />,
+  );
+  const coach = screen.getByRole('region', { name: 'Coach' });
+  expect(coach).toHaveTextContent('Next best was Bxd7+ (-0.5)');
+  expect(coach).not.toHaveTextContent('Best was');
 });
 
 test('a bare bubble is just the line', () => {

@@ -1,10 +1,12 @@
 import { expect, test } from 'vitest';
 
 import { OPERA_GAME, fenAt, parseReplay } from '@/lib/chess/replay';
+import type { Score } from '@/lib/chess/score';
 
 import { createEngine, toScore, type SearchRequest } from './engine';
 import { BLACK, MATE, WHITE } from './board';
 import { evaluate } from './evaluate';
+import { legalMoves } from './moves';
 import { parseFen } from './position';
 
 const engine = createEngine();
@@ -131,11 +133,12 @@ test('same request, same answer', () => {
   };
   const a = createEngine().search(request);
   const b = engine.search(request);
+  expect(a.line.second).toBeDefined();
   expect(b.line).toEqual(a.line);
   expect(b.nodes).toBe(a.nodes);
 });
 
-test('node cap binds and keeps the last full iteration', () => {
+test('node cap binds and keeps the last full iteration, second line included', () => {
   const out = engine.search({
     fen: fenAt(opera, 12),
     history: [],
@@ -145,7 +148,56 @@ test('node cap binds and keeps the last full iteration', () => {
   });
   expect(out.reason).toBe('nodes');
   expect(out.line.pv.length).toBeGreaterThan(0);
+  expect(out.line.second?.pv.length).toBeGreaterThan(0);
   expect(out.nodes).toBe(50_000);
+});
+
+/** Higher is better for `mover`: any mate outranks any centipawns, and a nearer mate a farther one. */
+function forMover(score: Score, mover: string): number {
+  if (score.kind === 'mate')
+    return (score.winner === mover ? 1 : -1) * (100_000 - score.moves);
+  return mover === 'w' ? score.cp : -score.cp;
+}
+
+test.each([
+  ['the start', fenAt(opera, 0)],
+  // At depth 5 the second search outscores the first here (search instability).
+  ['White, with two ways to recapture', fenAt(opera, 8)],
+  ['an open middlegame', fenAt(opera, 12)],
+  ['Black, a piece down', fenAt(opera, 20)],
+  ['Black, facing mate on the second line', fenAt(opera, 29)],
+  [
+    'Kiwipete',
+    'r3k2r/p1ppqpb1/bn2pnp1/3PN3/1p2P3/2N2Q1p/PPPBBPPP/R3K2R w KQkq - 0 1',
+  ],
+])(
+  'in %s the second line starts with another move and is no better',
+  (_, fen) => {
+    const { line } = search(fen, 5);
+    const mover = fen.split(' ')[1]!;
+    expect(line.second).toBeDefined();
+    expect(line.second!.pv[0]).not.toBe(line.pv[0]);
+    expect(forMover(line.second!.score, mover)).toBeLessThanOrEqual(
+      forMover(line.score, mover),
+    );
+  },
+);
+
+test('a position with one legal move has no second line', () => {
+  // After 16. Qb8+ in the Opera Game, Nxb8 is forced.
+  const fen = fenAt(opera, 31);
+  expect(legalMoves(parseFen(fen))).toHaveLength(1);
+  const { line } = search(fen);
+  expect(line.pv[0]).toBe('d7b8');
+  expect(line.second).toBeUndefined();
+});
+
+test("Morphy's 14. Rd1 is an only-move: the next best gives the attack back", () => {
+  const { line } = search(fenAt(opera, 26));
+  expect(line.pv[0]).toBe('h1d1');
+  const best = forMover(line.score, 'w');
+  const next = forMover(line.second!.score, 'w');
+  expect(best - next).toBeGreaterThanOrEqual(300);
 });
 
 test('iterations stream in increasing depth', () => {

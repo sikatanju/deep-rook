@@ -54,6 +54,26 @@ test('the review page shows the engine evaluation on the bar, and its arrow', as
     { timeout: 5_000 },
   );
   expect(document.querySelector('[data-arrow="b3b8"]')).not.toBeNull();
+  // The engine's second choice is drawn too, fainter.
+  const arrows = [...document.querySelectorAll('[data-arrow]')];
+  expect(arrows).toHaveLength(2);
+  expect(arrows[0]).not.toHaveAttribute('data-arrow', 'b3b8');
+  expect(arrows[0]).toHaveAttribute('opacity');
+});
+
+test('after the best move the coach still names the next best', async () => {
+  const user = userEvent.setup();
+  render(<App />);
+  await openOperaGame(user);
+  await user.keyboard('{End}');
+
+  // 17. Rd8# was the engine's move, so there is no "Best was" to show.
+  const coach = screen.getByRole('region', { name: 'Coach' });
+  await waitFor(() => expect(coach).toHaveTextContent(/Next best was \S+/), {
+    timeout: 10_000,
+  });
+  expect(coach).toHaveTextContent('Rd8# is a best');
+  expect(coach).not.toHaveTextContent('Best was');
 });
 
 test('the board carries the move grade on the piece, once the engine has graded it', async () => {

@@ -11,7 +11,7 @@ export const ANALYSIS_LEVELS = {
   fast: {
     label: 'Fast',
     blurb: 'Whole game in seconds. Catches blunders and missed tactics.',
-    limits: { depth: 8, nodes: 250_000, maxMs: 1_000 },
+    limits: { depth: 8, nodes: 500_000, maxMs: 1_000 },
   },
   balanced: {
     label: 'Balanced',
