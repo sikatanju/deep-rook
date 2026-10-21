@@ -80,6 +80,29 @@ export function Piece({
 
 type Cell = { square: string; piece: string | null };
 
+const PIECE_NAMES: Record<string, string> = {
+  p: 'pawn',
+  n: 'knight',
+  b: 'bishop',
+  r: 'rook',
+  q: 'queen',
+  k: 'king',
+};
+
+/** "e4, white pawn", or just "e5" for an empty square. */
+function squareLabel(square: string, piece: string | null) {
+  if (!piece) return square;
+  const color = piece === piece.toUpperCase() ? 'white' : 'black';
+  return `${square}, ${color} ${PIECE_NAMES[piece.toLowerCase()]}`;
+}
+
+/** Click-to-move input: the board names the square, the caller decides. */
+export type BoardPlay = {
+  selected: string | null;
+  targets: readonly string[];
+  onSquare: (square: string) => void;
+};
+
 export function cells(fen: string): Cell[][] {
   return fen
     .split(' ')[0]!
@@ -157,6 +180,7 @@ export function Board({
   arrow,
   moving,
   grade,
+  play,
 }: {
   fen: string;
   flipped: boolean;
@@ -171,6 +195,8 @@ export function Board({
   moving?: MovingPiece | null;
   /** Grade of the ply that produced this position, stuck on `lastMove.to`. */
   grade?: Classification | null;
+  /** Makes every square a button. Without it the board is a picture. */
+  play?: BoardPlay;
 }) {
   const colors = BOARD_THEMES[theme];
   const rows = cells(fen);
@@ -184,7 +210,8 @@ export function Board({
     <div className="border-line bg-line relative border-4 shadow-lg">
       <style>{MOVE_CSS}</style>
       <div
-        role="img"
+        // An img's children are presentational, which would hide the buttons.
+        role={play ? 'group' : 'img'}
         aria-label={`Chess board, ${flipped ? 'black' : 'white'} at the bottom`}
         className="grid aspect-square w-full grid-cols-[repeat(8,minmax(0,1fr))] grid-rows-[repeat(8,minmax(0,1fr))]"
         style={{ containerType: 'inline-size' }}
@@ -198,15 +225,43 @@ export function Board({
           const inCheck = piece !== null && piece === checkOn;
           const bottom = i >= 56;
           const left = i % 8 === 0;
+          const selected = play?.selected === square;
+          const target = play?.targets.includes(square);
+          const Square = play ? 'button' : 'div';
+          const input = play && {
+            type: 'button' as const,
+            tabIndex: -1,
+            'aria-label': squareLabel(square, piece),
+            'aria-pressed': selected,
+            onClick: () => play.onSquare(square),
+          };
           return (
-            <div
+            <Square
               key={square}
               data-square={square}
-              className="relative flex min-h-0 min-w-0 items-center justify-center"
+              className={cn(
+                'relative flex min-h-0 min-w-0 items-center justify-center',
+                play && 'cursor-pointer',
+              )}
               style={{ background: light ? colors.light : colors.dark }}
+              {...input}
             >
-              {lastTouched && (
-                <span className="bg-board-move absolute inset-0" />
+              {(lastTouched || selected) && (
+                <span
+                  data-selected={selected || undefined}
+                  className="bg-board-move absolute inset-0"
+                />
+              )}
+              {target && (
+                <span
+                  data-target=""
+                  className={cn(
+                    'pointer-events-none absolute z-[11] rounded-full',
+                    piece
+                      ? 'border-line/35 inset-[5%] border-[1.1cqw]'
+                      : 'bg-line/30 size-[30%]',
+                  )}
+                />
               )}
               {inCheck && (
                 <span className="absolute inset-0 bg-[radial-gradient(circle,rgba(239,68,68,0.9)_0%,rgba(239,68,68,0)_70%)]" />
@@ -243,7 +298,7 @@ export function Board({
                   className="pointer-events-none absolute -top-[1.2cqw] -right-[1.2cqw] z-30 scale-90"
                 />
               )}
-            </div>
+            </Square>
           );
         })}
       </div>

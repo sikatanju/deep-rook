@@ -1,7 +1,87 @@
-import { expect, it, test } from 'vitest';
+import { render, screen, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
+import { expect, it, test, vi } from 'vitest';
 
-import { flightOffset, movingPiece } from '@/components/board/board';
+import { Board, flightOffset, movingPiece } from '@/components/board/board';
 import { OPERA_GAME, parseReplay } from '@/lib/chess/replay';
+
+const START = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
+
+function renderBoard(play?: Parameters<typeof Board>[0]['play']) {
+  return render(
+    <Board
+      fen={START}
+      flipped={false}
+      theme="palette"
+      coordinates
+      lastMove={{ from: 'e2', to: 'e4' }}
+      arrow="g1f3"
+      grade="best"
+      play={play}
+    />,
+  );
+}
+
+test('without play the board is a picture of div squares, as the review page draws it', () => {
+  const { container } = renderBoard();
+  const board = screen.getByRole('img', {
+    name: 'Chess board, white at the bottom',
+  });
+  expect(within(board).queryAllByRole('button')).toEqual([]);
+  const squares = container.querySelectorAll('[data-square]');
+  expect(squares).toHaveLength(64);
+  expect([...squares].every((s) => s.tagName === 'DIV')).toBe(true);
+  expect(
+    container.querySelector('[data-square="e4"] [data-grade="best"]'),
+  ).not.toBeNull();
+  expect(container.querySelector('[data-arrow="g1f3"]')).not.toBeNull();
+  expect(container.querySelector('[data-target]')).toBeNull();
+});
+
+test('in play mode every square is a button named by square and piece', async () => {
+  const onSquare = vi.fn();
+  const user = userEvent.setup();
+  const { container } = renderBoard({ selected: null, targets: [], onSquare });
+
+  const board = screen.getByRole('group', {
+    name: 'Chess board, white at the bottom',
+  });
+  const squares = within(board).getAllByRole('button');
+  expect(squares).toHaveLength(64);
+  expect(squares.every((s) => s.tabIndex === -1)).toBe(true);
+  expect(container.querySelectorAll('[data-square]')).toHaveLength(64);
+
+  await user.click(screen.getByRole('button', { name: 'g1, white knight' }));
+  await user.click(screen.getByRole('button', { name: 'e5' }));
+  expect(onSquare.mock.calls).toEqual([['g1'], ['e5']]);
+  expect(
+    screen.getByRole('button', { name: 'e8, black king' }),
+  ).toBeInTheDocument();
+
+  // The review layers stay.
+  expect(container.querySelector('[data-arrow="g1f3"]')).not.toBeNull();
+  expect(
+    container.querySelector('[data-square="e4"] [data-grade="best"]'),
+  ).not.toBeNull();
+});
+
+test('play mode marks the selected square and each target', () => {
+  const { container } = renderBoard({
+    selected: 'g1',
+    targets: ['f3', 'h3'],
+    onSquare: () => {},
+  });
+  expect(
+    screen.getByRole('button', { name: 'g1, white knight' }),
+  ).toHaveAttribute('aria-pressed', 'true');
+  expect(
+    container.querySelector('[data-square="g1"] [data-selected]'),
+  ).not.toBeNull();
+  const targets = [...container.querySelectorAll('[data-target]')].map((t) =>
+    t.closest('[data-square]')!.getAttribute('data-square'),
+  );
+  expect(targets.sort()).toEqual(['f3', 'h3']);
+});
 
 // The review board's motion is derived, not stored: `movingPiece` answers "which
 // piece is flying, and which way?" from the ply at `index` and the index the
