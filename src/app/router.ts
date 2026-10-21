@@ -9,10 +9,21 @@ export const ROUTES = [
 ] as const;
 export type Route = (typeof ROUTES)[number];
 
-function read(): Route {
-  const name = location.hash.replace(/^#\/?/, '');
-  return ROUTES.find((r) => r === name) ?? 'games';
+/** `#/review?v=1&g=...` is the review route carrying a query. Unknown routes are the games page. */
+export function parseHash(hash: string): {
+  route: Route;
+  params: URLSearchParams;
+} {
+  const rest = hash.replace(/^#\/?/, '');
+  const at = rest.indexOf('?');
+  const name = (at < 0 ? rest : rest.slice(0, at)).replace(/\/$/, '');
+  return {
+    route: ROUTES.find((r) => r === name) ?? 'games',
+    params: new URLSearchParams(at < 0 ? '' : rest.slice(at + 1)),
+  };
 }
+
+const read = (): Route => parseHash(location.hash).route;
 
 function subscribe(onChange: () => void) {
   window.addEventListener('hashchange', onChange);
