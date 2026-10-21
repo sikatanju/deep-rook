@@ -10,6 +10,7 @@ import {
 import { navigate } from '@/app/router';
 import { AnalysisProvider } from '@/hooks/use-game-analysis';
 import { useGamePicker } from '@/hooks/use-game-picker';
+import { useLichessPicker } from '@/hooks/use-lichess-picker';
 import type { AnalysisStore } from '@/lib/analysis/cache';
 import {
   DEFAULT_LEVEL,
@@ -110,6 +111,7 @@ export type Staged = {
 export type Loaded = Staged & { level: AnalysisLevel };
 
 type Store = ReturnType<typeof useGamePicker> & {
+  lichess: ReturnType<typeof useLichessPicker>;
   staged: Staged | null;
   loaded: Loaded | null;
   stageGame: (game: Game) => void;
@@ -152,10 +154,21 @@ export function AppProvider({
   store?: AnalysisStore | null;
 }) {
   const picker = useGamePicker();
+  const lichess = useLichessPicker();
   const [staged, setStaged] = useState<Staged | null>(null);
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [settings, setAll] = useState(loadSettings);
-  const { selectGame } = picker;
+  const { selectGame: selectChessCom } = picker;
+  const { selectGame: selectLichess } = lichess;
+
+  /** Selects `game` in its own site's list and clears the other's; null clears both. */
+  const selectGame = useCallback(
+    (game: Game | null) => {
+      selectChessCom(game?.site === 'chesscom' ? game : null);
+      selectLichess(game?.site === 'lichess' ? game : null);
+    },
+    [selectChessCom, selectLichess],
+  );
 
   const stagePgn = useCallback(
     (pgn: string, source: string) => {
@@ -173,8 +186,11 @@ export function AppProvider({
   const stageGame = useCallback(
     (game: Game) => {
       const replay = parseReplay(game.pgn);
-      const me =
-        picker.state.status === 'ready' ? picker.state.profile.username : '';
+      const searched =
+        game.site === 'lichess'
+          ? lichess.state.status === 'ready' && lichess.state.username
+          : picker.state.status === 'ready' && picker.state.profile.username;
+      const me = (searched || '').toLowerCase();
       setStaged({
         id: nextId++,
         replay,
@@ -183,7 +199,7 @@ export function AppProvider({
       });
       selectGame(game);
     },
-    [picker.state, selectGame],
+    [picker.state, lichess.state, selectGame],
   );
 
   const setSettings = useCallback(
@@ -235,6 +251,8 @@ export function AppProvider({
 
   const store = {
     ...picker,
+    selectGame,
+    lichess,
     staged,
     loaded,
     stageGame,
