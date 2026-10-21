@@ -112,7 +112,7 @@ function toBase64Url(bytes: Uint8Array): string {
 function fromBase64Url(text: string): Uint8Array<ArrayBuffer> {
   if (!/^[A-Za-z0-9_-]+$/.test(text) || text.length % 4 === 1)
     throw new ShareError(
-      'That link is damaged: its game data is not readable.',
+      'That link is damaged, so its game data cannot be read.',
     );
   const binary = atob(text.replace(/-/g, '+').replace(/_/g, '/'));
   return Uint8Array.from(binary, (c) => c.charCodeAt(0));
