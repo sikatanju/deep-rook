@@ -17,33 +17,51 @@ import {
   type AnalysisGame,
   type Analyzer,
 } from '@/lib/analysis/analyzer';
+import { openIdbStore, type AnalysisStore } from '@/lib/analysis/cache';
 import type { GameAnalysis } from '@/lib/analysis/game-analysis';
 import type { AnalysisLevel } from '@/lib/analysis/levels';
 import type { SpawnLane } from '@/lib/analysis/protocol';
 
 const AnalyzerContext = createContext<Analyzer | null>(null);
+const StoreContext = createContext<AnalysisStore | null>(null);
 
 /**
  * Mounted once above the pages, so analysis survives route changes. `level`
- * is the user's setting; this is its only mirror. `spawn` is for tests.
+ * is the user's setting; this is its only mirror. `spawn` and `store` are for
+ * tests; `store` defaults to the browser's IndexedDB (none where it is
+ * missing), and null turns saving off.
  */
 export function AnalysisProvider({
   level,
   spawn,
+  store,
   children,
 }: {
   level: AnalysisLevel;
   spawn?: SpawnLane | null;
+  store?: AnalysisStore | null;
   children: ReactNode;
 }) {
-  const [analyzer] = useState(() => createAnalyzer({ level, spawn }));
+  const [saved] = useState(() =>
+    store === undefined ? openIdbStore() : store,
+  );
+  const [analyzer] = useState(() =>
+    createAnalyzer({ level, spawn, store: saved }),
+  );
   useEffect(() => analyzer.setLevel(level), [analyzer, level]);
   useEffect(() => () => analyzer.dispose(), [analyzer]);
   return (
-    <AnalyzerContext.Provider value={analyzer}>
-      {children}
-    </AnalyzerContext.Provider>
+    <StoreContext.Provider value={saved}>
+      <AnalyzerContext.Provider value={analyzer}>
+        {children}
+      </AnalyzerContext.Provider>
+    </StoreContext.Provider>
   );
+}
+
+/** The saved reviews, for pages that list or clear them. null where nothing can be saved. */
+export function useAnalysisStore(): AnalysisStore | null {
+  return useContext(StoreContext);
 }
 
 /**

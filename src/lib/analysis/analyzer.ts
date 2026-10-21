@@ -5,6 +5,13 @@
 import type { Line } from '@/lib/chess/score';
 import { fenAt, type Replay } from '@/lib/chess/replay';
 
+import {
+  CACHE_VERSION,
+  gameKey,
+  type AnalysisStore,
+  type GameKey,
+  type StoredAnalysis,
+} from './cache';
 import type { GameAnalysis, PositionAnalysis } from './game-analysis';
 import {
   ANALYSIS_LEVELS,
@@ -49,10 +56,15 @@ export type AnalyzerOptions = {
   spawn?: SpawnLane | null;
   /** Defaults to one per core but one, capped at 8. */
   lanes?: number;
+  /** Finished games are saved here and looked up before searching. Defaults to none. */
+  store?: AnalysisStore | null;
 };
 
 /** Snapshots are rebuilt at most this often; iterations arrive far faster than React needs. */
 export const FLUSH_MS = 50;
+
+/** A saved analysis that takes longer than this to arrive no longer holds up the engine. */
+export const CACHE_LOAD_MS = 1500;
 
 /** Monotone per position: `line` only deepens, `settled` only rises. */
 type Entry = {
@@ -68,11 +80,17 @@ type Slot = {
 };
 type Game = {
   id: number;
+  replay: Replay;
+  key: GameKey;
   inputs: { fen: string; history: string[] }[];
   entries: Entry[];
   focus: number;
   /** The user has stayed on `focus` for FOCUS_DWELL_MS. */
   dwelled: boolean;
+  /** Waiting on the saved analysis; nothing is searched until it arrives or CACHE_LOAD_MS passes. */
+  loading: boolean;
+  /** The level last saved or loaded for this game, so neither is saved again. */
+  saved: AnalysisLevel | null;
 };
 
 /** Gives up on the engine after this many crashes before any lane answers (the worker bundle fails to load). */
@@ -84,6 +102,7 @@ export function createAnalyzer({
   level: initial,
   spawn = spawnWorkerLane,
   lanes,
+  store = null,
 }: AnalyzerOptions): Analyzer {
   const count =
     lanes ??
@@ -102,6 +121,7 @@ export function createAnalyzer({
   let nextJobId = 1;
   let started = false;
   let loadCrashes = 0;
+  let disposed = false;
   const unavailable = () => !spawn || loadCrashes >= MAX_LOAD_CRASHES;
   let flushTimer: ReturnType<typeof setTimeout> | undefined;
   let dwellTimer: ReturnType<typeof setTimeout> | undefined;
@@ -122,7 +142,8 @@ export function createAnalyzer({
   }
 
   function replan() {
-    if (!game || unavailable()) return;
+    if (!game || game.loading || unavailable()) return;
+    persist(game);
     const commands = plan({
       level,
       focus: game.focus,
@@ -132,6 +153,60 @@ export function createAnalyzer({
     });
     commands.forEach(execute);
     if (commands.length) markDirty();
+  }
+
+  /** Saves a finished game once per level reached. Fire and forget: the cache never blocks a review. */
+  function persist(target: Game) {
+    if (!store) return;
+    const { entries } = target;
+    if (
+      !entries.every((e) => e.line && !e.failed && satisfies(e.settled, level))
+    )
+      return;
+    const lowest = entries
+      .map((e) => e.settled!)
+      .reduce((low, at) => (rank(at) < rank(low) ? at : low));
+    if (satisfies(target.saved, lowest)) return;
+    target.saved = lowest;
+    const record: StoredAnalysis = {
+      v: CACHE_VERSION,
+      key: target.key,
+      level: lowest,
+      lines: entries.map((e) => e.line!),
+      replay: target.replay,
+      analyzedAt: Date.now(),
+    };
+    store.save(record).catch(() => {});
+  }
+
+  /** Looks the game up and merges what is found. A hit that arrives after the timeout merges the same way. */
+  function restore(target: Game) {
+    const resume = () => {
+      target.loading = false;
+      if (disposed) return;
+      markDirty();
+      replan();
+    };
+    const timer = setTimeout(() => {
+      if (game === target && target.loading) resume();
+    }, CACHE_LOAD_MS);
+    Promise.resolve()
+      .then(() => store!.load(target.key))
+      .catch(() => null)
+      .then((record) => {
+        clearTimeout(timer);
+        if (game !== target) return;
+        const hit = record && record.lines.length === target.entries.length;
+        if (hit) {
+          record.lines.forEach((line, i) => {
+            const entry = target.entries[i]!;
+            entry.line = mergeLine(entry.line, line);
+            entry.settled = settle(entry.settled, record.level);
+          });
+          target.saved = settle(target.saved, record.level);
+        }
+        if (hit || target.loading) resume();
+      });
   }
 
   function execute({ kind, slot: i, index, level: at }: Command) {
@@ -194,10 +269,13 @@ export function createAnalyzer({
 
   return {
     view(next, index) {
+      disposed = false;
       if (next.id !== game?.id) {
         slots.forEach((s) => s.job && stop(s));
         game = {
           id: next.id,
+          replay: next.replay,
+          key: gameKey(next.replay),
           inputs: positionsOf(next.replay),
           entries: Array.from({ length: next.replay.plies.length + 1 }, () => ({
             line: null,
@@ -207,8 +285,11 @@ export function createAnalyzer({
           })),
           focus: index,
           dwelled: false,
+          loading: store !== null,
+          saved: null,
         };
         focusOn(index);
+        if (store) restore(game);
       } else if (index !== game.focus) {
         focusOn(index);
       }
@@ -228,6 +309,7 @@ export function createAnalyzer({
     },
     getSnapshot: () => snapshot,
     dispose() {
+      disposed = true;
       slots.forEach(stop);
       clearTimeout(flushTimer);
       clearTimeout(dwellTimer);

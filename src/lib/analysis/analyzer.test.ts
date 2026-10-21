@@ -1,9 +1,11 @@
-import { afterEach, beforeEach, expect, test, vi } from 'vitest';
+import { afterEach, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import { OPERA_GAME, parseReplay } from '@/lib/chess/replay';
 import type { Line } from '@/lib/chess/score';
 
-import { FLUSH_MS, createAnalyzer } from './analyzer';
+import { CACHE_LOAD_MS, FLUSH_MS, createAnalyzer } from './analyzer';
+import { gameKey, memoryStore, type StoredAnalysis } from './cache';
+import { stored } from './fixtures';
 import type { FromEngine, Job, SpawnLane } from './protocol';
 
 beforeEach(() => vi.useFakeTimers());
@@ -187,4 +189,201 @@ test('a position that keeps crashing its worker fails; the rest continue', () =>
   expect(snap.unavailable).toBe(false);
   expect(lanes).toHaveLength(3);
   expect(lanes[2]!.jobs[0]).toMatchObject({ fen: game.replay.plies[0]!.fen });
+});
+
+describe('saved analyses', () => {
+  type Lanes = ReturnType<typeof scripted>['lanes'];
+
+  /** Answers every job the pool posts, `failing` jobs with a failure, until it goes quiet. */
+  function drain(lanes: Lanes, failing = 0) {
+    const answered = new Set<number>();
+    for (let busy = true; busy;) {
+      busy = false;
+      for (const lane of lanes) {
+        const job = lane.jobs.at(-1);
+        if (!job || answered.has(job.jobId)) continue;
+        answered.add(job.jobId);
+        busy = true;
+        lane.send(
+          answered.size <= failing
+            ? { kind: 'failed', jobId: job.jobId, message: 'boom' }
+            : done(job, job.depth),
+        );
+      }
+    }
+  }
+
+  const settleAll = () => vi.advanceTimersByTimeAsync(FLUSH_MS);
+  const jobsPosted = (lanes: Lanes) =>
+    lanes.reduce((n, lane) => n + lane.jobs.length, 0);
+  const total = game.replay.plies.length + 1;
+
+  test('a game reviewed once reopens complete with no engine work', async () => {
+    const store = memoryStore();
+    const first = scripted();
+    const before = createAnalyzer({
+      level: 'balanced',
+      spawn: first.spawn,
+      lanes: 2,
+      store,
+    });
+    before.view(game, 0);
+    await settleAll();
+    drain(first.lanes);
+    await settleAll();
+
+    // A refresh: a new analyzer, a new game id, the same game.
+    const second = scripted();
+    const after = createAnalyzer({
+      level: 'balanced',
+      spawn: second.spawn,
+      lanes: 2,
+      store,
+    });
+    after.view({ ...game, id: 2 }, 0);
+    await settleAll();
+
+    expect(jobsPosted(second.lanes)).toBe(0);
+    expect(after.getSnapshot()).toMatchObject({ gameId: 2, done: total });
+    expect(after.getSnapshot()!.positions[5]!.status).toBe('done');
+  });
+
+  test('a lower-level hit shows its lines at once and searches each position once, at the new level', async () => {
+    const store = memoryStore();
+    await store.save(stored({ level: 'fast' }));
+    const { lanes, spawn } = scripted();
+    const analyzer = createAnalyzer({
+      level: 'balanced',
+      spawn,
+      lanes: 3,
+      store,
+    });
+    analyzer.view(game, 0);
+    await settleAll();
+
+    const shown = analyzer.getSnapshot()!;
+    expect(shown.done).toBe(0);
+    expect(shown.positions.every((p) => p.status !== 'failed' && p.line)).toBe(
+      true,
+    );
+
+    drain(lanes);
+    await settleAll();
+    expect(lanes.flatMap((l) => l.jobs).map((j) => j.depth)).toEqual(
+      Array(total).fill(12),
+    );
+    expect(analyzer.getSnapshot()!.done).toBe(total);
+    expect((await store.load(gameKey(game.replay)))!.level).toBe('balanced');
+  });
+
+  test('a finished game is saved once, and again only when it reaches a higher level', async () => {
+    const store = memoryStore();
+    const save = vi.spyOn(store, 'save');
+    const { lanes, spawn } = scripted();
+    const analyzer = createAnalyzer({ level: 'fast', spawn, lanes: 2, store });
+    analyzer.view(game, 0);
+    await settleAll();
+    expect(save).not.toHaveBeenCalled();
+
+    drain(lanes);
+    await settleAll();
+    expect(save).toHaveBeenCalledOnce();
+    const record = save.mock.calls[0]![0] as StoredAnalysis;
+    expect(record).toMatchObject({ level: 'fast', key: gameKey(game.replay) });
+    expect(record.lines).toHaveLength(total);
+
+    analyzer.setLevel('fast');
+    analyzer.view(game, 3);
+    await settleAll();
+    expect(save).toHaveBeenCalledOnce();
+
+    analyzer.setLevel('deep');
+    drain(lanes);
+    await settleAll();
+    expect(save).toHaveBeenCalledTimes(2);
+    expect((await store.load(record.key))!.level).toBe('deep');
+
+    analyzer.setLevel('fast');
+    await settleAll();
+    expect(save).toHaveBeenCalledTimes(2);
+  });
+
+  test('a position the engine failed on keeps the game from being saved', async () => {
+    const store = memoryStore();
+    const save = vi.spyOn(store, 'save');
+    const { lanes, spawn } = scripted();
+    const analyzer = createAnalyzer({ level: 'fast', spawn, lanes: 2, store });
+    analyzer.view(game, 0);
+    await settleAll();
+    drain(lanes, 1);
+    await settleAll();
+
+    expect(analyzer.getSnapshot()!.done).toBe(total);
+    expect(save).not.toHaveBeenCalled();
+    expect(await store.list()).toEqual([]);
+  });
+
+  test('a lookup that never answers does not stall the engine', async () => {
+    const store = {
+      ...memoryStore(),
+      load: () => new Promise<never>(() => {}),
+    };
+    const { lanes, spawn } = scripted();
+    const analyzer = createAnalyzer({ level: 'fast', spawn, lanes: 1, store });
+    analyzer.view(game, 0);
+
+    await vi.advanceTimersByTimeAsync(CACHE_LOAD_MS - 1);
+    expect(jobsPosted(lanes)).toBe(0);
+    await vi.advanceTimersByTimeAsync(1);
+    expect(jobsPosted(lanes)).toBe(1);
+  });
+
+  test('a hit that arrives after the timeout still fills the document', async () => {
+    const store = memoryStore();
+    await store.save(stored({ level: 'fast' }));
+    const slow = {
+      ...store,
+      load: (key: Parameters<typeof store.load>[0]) =>
+        new Promise<StoredAnalysis | null>((resolve) =>
+          setTimeout(() => resolve(store.load(key)), CACHE_LOAD_MS + 500),
+        ),
+    };
+    const { lanes, spawn } = scripted();
+    const analyzer = createAnalyzer({
+      level: 'fast',
+      spawn,
+      lanes: 1,
+      store: slow,
+    });
+    analyzer.view(game, 0);
+
+    await vi.advanceTimersByTimeAsync(CACHE_LOAD_MS);
+    expect(jobsPosted(lanes)).toBe(1);
+    await vi.advanceTimersByTimeAsync(500 + FLUSH_MS);
+    expect(analyzer.getSnapshot()).toMatchObject({ done: total });
+  });
+
+  test('a lookup that fails, or returns another game, is a miss', async () => {
+    const rejecting = {
+      ...memoryStore(),
+      load: () => Promise.reject(new Error('idb')),
+    };
+    const wrong = {
+      ...memoryStore(),
+      load: async () => stored({ replay: parseReplay('1. d4 d5 *') }),
+    };
+    for (const store of [rejecting, wrong]) {
+      const { lanes, spawn } = scripted();
+      const analyzer = createAnalyzer({
+        level: 'fast',
+        spawn,
+        lanes: 1,
+        store,
+      });
+      analyzer.view(game, 0);
+      await settleAll();
+      expect(jobsPosted(lanes)).toBe(1);
+      expect(analyzer.getSnapshot()!.done).toBe(0);
+    }
+  });
 });
