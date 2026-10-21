@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 
 import { useStore } from '@/app/store';
 import { Board } from '@/components/board/board';
@@ -10,6 +10,7 @@ import { BoardThemePicker } from '@/components/settings/board-theme-picker';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Slider } from '@/components/ui/slider';
+import { useSavedReviews } from '@/hooks/use-saved-reviews';
 import { fenAt, OPERA_GAME, parseReplay } from '@/lib/chess/replay';
 import { PALETTES } from '@/lib/palettes';
 
@@ -18,6 +19,48 @@ import { PALETTES } from '@/lib/palettes';
 const PREVIEW_PLY = 22;
 
 const label = 'text-xs leading-4 font-extrabold tracking-[0.08em] uppercase';
+
+/** Two presses, so a stray click cannot wipe the saved reviews. */
+function SavedReviews() {
+  const { available, records, clear } = useSavedReviews();
+  const [confirming, setConfirming] = useState(false);
+  const count = records?.length ?? 0;
+  return (
+    <Panel
+      tag="Saved here"
+      title="Saved reviews"
+      subtitle="Finished reviews are kept in this browser, so reopening a game skips the engine and the Overview can show your progress."
+    >
+      {!available ? (
+        <p className="text-ink-muted">
+          This browser cannot save reviews. Each one is analyzed again when you
+          open it.
+        </p>
+      ) : (
+        <div className="flex flex-wrap items-center gap-4">
+          <p aria-live="polite" className="font-bold">
+            {records === null
+              ? 'Counting…'
+              : `${count} saved ${count === 1 ? 'review' : 'reviews'}`}
+          </p>
+          <Button
+            size="sm"
+            variant={confirming ? 'destructive' : 'default'}
+            disabled={count === 0}
+            onBlur={() => setConfirming(false)}
+            onClick={async () => {
+              if (!confirming) return setConfirming(true);
+              await clear();
+              setConfirming(false);
+            }}
+          >
+            {confirming ? 'Click again to clear' : 'Clear saved reviews'}
+          </Button>
+        </div>
+      )}
+    </Panel>
+  );
+}
 
 export function SettingsPage() {
   const { settings, setSettings } = useStore();
@@ -40,6 +83,8 @@ export function SettingsPage() {
               onChange={(analysisLevel) => setSettings({ analysisLevel })}
             />
           </Panel>
+
+          <SavedReviews />
 
           <Panel tag="Look" title="Palette & board">
             <div className="flex flex-col gap-3">

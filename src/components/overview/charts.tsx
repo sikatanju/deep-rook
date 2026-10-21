@@ -1,0 +1,155 @@
+import { GradeSticker } from '@/components/review/grade-sticker';
+import { CLASSIFICATIONS, type Classification } from '@/lib/analysis/classify';
+import type { Overview } from '@/lib/analysis/overview';
+import { STAGES, type Stage } from '@/lib/chess/stage';
+
+const GRADES = Object.keys(CLASSIFICATIONS) as Classification[];
+const STAGE_IDS = Object.keys(STAGES) as Stage[];
+
+const WIDTH = 1000;
+const HEIGHT = 100;
+/** Fewer games than this leave empty room on the right instead of stretching bars. */
+const MIN_SLOTS = 10;
+const BAR_SHARE = 0.7;
+
+const date = new Intl.DateTimeFormat(undefined, {
+  month: 'short',
+  day: 'numeric',
+});
+
+const stat = 'font-mono text-sm font-bold tabular-nums';
+
+/**
+ * One bar per game, oldest left, height = accuracy. The name and the caption
+ * say the same thing the bars show, and each bar's title gives its figure.
+ */
+export function AccuracyTrend({ games }: { games: Overview['trend'] }) {
+  if (games.length === 0)
+    return <p className="text-ink-muted">No accuracy figures yet.</p>;
+  const slot = WIDTH / Math.max(games.length, MIN_SLOTS);
+  const bar = slot * BAR_SHARE;
+  const latest = games.at(-1)!.accuracy;
+  const average = games.reduce((n, g) => n + g.accuracy, 0) / games.length;
+  return (
+    <div className="flex flex-col gap-3">
+      <div className="border-line bg-surface-alt border-3 shadow-sm">
+        <svg
+          viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
+          preserveAspectRatio="none"
+          role="img"
+          aria-label={`Accuracy over your last ${games.length} ${games.length === 1 ? 'game' : 'games'}, oldest to newest, latest ${latest.toFixed(1)}`}
+          className="block h-40 w-full"
+        >
+          <line
+            x1={0}
+            x2={WIDTH}
+            y1={HEIGHT / 2}
+            y2={HEIGHT / 2}
+            stroke="var(--draw)"
+            strokeWidth={1}
+            strokeDasharray="4 4"
+            vectorEffect="non-scaling-stroke"
+          />
+          {games.map((g, i) => (
+            <rect
+              key={g.key}
+              x={i * slot + (slot - bar) / 2}
+              y={HEIGHT - g.accuracy}
+              width={bar}
+              height={g.accuracy}
+              fill="var(--primary)"
+              stroke="var(--line)"
+              strokeWidth={2}
+              vectorEffect="non-scaling-stroke"
+            >
+              <title>{`${date.format(g.analyzedAt)}: ${g.accuracy.toFixed(1)}`}</title>
+            </rect>
+          ))}
+        </svg>
+      </div>
+      <p className="text-ink-muted">
+        Latest <span className={stat}>{latest.toFixed(1)}</span>, average{' '}
+        <span className={stat}>{average.toFixed(1)}</span> over{' '}
+        <span className={stat}>{games.length}</span>{' '}
+        {games.length === 1 ? 'game' : 'games'}.
+      </p>
+    </div>
+  );
+}
+
+/** Every grade as a share of all your moves, in the grades' own colors. */
+export function GradeMix({ totals }: { totals: Overview['gradeTotals'] }) {
+  const all = GRADES.reduce((n, g) => n + totals[g], 0);
+  return (
+    <ul className="flex flex-col gap-1.5">
+      {GRADES.map((grade) => {
+        const share = all ? (totals[grade] / all) * 100 : 0;
+        return (
+          <li
+            key={grade}
+            data-grade={grade}
+            data-count={totals[grade]}
+            className="grid grid-cols-[8.5rem_minmax(0,1fr)_4.5rem] items-center gap-3"
+          >
+            <GradeSticker grade={grade} className="justify-self-start" />
+            <div className="bg-surface-alt h-4 rounded-sm">
+              {share > 0 && (
+                <div
+                  className="border-line h-full rounded-sm border-2"
+                  style={{
+                    width: `${share}%`,
+                    background: CLASSIFICATIONS[grade].color,
+                  }}
+                />
+              )}
+            </div>
+            <span
+              className={`${stat} text-right ${totals[grade] === 0 ? 'text-ink-muted' : ''}`}
+            >
+              {totals[grade]}
+            </span>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}
+
+/** Mistakes per 100 of your moves in each stage, scaled to the worst one. */
+export function StageBars({ stages }: { stages: Overview['stages'] }) {
+  const worst = Math.max(1, ...STAGE_IDS.map((s) => stages[s].per100 ?? 0));
+  return (
+    <ul className="flex flex-col gap-3">
+      {STAGE_IDS.map((id) => {
+        const { per100, mistakes, plies } = stages[id];
+        return (
+          <li key={id} data-stage={id} className="flex flex-col gap-1">
+            <div className="flex items-baseline justify-between gap-3">
+              <span className="font-extrabold">{STAGES[id].label}</span>
+              <span className="text-ink-muted text-sm">
+                {per100 === null ? (
+                  'No moves yet'
+                ) : (
+                  <>
+                    <span className={`${stat} text-ink`}>
+                      {per100.toFixed(1)}
+                    </span>{' '}
+                    per 100 moves, {mistakes} of {plies}
+                  </>
+                )}
+              </span>
+            </div>
+            <div className="bg-surface-alt h-5 rounded-sm">
+              {per100 !== null && per100 > 0 && (
+                <div
+                  className="border-line bg-grade-mistake h-full rounded-sm border-2"
+                  style={{ width: `${(per100 / worst) * 100}%` }}
+                />
+              )}
+            </div>
+          </li>
+        );
+      })}
+    </ul>
+  );
+}

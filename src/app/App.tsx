@@ -1,4 +1,5 @@
 import {
+  ChartColumnIcon,
   LibraryIcon,
   PlayCircleIcon,
   SettingsIcon,
@@ -10,12 +11,15 @@ import { ROUTES, useRoute, type Route } from '@/app/router';
 import { AppProvider } from '@/app/store';
 import { GamesPage } from '@/components/game-picker/games-page';
 import { NavRail } from '@/components/layout/nav-rail';
+import { OverviewPage } from '@/components/overview/overview-page';
 import { ReviewPage } from '@/components/review/review-page';
 import { SettingsPage } from '@/components/settings/settings-page';
+import type { AnalysisStore } from '@/lib/analysis/cache';
 import { cn } from '@/lib/utils';
 
 const NAV: Record<Route, { label: string; icon: LucideIcon }> = {
   games: { label: 'Games', icon: LibraryIcon },
+  overview: { label: 'Overview', icon: ChartColumnIcon },
   review: { label: 'Review', icon: PlayCircleIcon },
   settings: { label: 'Settings', icon: SettingsIcon },
 };
@@ -23,6 +27,7 @@ const NAV: Record<Route, { label: string; icon: LucideIcon }> = {
 const PAGES: Record<Route, { Page: () => React.ReactElement; wide: boolean }> =
   {
     games: { Page: GamesPage, wide: false },
+    overview: { Page: OverviewPage, wide: false },
     review: { Page: ReviewPage, wide: true },
     settings: { Page: SettingsPage, wide: false },
   };
@@ -87,9 +92,9 @@ function Shell() {
   );
 }
 
-export default function App() {
+export default function App({ store }: { store?: AnalysisStore | null }) {
   return (
-    <AppProvider>
+    <AppProvider store={store}>
       <Shell />
     </AppProvider>
   );

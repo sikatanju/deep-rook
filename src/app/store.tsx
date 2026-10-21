@@ -10,6 +10,7 @@ import {
 import { navigate } from '@/app/router';
 import { AnalysisProvider } from '@/hooks/use-game-analysis';
 import { useGamePicker } from '@/hooks/use-game-picker';
+import type { AnalysisStore } from '@/lib/analysis/cache';
 import {
   DEFAULT_LEVEL,
   isAnalysisLevel,
@@ -115,6 +116,17 @@ type Store = ReturnType<typeof useGamePicker> & {
   stagePgn: (pgn: string, source: string) => void;
   /** Reviews the staged game at the remembered mode and opens the review page. */
   startReview: () => void;
+  /**
+   * Reviews a game that is not on the Games page (a saved one) at `level` and
+   * opens the review page, in one step: startReview would read a staged game
+   * the state has not caught up to yet.
+   */
+  reviewReplay: (
+    replay: Replay,
+    source: string,
+    orientation: 'w' | 'b',
+    level: AnalysisLevel,
+  ) => void;
   /** Changes the mode of the running review and the default for the next. */
   setReviewLevel: (level: AnalysisLevel) => void;
   settings: Settings;
@@ -131,7 +143,14 @@ export function useStore(): Store {
   return store;
 }
 
-export function AppProvider({ children }: { children: ReactNode }) {
+/** `store` is for tests; see AnalysisProvider. */
+export function AppProvider({
+  children,
+  store: analyses,
+}: {
+  children: ReactNode;
+  store?: AnalysisStore | null;
+}) {
   const picker = useGamePicker();
   const [staged, setStaged] = useState<Staged | null>(null);
   const [loaded, setLoaded] = useState<Loaded | null>(null);
@@ -178,6 +197,22 @@ export function AppProvider({ children }: { children: ReactNode }) {
     navigate('review');
   }, [staged, settings.analysisLevel]);
 
+  const reviewReplay = useCallback(
+    (
+      replay: Replay,
+      source: string,
+      orientation: 'w' | 'b',
+      level: AnalysisLevel,
+    ) => {
+      const game = { id: nextId++, replay, source, orientation };
+      setStaged(game);
+      setLoaded({ ...game, level });
+      selectGame(null);
+      navigate('review');
+    },
+    [selectGame],
+  );
+
   const setReviewLevel = useCallback(
     (level: AnalysisLevel) => {
       setLoaded((l) => l && { ...l, level });
@@ -205,6 +240,7 @@ export function AppProvider({ children }: { children: ReactNode }) {
     stageGame,
     stagePgn,
     startReview,
+    reviewReplay,
     setReviewLevel,
     settings,
     setSettings,
@@ -213,7 +249,10 @@ export function AppProvider({ children }: { children: ReactNode }) {
     <StoreContext.Provider value={store}>
       {/* The review's level, not the setup radios': picking a mode for the
           next game must not retarget a running analysis. */}
-      <AnalysisProvider level={loaded?.level ?? settings.analysisLevel}>
+      <AnalysisProvider
+        level={loaded?.level ?? settings.analysisLevel}
+        store={analyses}
+      >
         {children}
       </AnalysisProvider>
     </StoreContext.Provider>
