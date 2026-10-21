@@ -5,7 +5,8 @@ import { Input } from '@/components/ui/input';
 
 const STORAGE_KEY = 'lastUsername';
 
-function readLast(): string {
+/** The Chess.com username last searched for, or '' when none is saved. */
+export function readSavedUsername(): string {
   try {
     return localStorage.getItem(STORAGE_KEY) ?? '';
   } catch {
@@ -20,7 +21,7 @@ export function UsernameForm({
   busy: boolean;
   onSearch: (username: string) => void;
 }) {
-  const [value, setValue] = useState(readLast);
+  const [value, setValue] = useState(readSavedUsername);
 
   function submit(e: { preventDefault: () => void }) {
     e.preventDefault();

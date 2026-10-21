@@ -107,7 +107,11 @@ function moveAccuracy(loss: number): number {
 }
 
 /** Grades that make a moment worth jumping to. */
-const MOMENT_GRADES = new Set<Classification>(['mistake', 'miss', 'blunder']);
+export const MOMENT_GRADES = new Set<Classification>([
+  'mistake',
+  'miss',
+  'blunder',
+]);
 
 /**
  * Derives the whole report. `grades` must be classifyMoves(replay,
