@@ -225,7 +225,7 @@ function DrillCard({
 
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_24rem] lg:items-start">
-      <div className="flex w-full flex-col gap-4 justify-self-center lg:max-w-[calc(100svh-10rem)]">
+      <div className="flex w-full flex-col gap-4 justify-self-center lg:max-w-[max(22rem,calc(100svh-17rem))]">
         <Board
           fen={fen}
           flipped={drill.color === 'b'}
