@@ -13,6 +13,16 @@ export default defineConfig(
   jsxA11y.flatConfigs.recommended,
   { languageOptions: { globals: globals.browser } },
   {
+    files: ['src/sw/sw.js'],
+    languageOptions: {
+      globals: {
+        ...globals.serviceworker,
+        __VERSION__: 'readonly',
+        __PRECACHE__: 'readonly',
+      },
+    },
+  },
+  {
     // The engine runs in workers behind the analyzer; UI code goes through useGameAnalysis.
     files: ['src/components/**', 'src/app/**', 'src/pages/**'],
     ignores: ['**/*.test.{ts,tsx}'],

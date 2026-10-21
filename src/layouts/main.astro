@@ -16,6 +16,11 @@ const { title } = Astro.props;
     <meta name="generator" content={Astro.generator} />
     <link rel="icon" type="image/svg+xml" href="/favicon.svg" />
     <link rel="icon" href="/favicon.ico" />
+    <link rel="apple-touch-icon" href="/apple-touch-icon.png" />
+    <link rel="manifest" href="/manifest.webmanifest" />
+    <meta name="theme-color" content="#ffd23f" />
+    <meta name="mobile-web-app-capable" content="yes" />
+    <meta name="apple-mobile-web-app-title" content="DeepRook" />
     <title>{title}</title>
     <script is:inline>
       // First paint: the saved palette, so the page never flashes the default.
@@ -41,6 +46,16 @@ const { title } = Astro.props;
         document.documentElement.dataset.theme = palette;
       })();
     </script>
+    {import.meta.env.PROD && <script is:inline>
+      // Production only: in dev it would cache Vite's modules. Offline
+      // support is optional, so a refusal (private mode, blocked storage)
+      // stays quiet.
+      addEventListener('load', () => {
+        try {
+          navigator.serviceWorker?.register('/sw.js').catch(() => {});
+        } catch {}
+      });
+    </script>}
   </head>
   <body>
     <slot />

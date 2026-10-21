@@ -21,6 +21,15 @@ pnpm dev
 | `test`                      | Vitest + Testing Library on jsdom                                 |
 | `bench`                     | Engine nodes/s and depth per analysis level (bundled, not Vitest) |
 
+## Install and offline
+
+DeepRook is an installable web app. In Chrome or Edge use Install (desktop) or Add to Home screen (Android). In Safari on iOS use Share, then Add to Home Screen. After one visit with a network it opens with none.
+
+- Offline, everything works except fetching games from Chess.com or Lichess. Pasting a PGN, the Opera Game, reviews (the engine runs in a local worker), saved reviews, the Overview and Drills all work.
+- `src/sw/sw.js` is the service worker template. On `astro build`, the integration in `src/sw/precache.ts` lists every emitted file, hashes them into a cache version and writes `dist/sw.js`. The worker precaches that list and serves it cache first. It never touches cross-origin requests, so the game APIs always go to the network. The layout registers it in production builds only. In `astro dev`, `/sw.js` is a stub that unregisters a worker left behind by `astro preview` on the same port.
+- Updates. A deploy changes the version. The browser installs the new worker in the background on the next visit, but it waits until every DeepRook tab is closed, so an open tab keeps the files it loaded. The next launch runs the new version and deletes the old cache. `public/_headers` makes Cloudflare revalidate `sw.js` and the manifest on every request.
+- Icons. The sources are `scripts/icons/icon.svg` (rounded tile) and `scripts/icons/maskable.svg` (full bleed, rook inside the 80% safe zone, also used for the iOS icon). `node scripts/icons.mjs` renders the PNGs in `public/` with sharp, which comes in through Astro. The manifest colours are Pop Quiz `--ground` (background) and `--primary` (theme).
+
 ## Architecture
 
 - Astro is the HTML shell and build tool only (`output: 'static'`, no adapter). Tailwind 4 comes in through `@tailwindcss/vite`, CSS-first, no `tailwind.config.js`.
