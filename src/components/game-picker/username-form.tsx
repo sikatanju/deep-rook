@@ -26,21 +26,30 @@ export function readSavedUsernames(): string[] {
     .filter(Boolean);
 }
 
+export const SITE_NAMES: Record<Site, string> = {
+  chesscom: 'Chess.com',
+  lichess: 'Lichess',
+};
+
+/** Starts from `site`'s saved username; key it by site to switch. */
 export function UsernameForm({
+  site,
   busy,
   onSearch,
 }: {
+  site: Site;
   busy: boolean;
   onSearch: (username: string) => void;
 }) {
-  const [value, setValue] = useState(() => readSavedUsername('chesscom'));
+  const [value, setValue] = useState(() => readSavedUsername(site));
+  const label = `${SITE_NAMES[site]} username`;
 
   function submit(e: { preventDefault: () => void }) {
     e.preventDefault();
     const username = value.trim();
     if (!username) return;
     try {
-      localStorage.setItem(STORAGE_KEYS.chesscom, username);
+      localStorage.setItem(STORAGE_KEYS[site], username);
     } catch {
       // storage unavailable, the username just is not remembered
     }
@@ -50,8 +59,8 @@ export function UsernameForm({
   return (
     <form onSubmit={submit} className="flex gap-3">
       <Input
-        aria-label="Chess.com username"
-        placeholder="Chess.com username"
+        aria-label={label}
+        placeholder={label}
         value={value}
         onChange={(e) => setValue(e.target.value)}
         autoComplete="off"

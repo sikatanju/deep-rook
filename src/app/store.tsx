@@ -17,7 +17,7 @@ import {
   isAnalysisLevel,
   type AnalysisLevel,
 } from '@/lib/analysis/levels';
-import type { Game } from '@/lib/chesscom/types';
+import type { Game, Site } from '@/lib/chesscom/types';
 import { parseReplay, type Replay } from '@/lib/chess/replay';
 import { DEFAULT_PALETTE, isPaletteId, type PaletteId } from '@/lib/palettes';
 
@@ -112,6 +112,9 @@ export type Loaded = Staged & { level: AnalysisLevel };
 
 type Store = ReturnType<typeof useGamePicker> & {
   lichess: ReturnType<typeof useLichessPicker>;
+  /** The site the Games page searches. */
+  site: Site;
+  setSite: (site: Site) => void;
   staged: Staged | null;
   loaded: Loaded | null;
   stageGame: (game: Game) => void;
@@ -155,6 +158,7 @@ export function AppProvider({
 }) {
   const picker = useGamePicker();
   const lichess = useLichessPicker();
+  const [site, setSite] = useState<Site>('chesscom');
   const [staged, setStaged] = useState<Staged | null>(null);
   const [loaded, setLoaded] = useState<Loaded | null>(null);
   const [settings, setAll] = useState(loadSettings);
@@ -253,6 +257,8 @@ export function AppProvider({
     ...picker,
     selectGame,
     lichess,
+    site,
+    setSite,
     staged,
     loaded,
     stageGame,

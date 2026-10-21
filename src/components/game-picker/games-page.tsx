@@ -6,17 +6,35 @@ import { Highlight, PageHeader } from '@/components/layout/page-header';
 import { CoachBubble } from '@/components/review/coach-bubble';
 import { Button } from '@/components/ui/button';
 import { losingStreak } from '@/lib/chesscom/session';
+import type { Game } from '@/lib/chesscom/types';
 
 const timeFormat = new Intl.DateTimeFormat(undefined, {
   hour: 'numeric',
   minute: '2-digit',
 });
 
+/** The games listed for the site on show, and whose side to read them from. */
+function shownGames({
+  site,
+  state,
+  lichess,
+}: ReturnType<typeof useStore>): [Game[], string] | null {
+  if (site === 'lichess')
+    return lichess.state.status === 'ready'
+      ? [lichess.state.games, lichess.state.username]
+      : null;
+  return state.status === 'ready' && state.games.kind === 'loaded'
+    ? [state.games.games, state.profile.username]
+    : null;
+}
+
 /** Only when the latest day really is going badly. */
 function StreakCoach() {
-  const { state, stageGame } = useStore();
-  if (state.status !== 'ready' || state.games.kind !== 'loaded') return null;
-  const streak = losingStreak(state.games.games, state.profile.username);
+  const store = useStore();
+  const { stageGame } = store;
+  const shown = shownGames(store);
+  if (!shown) return null;
+  const streak = losingStreak(...shown);
   if (!streak) return null;
   return (
     <CoachBubble

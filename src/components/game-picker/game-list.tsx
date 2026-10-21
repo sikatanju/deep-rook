@@ -31,17 +31,16 @@ export function GameList({
   username,
   selectedId,
   onSelect,
+  empty,
 }: {
   games: Game[];
   username: string;
   selectedId: string | undefined;
   onSelect: (game: Game) => void;
+  /** What to say when `games` is empty. */
+  empty: string;
 }) {
-  if (games.length === 0) {
-    return (
-      <p className="text-ink-muted">No standard chess games this month.</p>
-    );
-  }
+  if (games.length === 0) return <p className="text-ink-muted">{empty}</p>;
   return (
     <div className="flex flex-col gap-8">
       {groupByDay(games).map((day) => {

@@ -2,6 +2,7 @@ import { useState } from 'react';
 
 import { useStore } from '@/app/store';
 import { Panel } from '@/components/panel';
+import { Button } from '@/components/ui/button';
 import {
   Select,
   SelectContent,
@@ -10,10 +11,13 @@ import {
   SelectValue,
 } from '@/components/ui/select';
 import { errorMessages } from '@/lib/chesscom/errors';
-import type { Game, MonthKey } from '@/lib/chesscom/types';
+import { outcomeFor } from '@/lib/chesscom/session';
+import type { Game, MonthKey, Site } from '@/lib/chesscom/types';
+import { lichessErrorMessages } from '@/lib/lichess/errors';
+import { cn } from '@/lib/utils';
 
 import { GameList } from './game-list';
-import { UsernameForm } from './username-form';
+import { SITE_NAMES, UsernameForm } from './username-form';
 
 const monthFormat = new Intl.DateTimeFormat(undefined, {
   month: 'long',
@@ -26,34 +30,65 @@ function monthLabel(key: MonthKey): string {
   return monthFormat.format(new Date(Date.UTC(year ?? 0, (month ?? 1) - 1)));
 }
 
-export function GamePicker() {
-  const { state, search, selectMonth, stageGame } = useStore();
-  const [openError, setOpenError] = useState<string | null>(null);
+const SITES = Object.keys(SITE_NAMES) as Site[];
 
-  function stage(game: Game) {
-    try {
-      stageGame(game);
-      setOpenError(null);
-    } catch {
-      setOpenError('That game could not be read.');
-    }
-  }
-
+/** Two chips over real radios, so the arrow keys are the browser's. */
+function SiteSwitch({
+  value,
+  onChange,
+}: {
+  value: Site;
+  onChange: (site: Site) => void;
+}) {
   return (
-    <Panel
-      tag="Online"
-      title="Find a game"
-      subtitle="Enter a Chess.com username to list their recent games."
-    >
-      <UsernameForm busy={state.status === 'loading'} onSearch={search} />
+    <fieldset className="m-0 flex min-w-0 flex-wrap gap-3 border-0 p-0">
+      <legend className="sr-only">Game source</legend>
+      {SITES.map((site) => (
+        <label
+          key={site}
+          className={cn(
+            'border-line bg-surface text-ink has-[:focus-visible]:outline-focus cursor-pointer rounded-sm border-3 px-3 py-1.5 font-bold shadow-sm has-[:focus-visible]:outline-[3px] has-[:focus-visible]:outline-offset-2',
+            value === site &&
+              'bg-primary text-sticker-ink -translate-x-0.5 -translate-y-0.5 shadow-md',
+          )}
+        >
+          <input
+            type="radio"
+            name="game-source"
+            className="sr-only"
+            checked={value === site}
+            onChange={() => onChange(site)}
+          />
+          {SITE_NAMES[site]}
+        </label>
+      ))}
+    </fieldset>
+  );
+}
+
+function Alert({ children }: { children: string }) {
+  return (
+    <p role="alert" className="text-ink font-bold">
+      {children}
+    </p>
+  );
+}
+
+function ChessComGames({ onStage }: { onStage: (game: Game) => void }) {
+  const { state, search, selectMonth } = useStore();
+  return (
+    <>
+      <UsernameForm
+        site="chesscom"
+        busy={state.status === 'loading'}
+        onSearch={search}
+      />
       <div aria-live="polite" className="flex flex-col gap-4">
         {state.status === 'loading' && (
           <p className="text-ink-muted">Loading {state.username}…</p>
         )}
         {state.status === 'error' && (
-          <p role="alert" className="text-ink font-bold">
-            {errorMessages[state.error.kind]}
-          </p>
+          <Alert>{errorMessages[state.error.kind]}</Alert>
         )}
         {state.status === 'ready' && (
           <>
@@ -82,26 +117,109 @@ export function GamePicker() {
               <p className="text-ink-muted">Loading games…</p>
             )}
             {state.games.kind === 'error' && (
-              <p role="alert" className="text-ink font-bold">
-                {errorMessages[state.games.error.kind]}
-              </p>
+              <Alert>{errorMessages[state.games.error.kind]}</Alert>
             )}
             {state.games.kind === 'loaded' && (
               <GameList
                 games={state.games.games}
                 username={state.profile.username}
                 selectedId={state.selected?.id}
-                onSelect={stage}
+                onSelect={onStage}
+                empty="No standard chess games this month."
               />
-            )}
-            {openError && (
-              <p role="alert" className="text-ink font-bold">
-                {openError}
-              </p>
             )}
           </>
         )}
       </div>
+    </>
+  );
+}
+
+function LichessGames({ onStage }: { onStage: (game: Game) => void }) {
+  const {
+    lichess: { state, search, loadOlder },
+  } = useStore();
+  return (
+    <>
+      <UsernameForm
+        site="lichess"
+        busy={state.status === 'loading'}
+        onSearch={search}
+      />
+      <div aria-live="polite" className="flex flex-col gap-4">
+        {state.status === 'loading' && (
+          <p className="text-ink-muted">Loading {state.username}…</p>
+        )}
+        {state.status === 'error' && (
+          <Alert>{lichessErrorMessages[state.error.kind]}</Alert>
+        )}
+        {state.status === 'ready' && (
+          <>
+            <p className="text-lg font-extrabold">
+              {state.games[0]
+                ? outcomeFor(state.games[0], state.username).me.username
+                : state.username}
+            </p>
+            <GameList
+              games={state.games}
+              username={state.username}
+              selectedId={state.selected?.id}
+              onSelect={onStage}
+              empty="No standard chess games to show."
+            />
+            {state.older.kind === 'error' && (
+              <Alert>{lichessErrorMessages[state.older.error.kind]}</Alert>
+            )}
+            {state.next !== null && (
+              <Button
+                className="self-start"
+                disabled={state.older.kind === 'loading'}
+                onClick={() => void loadOlder()}
+              >
+                {state.older.kind === 'loading'
+                  ? 'Loading…'
+                  : 'Load older games'}
+              </Button>
+            )}
+          </>
+        )}
+      </div>
+    </>
+  );
+}
+
+export function GamePicker() {
+  const { site, setSite, stageGame } = useStore();
+  const [openError, setOpenError] = useState<string | null>(null);
+
+  function stage(game: Game) {
+    try {
+      stageGame(game);
+      setOpenError(null);
+    } catch {
+      setOpenError('That game could not be read.');
+    }
+  }
+
+  return (
+    <Panel
+      tag="Online"
+      title="Find a game"
+      subtitle={`Enter a ${SITE_NAMES[site]} username to list their recent games.`}
+    >
+      <SiteSwitch
+        value={site}
+        onChange={(next) => {
+          setSite(next);
+          setOpenError(null);
+        }}
+      />
+      {site === 'chesscom' ? (
+        <ChessComGames onStage={stage} />
+      ) : (
+        <LichessGames onStage={stage} />
+      )}
+      {openError && <Alert>{openError}</Alert>}
     </Panel>
   );
 }
