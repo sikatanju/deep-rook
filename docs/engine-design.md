@@ -127,6 +127,10 @@ Determinism is what makes a finished analysis worth keeping: the same game at th
 - **In the analyzer.** On a new game the analyzer marks it `loading` and plans nothing until the lookup settles, or until `CACHE_LOAD_MS` (1.5 s) passes so a hung database cannot stall analysis. A hit seeds each entry through `mergeLine` and `settle`, the same monotone writers the engine uses, so a late or repeated hit cannot make the document worse. A game is saved once every position has a line, none failed and all satisfy the current level, then again only after reaching a higher level.
 - **Overview.** `summarize` grades a record with `classifyMoves` and `gameReport` and keeps the player's half. `overview` aggregates the games where the saved Chess.com username matches a PGN name, and lists the rest without counting them. The trend covers the latest 20 games. Grade mix, mistakes per stage and openings cover every saved game. The stage split in `src/lib/chess/stage.ts` is an approximation (endgame at six or fewer pieces besides pawns and kings, else opening until ply 20).
 
+### Drills (`src/lib/analysis/drill.ts`)
+
+The Drill route (`#/drill`) turns saved reviews into practice. `drillsOf` takes every mistake, miss and blunder the player made (from `mistakesOf`, the uncapped version of the report's key moments) in games where the saved username names their side. It asks for the move from the position before it, and drops any moment whose engine move is missing or illegal there. Judging is exact: only the engine's first choice (`pv[0]`) counts. The engine has no MultiPV, so a near-equal alternative cannot be told apart from a real mistake, and the page says so. `drill-session.ts` is the answer flow as a reducer. Nothing about a session is persisted, and leaving the page starts it over.
+
 ### Module map
 
 ```
@@ -145,6 +149,9 @@ src/lib/analysis/protocol.ts     Job, FromEngine, Lane, SpawnLane, spawnWorkerLa
 src/lib/analysis/analyzer.ts     createAnalyzer: entries, lanes, job ids, flush
 src/lib/analysis/cache.ts        gameKey, parseStored, openIdbStore, memoryStore
 src/lib/analysis/overview.ts     summarize, overview (pure, over saved records)
+src/lib/analysis/drill.ts        drillsOf, drillQueue, judge (pure, over saved records)
+src/lib/analysis/drill-session.ts  step: the drill answer flow as a reducer
+src/lib/chess/play.ts            legal targets and typed moves, for the drill board
 src/lib/chess/stage.ts           Stage, stageAt
 src/workers/engine.worker.ts     thin shell around createEngine
 src/hooks/use-game-analysis.tsx  AnalysisProvider, useGameAnalysis, useAnalysisStore  <- the UI's only door
