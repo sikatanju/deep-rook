@@ -53,6 +53,12 @@ test('with no game matching the username it points to the Games page', async () 
   ).toBeInTheDocument();
 });
 
+test('a saved Lichess username finds the drills too', async () => {
+  localStorage.setItem('lastLichessUsername', BLACK);
+  await openDrill(null);
+  expect(await screen.findByText('Drill 1 of 2')).toBeInTheDocument();
+});
+
 test('a player with no mistakes gets a clean sheet', async () => {
   await openDrill('paul morphy');
   expect(await screen.findByText('Clean sheet.')).toBeInTheDocument();

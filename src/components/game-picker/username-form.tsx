@@ -3,15 +3,27 @@ import { useState } from 'react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
-const STORAGE_KEY = 'lastUsername';
+import type { Site } from '@/lib/chesscom/types';
 
-/** The Chess.com username last searched for, or '' when none is saved. */
-export function readSavedUsername(): string {
+const STORAGE_KEYS: Record<Site, string> = {
+  chesscom: 'lastUsername',
+  lichess: 'lastLichessUsername',
+};
+
+/** The username last searched for on `site`, or '' when none is saved. */
+export function readSavedUsername(site: Site): string {
   try {
-    return localStorage.getItem(STORAGE_KEY) ?? '';
+    return localStorage.getItem(STORAGE_KEYS[site]) ?? '';
   } catch {
     return '';
   }
+}
+
+/** Every site's saved username, without the empty ones. */
+export function readSavedUsernames(): string[] {
+  return (Object.keys(STORAGE_KEYS) as Site[])
+    .map(readSavedUsername)
+    .filter(Boolean);
 }
 
 export function UsernameForm({
@@ -21,14 +33,14 @@ export function UsernameForm({
   busy: boolean;
   onSearch: (username: string) => void;
 }) {
-  const [value, setValue] = useState(readSavedUsername);
+  const [value, setValue] = useState(() => readSavedUsername('chesscom'));
 
   function submit(e: { preventDefault: () => void }) {
     e.preventDefault();
     const username = value.trim();
     if (!username) return;
     try {
-      localStorage.setItem(STORAGE_KEY, username);
+      localStorage.setItem(STORAGE_KEYS.chesscom, username);
     } catch {
       // storage unavailable, the username just is not remembered
     }

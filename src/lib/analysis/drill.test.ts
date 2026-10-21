@@ -10,7 +10,7 @@ const BLACK = 'Duke Karl / Count Isouard';
 describe('drillsOf', () => {
   test('turns each of the user’s mistakes into a puzzle before the move', () => {
     const record = stored(OPERA_SLIPS);
-    const drills = drillsOf(record, BLACK);
+    const drills = drillsOf(record, [BLACK]);
     expect(drills.map((d) => d.index)).toEqual([8, 14]);
 
     const [first] = drills;
@@ -35,14 +35,16 @@ describe('drillsOf', () => {
   });
 
   test('matches the username in any case', () => {
-    expect(drillsOf(stored(OPERA_SLIPS), BLACK.toUpperCase())).toHaveLength(2);
+    expect(drillsOf(stored(OPERA_SLIPS), [BLACK.toUpperCase()])).toHaveLength(
+      2,
+    );
   });
 
   test('never drills the other side or a game with no known side', () => {
     const record = stored(OPERA_SLIPS);
-    expect(drillsOf(record, 'Paul Morphy')).toEqual([]);
-    expect(drillsOf(record, 'someone else')).toEqual([]);
-    expect(drillsOf(record, null)).toEqual([]);
+    expect(drillsOf(record, ['Paul Morphy'])).toEqual([]);
+    expect(drillsOf(record, ['someone else'])).toEqual([]);
+    expect(drillsOf(record, [])).toEqual([]);
   });
 
   test('drops a mistake whose engine move is missing or illegal', () => {
@@ -50,9 +52,9 @@ describe('drillsOf', () => {
       ...OPERA_SLIPS,
       pvs: { 7: ['d6e5'], 13: ['a2a3'] },
     });
-    expect(drillsOf(illegal, BLACK).map((d) => d.index)).toEqual([8]);
+    expect(drillsOf(illegal, [BLACK]).map((d) => d.index)).toEqual([8]);
     const missing = stored({ ...OPERA_SLIPS, pvs: { 7: [], 13: ['b8c6'] } });
-    expect(drillsOf(missing, BLACK).map((d) => d.index)).toEqual([14]);
+    expect(drillsOf(missing, [BLACK]).map((d) => d.index)).toEqual([14]);
   });
 
   test('keeps the line to four plies', () => {
@@ -60,7 +62,7 @@ describe('drillsOf', () => {
       ...OPERA_SLIPS,
       pvs: { 7: ['d6e5', 'd1d8', 'e8d8', 'f1c4', 'g8f6', 'b1c3'] },
     });
-    expect(drillsOf(long, BLACK)[0]!.line).toEqual([
+    expect(drillsOf(long, [BLACK])[0]!.line).toEqual([
       'dxe5',
       'Qxd8+',
       'Kxd8',
@@ -87,7 +89,7 @@ test('drillQueue puts the costliest first, then the newer game, then the earlier
     ],
     analyzedAt: 2,
   });
-  const queue = drillQueue([lateCostly, tied], BLACK);
+  const queue = drillQueue([lateCostly, tied], [BLACK]);
   expect(queue.map((d) => [d.record.analyzedAt, d.index])).toEqual([
     [2, 8],
     [2, 14],
@@ -97,7 +99,7 @@ test('drillQueue puts the costliest first, then the newer game, then the earlier
 });
 
 test('judge compares the move with the engine’s, then with the one played', () => {
-  const [drill] = drillsOf(stored(OPERA_SLIPS), BLACK);
+  const [drill] = drillsOf(stored(OPERA_SLIPS), [BLACK]);
   expect(judge(drill!, { from: 'd6', to: 'e5' })).toBe('best');
   expect(judge(drill!, { from: 'g4', to: 'f3' })).toBe('played');
   expect(judge(drill!, { from: 'g8', to: 'f6' })).toBe('other');

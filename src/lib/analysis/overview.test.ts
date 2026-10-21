@@ -24,7 +24,7 @@ describe('summarize', () => {
         '[ECOUrl "https://www.chess.com/openings/Philidor-Defense"]\n[Result',
       ),
     );
-    const summary = summarize(stored({ replay, cps }), 'Paul Morphy');
+    const summary = summarize(stored({ replay, cps }), ['Paul Morphy']);
     expect(summary).toMatchObject({
       me: 'w',
       result: 'win',
@@ -36,28 +36,28 @@ describe('summarize', () => {
   });
 
   test('tells which side is mine whatever the case of the name', () => {
-    expect(summarize(record, 'paul MORPHY').me).toBe('w');
-    expect(summarize(record, 'duke karl / count isouard')).toMatchObject({
+    expect(summarize(record, ['paul MORPHY']).me).toBe('w');
+    expect(summarize(record, ['duke karl / count isouard'])).toMatchObject({
       me: 'b',
       result: 'loss',
     });
   });
 
   test('guesses no side without a matching name', () => {
-    for (const name of [null, '', '  ', 'someone else']) {
-      expect(summarize(record, name)).toMatchObject({
+    for (const names of [[], [''], ['  '], ['someone else']]) {
+      expect(summarize(record, names)).toMatchObject({
         me: null,
         result: null,
         accuracy: null,
       });
     }
-    const unmatched = summarize(record, null);
+    const unmatched = summarize(record, []);
     expect(Object.values(unmatched.grades).every((n) => n === 0)).toBe(true);
     expect(unmatched.stages.opening.plies).toBe(0);
   });
 
   test('counts my grades, accuracy and mistakes by stage, not my opponent’s', () => {
-    const white = summarize(record, 'Paul Morphy');
+    const white = summarize(record, ['Paul Morphy']);
     expect(white.grades).toMatchObject({
       blunder: 1,
       mistake: 1,
@@ -70,7 +70,7 @@ describe('summarize', () => {
     });
     expect(white.accuracy!).toBeLessThan(95);
 
-    const black = summarize(record, 'Duke Karl / Count Isouard');
+    const black = summarize(record, ['Duke Karl / Count Isouard']);
     expect(black.grades.excellent).toBe(16);
     expect(black.stages).toEqual({
       opening: { plies: 10, mistakes: 0 },
@@ -80,6 +80,28 @@ describe('summarize', () => {
     expect(black.accuracy!).toBeGreaterThan(99.9);
   });
 
+  test('matches any of my usernames, one per site', () => {
+    expect(summarize(record, ['magnus', 'Paul Morphy']).me).toBe('w');
+    expect(summarize(record, ['duke karl / count isouard', 'someone']).me).toBe(
+      'b',
+    );
+  });
+
+  test('a game between two of my accounts has no side', () => {
+    expect(
+      summarize(record, ['Paul Morphy', 'Duke Karl / Count Isouard']),
+    ).toMatchObject({ me: null, result: null });
+  });
+
+  test('reads a Lichess or pasted Opening header', () => {
+    const replay = parseReplay(
+      OPERA_GAME.replace('[Result', '[Opening "Philidor Defense"]\n[Result'),
+    );
+    expect(summarize(stored({ replay }), ['Paul Morphy']).opening).toBe(
+      'Philidor Defense',
+    );
+  });
+
   test('a draw or an unfinished game', () => {
     const draw = parseReplay(
       '[White "me"]\n[Black "you"]\n[Result "1/2-1/2"]\n\n1. e4 e5 1/2-1/2',
@@ -87,8 +109,8 @@ describe('summarize', () => {
     const open = parseReplay(
       '[White "me"]\n[Black "you"]\n[Result "*"]\n\n1. e4 e5 *',
     );
-    expect(summarize(stored({ replay: draw }), 'me').result).toBe('draw');
-    expect(summarize(stored({ replay: open }), 'me').result).toBeNull();
+    expect(summarize(stored({ replay: draw }), ['me']).result).toBe('draw');
+    expect(summarize(stored({ replay: open }), ['me']).result).toBeNull();
   });
 });
 

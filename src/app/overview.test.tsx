@@ -77,6 +77,16 @@ test('a saved review of the player shows their progress', async () => {
   expect(game.getByText('Balanced')).toBeInTheDocument();
 });
 
+test('a Lichess username counts beside a Chess.com one', async () => {
+  localStorage.setItem('lastUsername', 'someone else');
+  localStorage.setItem('lastLichessUsername', 'Paul Morphy');
+  openOverview(await savedStore());
+
+  expect(
+    await screen.findByRole('img', { name: /^Accuracy over your last 1 game/ }),
+  ).toBeInTheDocument();
+});
+
 test('games that are not the player’s are listed but never counted', async () => {
   openOverview(await savedStore());
 

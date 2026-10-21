@@ -45,6 +45,16 @@ test('derives the opening and formats clocks', () => {
     }),
   ).toBe('Sicilian Defense');
   expect(openingName({})).toBeNull();
+  expect(openingName({ Opening: 'Sicilian Defense: Najdorf Variation' })).toBe(
+    'Sicilian Defense: Najdorf Variation',
+  );
+  expect(
+    openingName({
+      ECOUrl: 'https://www.chess.com/openings/Sicilian-Defense',
+      Opening: 'Something else',
+    }),
+  ).toBe('Sicilian Defense');
+  expect(openingName({ Opening: ' ' })).toBeNull();
   expect(formatClock(179.9)).toBe('2:59');
   expect(formatClock(3725)).toBe('1:02:05');
   expect(formatClock(9.4)).toBe('0:09.4');

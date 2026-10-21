@@ -39,10 +39,10 @@ const LINE_PLIES = 4;
 
 export function drillsOf(
   record: StoredAnalysis,
-  username: string | null,
+  usernames: readonly string[],
 ): Drill[] {
   const { replay, lines } = record;
-  const me = sideOf(replay.headers, username);
+  const me = sideOf(replay.headers, usernames);
   if (!me) return [];
   const positions = lines.map((line): PositionAnalysis => ({
     status: 'done',
@@ -82,10 +82,10 @@ export function drillsOf(
 /** Costliest first; ties go to the newer game, then the earlier move. */
 export function drillQueue(
   records: readonly StoredAnalysis[],
-  username: string | null,
+  usernames: readonly string[],
 ): Drill[] {
   return records
-    .flatMap((record) => drillsOf(record, username))
+    .flatMap((record) => drillsOf(record, usernames))
     .sort(
       (a, b) =>
         b.loss - a.loss ||

@@ -3,7 +3,7 @@ import { useMemo, useReducer, useState } from 'react';
 import { navigate } from '@/app/router';
 import { useStore } from '@/app/store';
 import { Board } from '@/components/board/board';
-import { readSavedUsername } from '@/components/game-picker/username-form';
+import { readSavedUsernames } from '@/components/game-picker/username-form';
 import { Highlight, PageHeader } from '@/components/layout/page-header';
 import { Panel } from '@/components/panel';
 import { CoachBubble } from '@/components/review/coach-bubble';
@@ -322,10 +322,10 @@ function DrillSession({
 
 export function DrillPage() {
   const { records } = useSavedReviews();
-  const username = useMemo(() => readSavedUsername() || null, []);
+  const usernames = useMemo(() => readSavedUsernames(), []);
   const queue = useMemo(
-    () => records && drillQueue(records, username),
-    [records, username],
+    () => records && drillQueue(records, usernames),
+    [records, usernames],
   );
   const [round, setRound] = useState(0);
 
@@ -367,7 +367,7 @@ export function DrillPage() {
       </>
     );
 
-  if (!records.some((r) => sideOf(r.replay.headers, username)))
+  if (!records.some((r) => sideOf(r.replay.headers, usernames)))
     return (
       <>
         {header}
@@ -375,8 +375,8 @@ export function DrillPage() {
           title="None of these games are yours."
           actions={goToGames('Go to Games')}
         >
-          I match games to you by your Chess.com username. Load yours on the
-          Games page and review a game of yours to drill its mistakes.
+          I match games to you by your Chess.com or Lichess username. Load yours
+          on the Games page and review a game of yours to drill its mistakes.
         </CoachBubble>
       </>
     );

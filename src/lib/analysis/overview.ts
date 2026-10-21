@@ -25,7 +25,7 @@ export type GameSummary = {
   level: AnalysisLevel;
   white: { name: string; rating: string | null };
   black: { name: string; rating: string | null };
-  /** The side whose PGN name matches the saved username; null when neither does. */
+  /** The side whose PGN name matches a saved username; null unless exactly one does. */
   me: 'w' | 'b' | null;
   /** From my side. null without a known side or a decisive or drawn result. */
   result: Outcome | null;
@@ -47,20 +47,25 @@ const RESULT_BY_TAG: Record<string, Record<'w' | 'b', Outcome>> = {
 const STAGE_IDS = Object.keys(STAGES) as Stage[];
 const GRADES = Object.keys(CLASSIFICATIONS) as Classification[];
 
+/**
+ * The side one of `usernames` played, in any case. Null when neither side
+ * matches, and when both do: a game between two of my own accounts has no
+ * single "me".
+ */
 export function sideOf(
   headers: Record<string, string>,
-  username: string | null,
+  usernames: readonly string[],
 ): 'w' | 'b' | null {
-  const name = username?.trim().toLowerCase();
-  if (!name) return null;
-  if (headers.White?.toLowerCase() === name) return 'w';
-  if (headers.Black?.toLowerCase() === name) return 'b';
-  return null;
+  const names = new Set(usernames.map((u) => u.trim().toLowerCase()));
+  names.delete('');
+  const white = names.has(headers.White?.toLowerCase() ?? '');
+  const black = names.has(headers.Black?.toLowerCase() ?? '');
+  return white === black ? null : white ? 'w' : 'b';
 }
 
 export function summarize(
   record: StoredAnalysis,
-  username: string | null,
+  usernames: readonly string[],
 ): GameSummary {
   const { replay } = record;
   const { headers } = replay;
@@ -70,7 +75,7 @@ export function summarize(
   }));
   const grades = classifyMoves(replay, positions);
   const report = gameReport(replay, positions, grades);
-  const me = sideOf(headers, username);
+  const me = sideOf(headers, usernames);
 
   const stages = Object.fromEntries(
     STAGE_IDS.map((stage) => [stage, { mistakes: 0, plies: 0 }]),

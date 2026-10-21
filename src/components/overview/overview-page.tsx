@@ -2,7 +2,7 @@ import { useMemo } from 'react';
 
 import { navigate } from '@/app/router';
 import { useStore } from '@/app/store';
-import { readSavedUsername } from '@/components/game-picker/username-form';
+import { readSavedUsernames } from '@/components/game-picker/username-form';
 import { ResultStamp } from '@/components/game-picker/result-stamp';
 import { Highlight, PageHeader } from '@/components/layout/page-header';
 import { Panel } from '@/components/panel';
@@ -143,10 +143,10 @@ function RecentGames({
 export function OverviewPage() {
   const { reviewReplay } = useStore();
   const { records } = useSavedReviews();
-  const username = useMemo(() => readSavedUsername() || null, []);
+  const usernames = useMemo(() => readSavedUsernames(), []);
   const summaries = useMemo(
-    () => records && records.map((r) => summarize(r, username)),
-    [records, username],
+    () => records && records.map((r) => summarize(r, usernames)),
+    [records, usernames],
   );
   const data = useMemo(() => summaries && overview(summaries), [summaries]);
 
@@ -205,8 +205,8 @@ export function OverviewPage() {
             </Button>
           }
         >
-          I match games to you by your Chess.com username. Load yours on the
-          Games page and review a game of yours to see your progress.
+          I match games to you by your Chess.com or Lichess username. Load yours
+          on the Games page and review a game of yours to see your progress.
         </CoachBubble>
       )}
       {(!data || data.games > 0) && (

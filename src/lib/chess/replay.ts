@@ -98,11 +98,14 @@ export function materialOf(fen: string): Material {
   return { lost, balance };
 }
 
-/** "Sicilian Defense" from a Chess.com ECOUrl like .../openings/Sicilian-Defense-2.Nf3 */
+/**
+ * "Sicilian Defense" from a Chess.com ECOUrl like .../openings/Sicilian-Defense-2.Nf3,
+ * else the Opening header that Lichess and most PGN tools write.
+ */
 export function openingName(headers: Record<string, string>): string | null {
   const slug = headers.ECOUrl?.split('/openings/')[1];
-  if (!slug) return null;
-  return slug.split(/-\d/)[0]!.replace(/-/g, ' ');
+  if (slug) return slug.split(/-\d/)[0]!.replace(/-/g, ' ');
+  return headers.Opening?.trim() || null;
 }
 
 export function formatClock(seconds: number): string {
