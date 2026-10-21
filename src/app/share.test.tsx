@@ -1,9 +1,10 @@
 import { render, screen, waitFor, within } from '@testing-library/react';
+import userEvent from '@testing-library/user-event';
 import { afterEach, expect, test, vi } from 'vitest';
 
 import { memoryStore } from '@/lib/analysis/cache';
 import { OPERA_GAME, parseReplay } from '@/lib/chess/replay';
-import { shareUrl } from '@/lib/share/link';
+import { openShare, readShareParams, shareUrl } from '@/lib/share/link';
 
 import App from './App';
 
@@ -123,4 +124,75 @@ test('when two links arrive in a row, the second one wins', async () => {
   expect(within(player('White')).getByText('Alice')).toBeInTheDocument();
   expect(screen.queryByText('Paul Morphy')).toBeNull();
   expect(location.hash).toBe('#/review');
+});
+
+async function reviewOperaGame() {
+  const user = userEvent.setup();
+  render(<App store={memoryStore()} />);
+  await user.click(screen.getByRole('button', { name: 'Try the Opera Game' }));
+  await user.click(screen.getByRole('button', { name: 'Review game' }));
+  return user;
+}
+
+async function decodeLink(url: string) {
+  const { hash } = new URL(url);
+  const params = readShareParams(hash.slice(hash.indexOf('?')))!;
+  return { side: params.side, replay: await openShare(params) };
+}
+
+test(
+  'Copy link puts a link to this game, seen from this side, on the clipboard',
+  { timeout: 15_000 },
+  async () => {
+    const user = await reviewOperaGame();
+    await user.keyboard('f');
+    await user.click(screen.getByRole('button', { name: 'Copy link' }));
+
+    expect(await screen.findByText('Link copied')).toBeInTheDocument();
+    const url = await navigator.clipboard.readText();
+    expect(
+      url.startsWith(location.origin + location.pathname + '#/review?'),
+    ).toBe(true);
+    expect(await decodeLink(url)).toEqual({
+      side: 'b',
+      replay: parseReplay(OPERA_GAME),
+    });
+    await waitFor(() => expect(screen.queryByText('Link copied')).toBeNull(), {
+      timeout: 3_000,
+    });
+  },
+);
+
+test('when the clipboard refuses, the link appears selected in a field to copy by hand', async () => {
+  const user = await reviewOperaGame();
+  vi.spyOn(navigator.clipboard, 'writeText').mockRejectedValue(
+    new Error('denied'),
+  );
+  await user.click(screen.getByRole('button', { name: 'Copy link' }));
+
+  const field = await screen.findByLabelText<HTMLInputElement>(
+    'Copy this link to share the game',
+  );
+  expect(field).toHaveAttribute('readonly');
+  expect(field).toHaveFocus();
+  expect(field.selectionStart).toBe(0);
+  expect(field.selectionEnd).toBe(field.value.length);
+  expect((await decodeLink(field.value)).replay).toEqual(
+    parseReplay(OPERA_GAME),
+  );
+  expect(screen.queryByText('Link copied')).toBeNull();
+
+  await user.click(screen.getByRole('button', { name: 'Done' }));
+  expect(
+    screen.queryByLabelText('Copy this link to share the game'),
+  ).toBeNull();
+});
+
+test('without a clipboard at all, the field still appears', async () => {
+  const user = await reviewOperaGame();
+  vi.stubGlobal('navigator', { ...navigator, clipboard: undefined });
+  await user.click(screen.getByRole('button', { name: 'Copy link' }));
+  expect(
+    await screen.findByLabelText('Copy this link to share the game'),
+  ).toBeInTheDocument();
 });
