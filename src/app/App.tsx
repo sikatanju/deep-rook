@@ -4,6 +4,7 @@ import {
   PlayCircleIcon,
   SettingsIcon,
   TargetIcon,
+  TriangleAlertIcon,
   type LucideIcon,
 } from 'lucide-react';
 import { useEffect, useState } from 'react';
@@ -16,6 +17,8 @@ import { NavRail } from '@/components/layout/nav-rail';
 import { OverviewPage } from '@/components/overview/overview-page';
 import { ReviewPage } from '@/components/review/review-page';
 import { SettingsPage } from '@/components/settings/settings-page';
+import { Button } from '@/components/ui/button';
+import { useSharedLink, type SharedLink } from '@/hooks/use-shared-link';
 import type { AnalysisStore } from '@/lib/analysis/cache';
 import { cn } from '@/lib/utils';
 
@@ -58,10 +61,37 @@ function useRailCollapsed() {
   return [collapsed, () => setCollapsed((c) => !c)] as const;
 }
 
+function BrokenLink({
+  link,
+  onDismiss,
+}: {
+  link: Extract<SharedLink, { status: 'broken' }>;
+  onDismiss: () => void;
+}) {
+  return (
+    <div
+      role="alert"
+      className="border-line bg-surface flex flex-wrap items-center gap-3 rounded-md border-3 p-4 shadow-md"
+    >
+      <TriangleAlertIcon aria-hidden className="text-loss size-6 shrink-0" />
+      <div className="min-w-0 flex-1">
+        <p className="font-extrabold">That shared link did not open.</p>
+        <p className="text-ink-muted">
+          {link.message} Ask for a fresh link, or pick a game below.
+        </p>
+      </div>
+      <Button size="sm" onClick={onDismiss}>
+        Dismiss
+      </Button>
+    </div>
+  );
+}
+
 function Shell() {
   const route = useRoute();
   const { Page, wide } = PAGES[route];
   const [collapsed, toggle] = useRailCollapsed();
+  const { link, dismiss } = useSharedLink();
   return (
     <div
       className={cn(
@@ -89,7 +119,16 @@ function Shell() {
             wide ? 'md:px-5 md:py-4' : 'mx-auto max-w-6xl md:p-8',
           )}
         >
-          <Page />
+          {link.status === 'broken' && (
+            <BrokenLink link={link} onDismiss={dismiss} />
+          )}
+          {link.status === 'opening' ? (
+            <p role="status" className="text-ink-muted font-bold">
+              Opening the shared game…
+            </p>
+          ) : (
+            <Page />
+          )}
         </main>
       </div>
     </div>
