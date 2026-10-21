@@ -11,6 +11,7 @@ function game(
 ): Game {
   return {
     id,
+    site: 'chesscom',
     url: `https://www.chess.com/game/live/${id}`,
     pgn: '',
     endedAt,

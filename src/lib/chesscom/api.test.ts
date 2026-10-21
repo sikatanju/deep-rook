@@ -98,6 +98,7 @@ test('fetchMonth keeps standard chess, drops variants and malformed games, sorts
   );
   const games = await fetchMonth(user, '2025-01');
   expect(games.map((g) => g.id)).toEqual(['new', 'old']);
+  expect(games[0]?.site).toBe('chesscom');
   expect(games[0]?.accuracies).toEqual({ white: 90, black: 80 });
   expect(games[1]?.accuracies).toBeUndefined();
   expect(fetchMock.mock.calls[0]?.[0]).toBe(

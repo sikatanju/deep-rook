@@ -76,6 +76,7 @@ function parseGame(json: unknown): Game {
   const url = str(o.url);
   return {
     id: url,
+    site: 'chesscom',
     url,
     pgn: str(o.pgn),
     endedAt: seconds(o.end_time),

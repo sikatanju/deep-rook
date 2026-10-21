@@ -8,8 +8,10 @@ export type TimeClass = 'bullet' | 'blitz' | 'rapid' | 'daily';
 
 export type Side = { username: string; rating: number; result: string };
 
+/** One online game, site-neutral: both the Chess.com and the Lichess clients produce it. */
 export type Game = {
   id: string;
+  site: Site;
   url: string;
   pgn: string;
   endedAt: Date;
