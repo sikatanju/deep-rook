@@ -117,19 +117,17 @@ function stubPointerCapture(svg: Element) {
 
 /** A flat, 1000px-wide rect: pointer x maps straight onto the viewBox x. */
 function mockRect() {
-  return vi
-    .spyOn(Element.prototype, 'getBoundingClientRect')
-    .mockReturnValue({
-      x: 0,
-      y: 0,
-      top: 0,
-      right: 1000,
-      bottom: 100,
-      left: 0,
-      width: 1000,
-      height: 100,
-      toJSON: () => ({}),
-    } as DOMRect);
+  return vi.spyOn(Element.prototype, 'getBoundingClientRect').mockReturnValue({
+    x: 0,
+    y: 0,
+    top: 0,
+    right: 1000,
+    bottom: 100,
+    left: 0,
+    width: 1000,
+    height: 100,
+    toJSON: () => ({}),
+  } as DOMRect);
 }
 
 test('pointerdown scrubs via pointerToIndex despite the zero-width jsdom rect', () => {

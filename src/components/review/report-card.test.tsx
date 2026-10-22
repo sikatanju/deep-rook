@@ -173,10 +173,7 @@ test('key moments are list buttons that jump after the move', async () => {
 
 test('the caption reports settled progress', () => {
   render(
-    <ReportCard
-      report={report({ settled: 3, total: 34 })}
-      onJump={() => {}}
-    />,
+    <ReportCard report={report({ settled: 3, total: 34 })} onJump={() => {}} />,
   );
   expect(screen.getByText('3/34 positions')).toBeInTheDocument();
 });

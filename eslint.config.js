@@ -6,7 +6,9 @@ import { defineConfig } from 'eslint/config';
 import tseslint from 'typescript-eslint';
 
 export default defineConfig(
-  { ignores: ['dist', '.astro', 'src/components/ui'] },
+  {
+    ignores: ['dist', '.astro', '.claude', '.piece-probe', 'src/components/ui'],
+  },
   js.configs.recommended,
   tseslint.configs.recommended,
   reactHooks.configs.flat.recommended,
