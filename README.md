@@ -20,6 +20,7 @@ pnpm dev
 | `lint` / `format`           | ESLint (flat config) / Prettier                                   |
 | `test`                      | Vitest + Testing Library on jsdom                                 |
 | `bench`                     | Engine nodes/s and depth per analysis level (bundled, not Vitest) |
+| `match`                     | Engine strength: working tree vs a git ref, W/D/L and Elo         |
 
 ## Install and offline
 

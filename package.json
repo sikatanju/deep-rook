@@ -13,7 +13,8 @@
     "lint": "eslint .",
     "format": "prettier --write .",
     "test": "vitest run",
-    "bench": "node scripts/bench.mjs"
+    "bench": "node scripts/bench.mjs",
+    "match": "node scripts/match.mjs"
   },
   "dependencies": {
     "@astrojs/react": "^7.0.1",
