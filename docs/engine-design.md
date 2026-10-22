@@ -288,7 +288,6 @@ The orchestrator accepted every deviation below against this design.
 - Should analysis pause while the tab is hidden or the device is on battery? It currently runs until the game is complete.
 - Are the level numbers right on low-end devices? They are calibrated on a fast desktop (1.7M nodes per second). On a phone at a third of that speed, Deep hits its 20 s time cap and stops being deterministic. Should Deep's node cap drop, or is that acceptable?
 - Does the win% curve fit PeSTO centipawns? `winPercent` uses Lichess's constant (0.00368208) unchanged, and nobody has measured whether our centipawn scale runs hotter than Stockfish's. Grades and accuracy depend on it.
-- Does the production build load the worker? This needs an `astro build && astro preview` check.
 
 ## Next implementation step
 
