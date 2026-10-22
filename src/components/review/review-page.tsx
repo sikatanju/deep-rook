@@ -32,6 +32,7 @@ import { CoachBubble } from './coach-bubble';
 import { CopyLink } from './copy-link';
 import { EvalBar } from './eval-bar';
 import { EvalGraph } from './eval-graph';
+import { ExportPgn } from './export-pgn';
 import { MoveList } from './move-list';
 import { PlayerStrip } from './player-strip';
 import { ReportCard } from './report-card';
@@ -366,6 +367,7 @@ function Viewer({ loaded }: { loaded: Loaded }) {
             <RotateCwIcon aria-hidden />
           </Button>
           <CopyLink replay={replay} side={flipped ? 'b' : 'w'} />
+          <ExportPgn replay={replay} analysis={analysis} />
         </div>
         <div className="w-full max-w-2xl min-w-0 justify-self-center xl:col-start-2 xl:row-start-1 xl:mt-13 xl:max-w-none">
           <CoachBubble

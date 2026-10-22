@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { expect, test, vi } from 'vitest';
 
 import type { Job } from '@/lib/analysis/protocol';
+import { OPERA_GAME, parseReplay } from '@/lib/chess/replay';
 
 // jsdom has no Worker. This one runs the real engine on the main thread,
 // asynchronously like a worker, with the node cap shrunk so the test is fast.
@@ -230,4 +231,41 @@ test('stepping past the last move keeps the last move flying', async () => {
   await user.keyboard('{ArrowRight}');
 
   expect(document.querySelector('[data-moving]')).toBe(flight);
+});
+
+test('the annotated PGN downloads once the whole game is analysed, and reads back as the game', async () => {
+  const saved: Blob[] = [];
+  const { createObjectURL, revokeObjectURL } = URL;
+  URL.createObjectURL = (blob) => (saved.push(blob as Blob), 'blob:annotated');
+  URL.revokeObjectURL = () => {};
+  const click = vi
+    .spyOn(HTMLAnchorElement.prototype, 'click')
+    .mockImplementation(() => {});
+
+  try {
+    const user = userEvent.setup();
+    render(<App />);
+    await openOperaGame(user);
+
+    const button = screen.getByRole('button', {
+      name: 'Download annotated PGN',
+    });
+    expect(button).toBeDisabled();
+    await waitFor(() => expect(button).toBeEnabled(), { timeout: 20_000 });
+    await user.click(button);
+
+    expect(click).toHaveBeenCalledOnce();
+    const link = click.mock.contexts[0] as HTMLAnchorElement;
+    expect(link.download).toBe('paul-morphy-vs-duke-karl-count-isouard.pgn');
+    const pgn = await saved[0]!.text();
+    expect(parseReplay(pgn).plies.map((p) => p.san)).toEqual(
+      parseReplay(OPERA_GAME).plies.map((p) => p.san),
+    );
+    // 33 plies. The last, Rd8#, is mate on the board and carries no eval.
+    expect(pgn.match(/\[%eval /g)).toHaveLength(32);
+  } finally {
+    click.mockRestore();
+    URL.createObjectURL = createObjectURL;
+    URL.revokeObjectURL = revokeObjectURL;
+  }
 });

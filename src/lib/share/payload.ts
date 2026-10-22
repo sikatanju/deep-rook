@@ -1,6 +1,11 @@
 import { Chess } from 'chess.js';
 
-import { parseReplay, type Ply, type Replay } from '@/lib/chess/replay';
+import {
+  clockText,
+  parseReplay,
+  type Ply,
+  type Replay,
+} from '@/lib/chess/replay';
 
 /** Every way a shared link can fail to open. The message is for the reader. */
 export class ShareError extends Error {
@@ -27,16 +32,6 @@ const HEADERS = [
 const RESULTS = ['1-0', '0-1', '1/2-1/2', '*'];
 const MAX_TEXT_BYTES = 64 * 1024;
 const STANDARD_START = new Chess().fen();
-
-/** "1:02:03.4" for %clk, with the seconds' own decimals so a parse gives back the same number. */
-function clockText(seconds: number): string {
-  const h = Math.floor(seconds / 3600);
-  const m = Math.floor((seconds % 3600) / 60);
-  const s = Number((seconds - h * 3600 - m * 60).toFixed(3));
-  const [whole, frac] = String(s).split('.');
-  const sec = whole!.padStart(2, '0') + (frac ? `.${frac}` : '');
-  return `${h}:${String(m).padStart(2, '0')}:${sec}`;
-}
 
 function movetext(plies: Ply[], result: string): string {
   const out: string[] = [];

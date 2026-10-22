@@ -136,6 +136,17 @@ Determinism is what makes a finished analysis worth keeping: the same game at th
 
 The Drill route (`#/drill`) turns saved reviews into practice. `drillsOf` takes every mistake, miss and blunder the player made (from `mistakesOf`, the uncapped version of the report's key moments) in games where the saved username names their side. It asks for the move from the position before it, and drops any moment whose engine move is missing or illegal there. Judging is exact: only the engine's first choice (`pv[0]`) counts. Drills do not read the second line yet, so a near-equal alternative still counts as wrong, and the page says so. `drill-session.ts` is the answer flow as a reducer. Nothing about a session is persisted, and leaving the page starts it over.
 
+### Annotated PGN (`src/lib/analysis/export-pgn.ts`)
+
+`annotatedPgn(replay, analysis)` is pure over one analysis snapshot. It grades with `classifyMoves` and `gameReport` itself, so the file agrees with the screen.
+
+- **Per move.** `{[%eval 0.35] [%clk 0:04:58] Blunder. Best was dxe5.}` after the move, with a numeric glyph before it for brilliant (`$3`), great (`$1`), inaccuracy (`$6`), mistake (`$2`) and blunder (`$4`). Miss has no glyph. Best, excellent and good carry only the eval. The eval is the position after the move, from White's view, in pawns. Mate is `#n` for White and `#-n` for Black, and mate on the board gets none.
+- **Unsettled positions** get no eval and so no grade. The button in the review page is disabled until `analysis.done` equals the position count, so a download is complete unless the engine failed on a position.
+- **Lead comment.** The level and each side's estimated accuracy, before move 1.
+- **Headers.** The seven tag roster first, `?` where missing, then the rest in their original order, then `Annotator "DeepRook"`. `SetUp` and `FEN` are rewritten from the replay's start.
+- **Wrapping.** Lines break between tokens at 80 columns and a comment is one token, so no `[%eval` is split from its value.
+- **Not verified.** Only a chess.js round trip and the app test check the output. Nobody has imported it into Lichess or ChessBase, so how they render the glyphs and sentences is a guess.
+
 ### Sources and links
 
 **Lichess.** `GET /api/games/user/{name}` with `Accept: application/x-ndjson` and `pgnInJson=true` returns one game per line, newest first. `Accept` is a CORS-safelisted header and the response allows any origin, so no preflight and no server. Lichess answers 404 to crawler-looking User-Agents, which real browsers are not, but headless Chrome is. `parse.ts` keeps standard games with two named players and drops variants, aborted games and engine opponents. Pages count dropped lines too, so a page of variants does not look like the end of the history. `until` is the oldest `createdAt` seen. A 429 waits a minute once, as Lichess asks. `openingName` falls back to the `Opening` header, which Lichess writes in a different style than Chess.com's slug, so one opening can appear twice in the Overview table.
@@ -160,6 +171,7 @@ src/lib/analysis/protocol.ts     Job, FromEngine, Lane, SpawnLane, spawnWorkerLa
 src/lib/analysis/analyzer.ts     createAnalyzer: entries, lanes, job ids, flush
 src/lib/analysis/cache.ts        gameKey, parseStored, openIdbStore, memoryStore
 src/lib/analysis/overview.ts     summarize, overview (pure, over saved records)
+src/lib/analysis/export-pgn.ts   annotatedPgn, pgnFilename (pure, over one analysis)
 src/lib/analysis/drill.ts        drillsOf, drillQueue, judge (pure, over saved records)
 src/lib/analysis/drill-session.ts  step: the drill answer flow as a reducer
 src/lib/chess/play.ts            legal targets and typed moves, for the drill board

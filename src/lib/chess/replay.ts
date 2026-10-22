@@ -108,6 +108,16 @@ export function openingName(headers: Record<string, string>): string | null {
   return headers.Opening?.trim() || null;
 }
 
+/** "1:02:03.4" for %clk, with the seconds' own decimals so a parse gives back the same number. */
+export function clockText(seconds: number): string {
+  const h = Math.floor(seconds / 3600);
+  const m = Math.floor((seconds % 3600) / 60);
+  const s = Number((seconds - h * 3600 - m * 60).toFixed(3));
+  const [whole, frac] = String(s).split('.');
+  const sec = whole!.padStart(2, '0') + (frac ? `.${frac}` : '');
+  return `${h}:${String(m).padStart(2, '0')}:${sec}`;
+}
+
 export function formatClock(seconds: number): string {
   const s = Math.max(0, seconds);
   const h = Math.floor(s / 3600);
