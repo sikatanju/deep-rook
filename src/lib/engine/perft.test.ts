@@ -83,7 +83,10 @@ for (const [name, fen, counts] of SUITE) {
   });
 }
 
-test('legal moves match chess.js over seeded random playouts', () => {
+// About 2.4 s alone, but chess.js is slow enough to pass 5 s when the suite runs in parallel.
+const SLOW = { timeout: 30_000 };
+
+test('legal moves match chess.js over seeded random playouts', SLOW, () => {
   let seed = 7;
   const rand = (n: number) => {
     seed = (Math.imul(seed, 1103515245) + 12345) | 0;
