@@ -8,6 +8,10 @@ astro dev --background
 
 Manage the background server with `astro dev stop`, `astro dev status`, and `astro dev logs`.
 
+## Scope
+
+This project does not use CI. Never add a CI workflow (no `.github/workflows`, no other CI config), and never suggest adding one.
+
 ## Documentation
 
 Full documentation: https://docs.astro.build
