@@ -21,6 +21,7 @@ import {
 import { evaluate } from './evaluate';
 import { MAX_MOVES, generateMoves, legalMoves } from './moves';
 import type { Position } from './position';
+import { see } from './see';
 import {
   BOUND_EXACT,
   BOUND_LOWER,
@@ -281,6 +282,9 @@ export class Searcher {
     for (let i = base; i < end; i++) {
       const m = this.pickNext(i, end);
       if (ply === 0 && m === this.excluded) continue;
+      // Losing captures sort last; once a move is searched, shallow cut nodes skip them.
+      if (this.order[i]! < 0 && !pvNode && !inCheck && depth <= 4 && legal > 0)
+        continue;
       if (!pos.make(m)) continue;
       legal++;
       const quiet = !isCapture(m) && !isPromotion(m);
@@ -368,6 +372,8 @@ export class Searcher {
         standPat + this.victimValue(pos, m) + 200 < alpha
       )
         continue;
+      // Sorted last, so the first losing capture ends the useful ones.
+      if (!inCheck && this.order[i]! < 0) break;
       if (!pos.make(m)) continue;
       legal++;
       const s = -this.quiesce(pos, -beta, -alpha, ply + 1);
@@ -391,8 +397,9 @@ export class Searcher {
   }
 
   /**
-   * Ordering: TT move, captures by MVV-LVA, promotions, two killers, then
-   * quiets by history. History is capped below the killer band.
+   * Ordering: TT move, captures that do not lose material by MVV-LVA,
+   * promotions, two killers, quiets by history, then losing captures.
+   * History is capped below the killer band.
    */
   private scoreMoves(
     pos: Position,
@@ -409,10 +416,11 @@ export class Searcher {
       let score: number;
       if (m === ttMove) score = 2_000_000;
       else if (isCapture(m)) {
-        score =
-          1_000_000 +
-          this.victimValue(pos, m) * 10 -
-          VALUE[pos.board[moveFrom(m)]! & 7]! / 10;
+        const victim = this.victimValue(pos, m);
+        const attacker = VALUE[pos.board[moveFrom(m)]! & 7]!;
+        // A capture of something worth at least the capturer cannot lose material.
+        const losing = attacker > victim && see(pos, m) < 0;
+        score = (losing ? -1_000_000 : 1_000_000) + victim * 10 - attacker / 10;
       } else if (isPromotion(m)) score = 900_000 + (moveFlag(m) & 3);
       else if (m === k1) score = 800_000;
       else if (m === k2) score = 790_000;

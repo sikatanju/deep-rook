@@ -99,8 +99,9 @@ Per position, iterative deepening runs to `depth` and stops at whichever cap bin
   - Fail-soft PVS with transposition-table cutoffs at non-PV nodes.
   - Mate-distance pruning and check extension.
   - Reverse futility pruning (depth ≤ 6), null move (R = 3 + d/6, needs a non-pawn piece), and log-table LMR.
-  - Quiescence over captures and queen promotions, with full evasions when in check, plus delta pruning.
-  - Move ordering: TT move, MVV-LVA captures, promotions, two killers, butterfly history.
+  - Quiescence over captures and queen promotions, with full evasions when in check, plus delta pruning. Captures with a negative SEE are skipped there unless the side is in check.
+  - Move ordering: TT move, captures by MVV-LVA, promotions, two killers, butterfly history, then captures with a negative SEE (`see.ts`). SEE runs only when the capturer is worth more than the victim.
+  - Non-PV nodes at depth ≤ 4 skip a losing capture once one move has been searched.
   - The PV comes from a triangular table.
   - MultiPV 2. After the first line of each depth, a second root search to the same depth skips the first line's move at ply 0, and its aspiration window centres on the previous iteration's second score. The restricted root is never stored in the transposition table, so the next iteration still finds the first line's move there. A root with one legal move gets no second search, since excluding that move would read as mate or stalemate. When search instability scores the second line above the first (18 of 304 iterations over the Opera Game at depth 10), the two swap, so the best line is always the higher one. The mate early stop reads the best line.
 - **Scores.** Side-to-move ints internally; mate is `MATE - ply`. `toScore` in `engine.ts` is the only place the point of view flips. `winner` is explicit, so "mate in 0" is representable.
@@ -210,7 +211,7 @@ Rejected:
 - We accept up to 8 workers × about 10 MiB in exchange for using the user's cores.
 - We accept that a time cap makes a result machine-dependent on slow devices. It's reported as `reason: 'time'`, and `Line.depth` shows what was reached.
 - We accept about one ply less at each level's node cap in exchange for a second line per position, which grades only-moves and names the next best move in the coach.
-- We accept a PeSTO-only evaluation, with no tuner and no SEE, in exchange for a known-good baseline. _ponytail: add SEE and a Texel tuner when the bench and tactics suite justify them._
+- We accept a PeSTO-only evaluation, with no tuner, in exchange for a known-good baseline. _ponytail: add a Texel tuner when `pnpm match` justifies it._
 - We accept `!` on typed-array reads in the engine in exchange for zero-allocation hot loops.
 - We accept unbranded int moves inside the engine. They never leave it; UCI strings are the public form.
 
@@ -237,6 +238,8 @@ Rejected:
   - no second line when the root has one legal move (Nxb8 after 16. Qb8+)
   - 14. Rd1 in the Opera Game as an only-move, 3+ pawns ahead of the next best
   - a plain recapture staying `best` however far behind the next best is
+- **SEE** (`see.test.ts`): free pawn, pawn defended by pawn, equal trade, x-rays on both sides, a king that cannot recapture into an attack, and en passant. Each test also asserts the board is restored.
+- **Strength** (`pnpm match`): the working tree against a git ref, or a directory holding a `src/` tree, at a fixed node count per move. Openings are seeded random 8-ply lines a shallow search calls level, and each is played with both colours. It prints W/D/L and an Elo difference with a 95% interval, so a search change is kept only when the interval clears zero. Self against self gives 0 Elo. SEE, 800 games each at 20k nodes per move, each step against the one before: ordering losing captures last +31 [9, 53] against the previous HEAD, skipping them in quiescence +66 [44, 89] against it, pruning them at shallow non-PV nodes another +37 [15, 59]. SEE costs about 5% in nodes per second (1.55M against 1.65M on `pnpm bench`), and Fast reaches depth 8 with 32% fewer nodes. Fixed nodes ignore that cost, so the gain in time is smaller than the gain in nodes.
 - **Scheduling and analyzer** (`schedule.test.ts`, `analyzer.test.ts`): the plan's priority order, the dwell-gated preemption, and no duplicate or redone work. Also streaming into the document, stale messages after a game switch, raising and lowering the level, monotone lines, history FENs in jobs, and the no-Worker case. These use scripted lanes and fake timers.
 - **App** (`analysis.test.tsx`): an in-process `Worker` stub runs the real engine through the real analyzer, hook, panel, and arrow. On Opera position 30 it shows `#2`, `Qb8+ Nxb8 Rd8#`, a b3→b8 arrow and a fainter second arrow. After 17. Rd8#, the engine's own move, the coach names the next best move and no "Best was". The level setting persists across a remount. `staging.test.tsx` counts the stub's jobs: staging posts none, and Review game posts some.
 - **Bench** (`pnpm bench`): 8 fixed positions on the engine bundled the way the worker ships. Measured on a 12-thread dev machine at about 1.4M (fast) to 1.85M (deep) nodes per second per core, 3 runs each, with MultiPV 2:
