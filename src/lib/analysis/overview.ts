@@ -114,6 +114,24 @@ export type StageStat = StageTally & {
   per100: number | null;
 };
 
+/**
+ * Chess.com slugs drop the colons, apostrophes, hyphens and accents that
+ * Lichess names keep, so one opening matches on its letters and digits only.
+ */
+function openingKey(name: string): string {
+  return name
+    .normalize('NFD')
+    .replace(/\p{M}|'|’/gu, '')
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+/** The Lichess spelling has the most punctuation; a slug has none. */
+function punctuation(name: string): number {
+  return name.replace(/[A-Za-z0-9 ]/g, '').length;
+}
+
 export type OpeningStat = {
   name: string;
   games: number;
@@ -183,14 +201,16 @@ export function overview(
 
   const byOpening = new Map<string, GameSummary[]>();
   for (const game of mine) {
-    if (game.opening)
-      byOpening.set(game.opening, [
-        ...(byOpening.get(game.opening) ?? []),
-        game,
-      ]);
+    if (game.opening) {
+      const key = openingKey(game.opening);
+      byOpening.set(key, [...(byOpening.get(key) ?? []), game]);
+    }
   }
-  const openings = [...byOpening.entries()]
-    .map(([name, games]): OpeningStat => {
+  const openings = [...byOpening.values()]
+    .map((games): OpeningStat => {
+      const name = games
+        .map((g) => g.opening!)
+        .reduce((a, b) => (punctuation(b) > punctuation(a) ? b : a));
       const count = (outcome: Outcome) =>
         games.filter((g) => g.result === outcome).length;
       return {

@@ -214,6 +214,28 @@ describe('overview', () => {
     });
   });
 
+  test('counts a Chess.com slug and a Lichess name for one opening together', () => {
+    const o = overview([
+      game({
+        opening: "Queen's Gambit Declined: Orthodox Defense",
+        accuracy: 60,
+      }),
+      game({
+        opening: 'Queens Gambit Declined Orthodox Defense',
+        accuracy: 80,
+      }),
+      game({ opening: 'Nimzo-Larsen Attack', accuracy: 90 }),
+      game({ opening: 'Nimzo Larsen Attack', accuracy: 90 }),
+      game({ opening: 'Réti Opening', accuracy: 95 }),
+      game({ opening: 'Reti Opening', accuracy: 95 }),
+    ]);
+    expect(o.openings.map((x) => [x.name, x.games, x.accuracy])).toEqual([
+      ["Queen's Gambit Declined: Orthodox Defense", 2, 70],
+      ['Nimzo-Larsen Attack', 2, 90],
+      ['Réti Opening', 2, 95],
+    ]);
+  });
+
   test('keeps the five worst openings', () => {
     const o = overview(
       Array.from({ length: 8 }, (_, i) =>
