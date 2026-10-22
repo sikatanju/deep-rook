@@ -269,15 +269,15 @@ The orchestrator accepted every deviation below against this design.
 - **EvalBar is a vertical bar beside the board, as sketched in Usage.** It first shipped as a horizontal win-chance meter inside `EnginePanel`, because a vertical bar would have entangled the board column's resize logic. The full-height review layout made the board column a grid, and the bar now has its own track beside the board. It reads the same `line.score` that `EnginePanel` shows as text.
 - **No snapshot object-identity reuse.** The only consumer reads the whole document through one hook, so per-position identity would buy nothing yet. Add it when a component subscribes to a single position.
 - **Crash guard.** After 5 consecutive lane crashes the analyzer stops scheduling, and positions stay `queued`. This was not in the sketch. It prevents a respawn loop when the worker bundle cannot load.
-- **Deferred, not dropped:** move classification and accuracy (see open questions). `Ply` did not need a `uci` field, because nothing compares played moves yet.
+- **Deferred, then shipped:** move classification (`classify.ts`) and accuracy (`report.ts`). `Ply` did not need a `uci` field, because grades compare the played squares to the engine's first move (`isPlayed`).
 
 ## Open questions and risks
 
 - Should analysis pause while the tab is hidden or the device is on battery? It currently runs until the game is complete.
 - Are the level numbers right on low-end devices? They are calibrated on a fast desktop (1.7M nodes per second). On a phone at a third of that speed, Deep hits its 20 s time cap and stops being deterministic. Should Deep's node cap drop, or is that acceptable?
-- Should move classification (best/mistake/blunder) and accuracy ship next? They follow from adjacent lines (Lichess win% curve), but our centipawn scale may run hotter than Stockfish's.
+- Does the win% curve fit PeSTO centipawns? `winPercent` uses Lichess's constant (0.00368208) unchanged, and nobody has measured whether our centipawn scale runs hotter than Stockfish's. Grades and accuracy depend on it.
 - Does the production build load the worker? This needs an `astro build && astro preview` check.
 
 ## Next implementation step
 
-Move verdicts and accuracy as pure functions over adjacent `Line`s (`src/lib/analysis/review.ts`), shown as badges in `MoveList`. Before that, fit the win% curve's scale to PeSTO centipawns.
+None is open here. The engine item still open is a Texel tuner (see the evaluation decision above). The risks above are the other open work.
