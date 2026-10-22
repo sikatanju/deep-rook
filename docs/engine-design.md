@@ -281,13 +281,13 @@ The orchestrator accepted every deviation below against this design.
 - **EvalBar is a vertical bar beside the board, as sketched in Usage.** It first shipped as a horizontal win-chance meter inside `EnginePanel`, because a vertical bar would have entangled the board column's resize logic. The full-height review layout made the board column a grid, and the bar now has its own track beside the board. It reads the same `line.score` that `EnginePanel` shows as text.
 - **No snapshot object-identity reuse.** The only consumer reads the whole document through one hook, so per-position identity would buy nothing yet. Add it when a component subscribes to a single position.
 - **Crash guard.** After 5 consecutive lane crashes the analyzer stops scheduling, and positions stay `queued`. This was not in the sketch. It prevents a respawn loop when the worker bundle cannot load.
+- **Win% curve kept at Lichess's constant (0.00368208).** `scripts/winfit-human.mjs` replayed 342 analysed Lichess games (rated blitz and rapid, players around 1400) and scored 6,024 positions with our engine at Balanced-like limits. The logistic constant that best predicts the real results from our centipawns is 0.0036 (90% interval 0.0028 to 0.0048), and the log loss with Lichess's constant matches the fitted one to four decimals. So the data gives no reason to change it. Two caveats stand. The sample is one rating band, and Lichess's own evals fit these results at 0.0026 (0.0022 to 0.0032), flatter than its published constant. Our centipawns also run about half the size of Lichess's on the same positions (median ratio 0.47), and that does not reconcile with the equal constants. A shallower search missing tactics is the untested guess. Rerun the script after any change that moves the evaluation scale, a Texel tuner included.
 - **Deferred, then shipped:** move classification (`classify.ts`) and accuracy (`report.ts`). `Ply` did not need a `uci` field, because grades compare the played squares to the engine's first move (`isPlayed`).
 
 ## Open questions and risks
 
 - Should analysis pause while the tab is hidden or the device is on battery? It currently runs until the game is complete.
 - Are the level numbers right on low-end devices? They are calibrated on a fast desktop (1.7M nodes per second). On a phone at a third of that speed, Deep hits its 20 s time cap and stops being deterministic. Should Deep's node cap drop, or is that acceptable?
-- Does the win% curve fit PeSTO centipawns? `winPercent` uses Lichess's constant (0.00368208) unchanged, and nobody has measured whether our centipawn scale runs hotter than Stockfish's. Grades and accuracy depend on it.
 
 ## Next implementation step
 
