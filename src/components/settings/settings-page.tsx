@@ -7,6 +7,7 @@ import { LevelPicker } from '@/components/level-picker';
 import { Panel } from '@/components/panel';
 import { EvalBar } from '@/components/review/eval-bar';
 import { BoardThemePicker } from '@/components/settings/board-theme-picker';
+import { PieceSetPicker } from '@/components/settings/piece-set-picker';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Slider } from '@/components/ui/slider';
@@ -123,6 +124,14 @@ export function SettingsPage() {
               />
             </div>
 
+            <div className="flex flex-col gap-3">
+              <p className={label}>Pieces</p>
+              <PieceSetPicker
+                value={settings.pieceSet}
+                onChange={(pieceSet) => setSettings({ pieceSet })}
+              />
+            </div>
+
             <div className="flex flex-wrap items-end gap-8">
               <label
                 htmlFor="coordinates"
@@ -162,7 +171,6 @@ export function SettingsPage() {
           </Panel>
 
           <p className="text-ink-muted text-xs leading-4">
-            Pieces are{' '}
             <a
               href="https://github.com/neverRare/kiwen-suwi"
               className="underline"
@@ -170,6 +178,28 @@ export function SettingsPage() {
               Kiwen Suwi
             </a>{' '}
             by neverRare,{' '}
+            <a
+              href="https://creativecommons.org/licenses/by/4.0/"
+              className="underline"
+            >
+              CC BY 4.0
+            </a>
+            .{' '}
+            <a href="https://rhosgfx.itch.io/" className="underline">
+              RhosGFX
+            </a>
+            ,{' '}
+            <a
+              href="https://creativecommons.org/publicdomain/zero/1.0/"
+              className="underline"
+            >
+              CC0 1.0
+            </a>
+            .{' '}
+            <a href="https://nikoichu.itch.io/" className="underline">
+              Papercut
+            </a>{' '}
+            by Nikolay Anzarov,{' '}
             <a
               href="https://creativecommons.org/licenses/by/4.0/"
               className="underline"
@@ -189,6 +219,7 @@ export function SettingsPage() {
             fen={fenAt(replay, PREVIEW_PLY)}
             flipped={false}
             theme={settings.boardTheme}
+            pieceSet={settings.pieceSet}
             coordinates={settings.coordinates}
             lastMove={replay.plies[PREVIEW_PLY - 1]}
             arrow="e1c1"

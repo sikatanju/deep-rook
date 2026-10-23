@@ -22,6 +22,40 @@ function renderBoard(play?: Parameters<typeof Board>[0]['play']) {
   );
 }
 
+test('a piece set loads its own files, and the default stays Kiwen Suwi', () => {
+  const { container } = renderBoard();
+  expect(container.querySelector('[data-piece="wK"]')).toHaveAttribute(
+    'src',
+    '/pieces/kiwen/wK.svg',
+  );
+  const rhos = render(
+    <Board
+      fen={START}
+      flipped={false}
+      theme="palette"
+      coordinates
+      pieceSet="rhosgfx"
+    />,
+  );
+  expect(rhos.container.querySelector('[data-piece="wK"]')).toHaveAttribute(
+    'src',
+    '/pieces/rhosgfx/wK.svg',
+  );
+  const paper = render(
+    <Board
+      fen={START}
+      flipped={false}
+      theme="palette"
+      coordinates
+      pieceSet="papercut"
+    />,
+  );
+  expect(paper.container.querySelector('[data-piece="wK"]')).toHaveAttribute(
+    'src',
+    '/pieces/papercut/wK.svg',
+  );
+});
+
 test('without play the board is a picture of div squares, as the review page draws it', () => {
   const { container } = renderBoard();
   const board = screen.getByRole('img', {

@@ -35,6 +35,13 @@ test('palette is validated alone and defaults to Pop Quiz', () => {
   expect(parseSettings('{"palette":"toString"}').palette).toBe('pop');
 });
 
+test('piece set is validated alone and defaults to Kiwen Suwi', () => {
+  expect(parseSettings(null).pieceSet).toBe('kiwen');
+  expect(parseSettings('{"pieceSet":"rhosgfx"}').pieceSet).toBe('rhosgfx');
+  expect(parseSettings('{"pieceSet":"papercut"}').pieceSet).toBe('papercut');
+  expect(parseSettings('{"pieceSet":"alpha"}').pieceSet).toBe('kiwen');
+});
+
 describe('loadSettings', () => {
   afterEach(() => localStorage.clear());
 

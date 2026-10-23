@@ -1,4 +1,9 @@
-import { BOARD_THEMES, type BoardTheme } from '@/app/store';
+import {
+  BOARD_THEMES,
+  pieceSrc,
+  type BoardTheme,
+  type PieceSet,
+} from '@/app/store';
 import { GradeSticker } from '@/components/review/grade-sticker';
 import type { Classification } from '@/lib/analysis/classify';
 import { fenAt, type Replay } from '@/lib/chess/replay';
@@ -59,10 +64,12 @@ export function flightOffset(moving: MovingPiece, flipped: boolean) {
 export function Piece({
   type,
   white,
+  set = 'kiwen',
   className,
 }: {
   type: string;
   white: boolean;
+  set?: PieceSet;
   className?: string;
 }) {
   const code = (white ? 'w' : 'b') + type.toUpperCase();
@@ -72,7 +79,7 @@ export function Piece({
       aria-hidden
       draggable={false}
       data-piece={code}
-      src={`/pieces/${code}.svg`}
+      src={pieceSrc(set, code)}
       className={cn('block size-full select-none', className)}
     />
   );
@@ -174,6 +181,7 @@ export function Board({
   fen,
   flipped,
   theme,
+  pieceSet = 'kiwen',
   coordinates,
   lastMove,
   checkOn,
@@ -186,6 +194,7 @@ export function Board({
   fen: string;
   flipped: boolean;
   theme: BoardTheme;
+  pieceSet?: PieceSet;
   coordinates: boolean;
   lastMove?: { from: string; to: string };
   /** Piece letter (K or k) of the king currently in check. */
@@ -273,6 +282,7 @@ export function Board({
                 <Piece
                   type={piece.toLowerCase()}
                   white={piece === piece.toUpperCase()}
+                  set={pieceSet}
                   className="relative z-10 size-[88%] drop-shadow-[1px_2px_0_rgb(0_0_0/0.3)]"
                 />
               )}
@@ -334,6 +344,7 @@ export function Board({
             <Piece
               type={moving.code[1]!.toLowerCase()}
               white={moving.code[0] === 'w'}
+              set={pieceSet}
               className="size-[88%] drop-shadow-[1px_2px_0_rgb(0_0_0/0.3)]"
             />
           </div>

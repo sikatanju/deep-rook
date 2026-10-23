@@ -31,9 +31,21 @@ export const BOARD_THEMES = {
 } as const;
 export type BoardTheme = keyof typeof BOARD_THEMES;
 
+export const PIECE_SETS = {
+  kiwen: { name: 'Kiwen Suwi' },
+  rhosgfx: { name: 'RhosGFX' },
+  papercut: { name: 'Papercut' },
+} as const;
+export type PieceSet = keyof typeof PIECE_SETS;
+
+export function pieceSrc(set: PieceSet, code: string) {
+  return `/pieces/${set}/${code}.svg`;
+}
+
 export type Settings = {
   palette: PaletteId;
   boardTheme: BoardTheme;
+  pieceSet: PieceSet;
   coordinates: boolean;
   autoplayMs: number;
   analysisLevel: AnalysisLevel;
@@ -42,6 +54,7 @@ export type Settings = {
 const DEFAULT_SETTINGS: Settings = {
   palette: DEFAULT_PALETTE,
   boardTheme: 'palette',
+  pieceSet: 'kiwen',
   coordinates: true,
   autoplayMs: 900,
   analysisLevel: DEFAULT_LEVEL,
@@ -60,13 +73,24 @@ export function parseSettings(raw: string | null): Settings {
     // Corrupt JSON: defaults.
   }
   const d = DEFAULT_SETTINGS;
-  const { palette, boardTheme, coordinates, autoplayMs, analysisLevel } = data;
+  const {
+    palette,
+    boardTheme,
+    pieceSet,
+    coordinates,
+    autoplayMs,
+    analysisLevel,
+  } = data;
   return {
     palette: isPaletteId(palette) ? palette : d.palette,
     boardTheme:
       typeof boardTheme === 'string' && Object.hasOwn(BOARD_THEMES, boardTheme)
         ? (boardTheme as BoardTheme)
         : d.boardTheme,
+    pieceSet:
+      typeof pieceSet === 'string' && Object.hasOwn(PIECE_SETS, pieceSet)
+        ? (pieceSet as PieceSet)
+        : d.pieceSet,
     coordinates: typeof coordinates === 'boolean' ? coordinates : d.coordinates,
     autoplayMs:
       typeof autoplayMs === 'number' && autoplayMs >= 300 && autoplayMs <= 2500

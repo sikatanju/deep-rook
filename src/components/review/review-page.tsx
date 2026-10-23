@@ -263,6 +263,7 @@ function Viewer({ loaded }: { loaded: Loaded }) {
               fen={fen}
               flipped={flipped}
               theme={settings.boardTheme}
+              pieceSet={settings.pieceSet}
               coordinates={settings.coordinates}
               lastMove={ply}
               checkOn={

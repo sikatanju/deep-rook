@@ -230,6 +230,7 @@ function DrillCard({
           fen={fen}
           flipped={drill.color === 'b'}
           theme={settings.boardTheme}
+          pieceSet={settings.pieceSet}
           coordinates={settings.coordinates}
           arrow={open ? undefined : drill.best.uci}
           play={
