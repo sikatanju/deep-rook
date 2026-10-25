@@ -47,7 +47,7 @@ test('staging a game neither opens the review nor starts the engine', async () =
   await stageOperaGame(user);
 
   expect(reviewLink()).not.toHaveAttribute('aria-current', 'page');
-  expect(screen.queryByRole('img', { name: /Chess board/ })).toBeNull();
+  expect(screen.queryByRole('group', { name: /Chess board/ })).toBeNull();
   expect(screen.getByText('The Opera Game')).toBeInTheDocument();
   expect(screen.getByText('33 moves')).toBeInTheDocument();
   // A beat for any stray search to be posted.

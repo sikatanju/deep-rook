@@ -1,5 +1,6 @@
 import type { ReactNode } from 'react';
 
+import { Button } from '@/components/ui/button';
 import { CLASSIFICATIONS, type Classification } from '@/lib/analysis/classify';
 import { cn } from '@/lib/utils';
 
@@ -13,6 +14,8 @@ type EngineChoice = {
   san: string;
   /** Already formatted: "+0.4". */
   eval?: string;
+  /** Offers to play the move out on the board. */
+  onPlay?: () => void;
 };
 
 function Choice({
@@ -33,6 +36,16 @@ function Choice({
           <span className="text-ink-muted font-mono"> ({choice.eval})</span>
         )}
       </span>
+      {choice.onPlay && (
+        <Button
+          size="sm"
+          className="ml-auto"
+          onClick={choice.onPlay}
+          aria-label={`Try ${choice.san} on the board`}
+        >
+          Try it
+        </Button>
+      )}
     </p>
   );
 }
@@ -53,6 +66,7 @@ export function CoachBubble({
   best,
   next,
   title,
+  footer,
   actions,
   children,
   className,
@@ -67,6 +81,8 @@ export function CoachBubble({
   /** The engine's next best move, when it is not the one played. */
   next?: EngineChoice;
   title: ReactNode;
+  /** Below the verdict and the engine's moves, above the actions. */
+  footer?: ReactNode;
   actions?: ReactNode;
   children?: ReactNode;
   className?: string;
@@ -142,6 +158,7 @@ export function CoachBubble({
             )}
           </div>
         )}
+        {footer && <div className="mt-3">{footer}</div>}
         {actions && <div className="mt-3 flex flex-wrap gap-2">{actions}</div>}
       </div>
     </section>

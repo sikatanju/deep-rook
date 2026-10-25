@@ -195,7 +195,7 @@ test('Review this game opens the saved game with the player at the bottom', asyn
     'page',
   );
   expect(
-    await screen.findByRole('img', { name: /black at the bottom/ }),
+    await screen.findByRole('group', { name: /black at the bottom/ }),
   ).toBeInTheDocument();
   expect(screen.getByText('Fast review')).toBeInTheDocument();
 });

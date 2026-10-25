@@ -49,7 +49,7 @@ test('a Lichess game stages like a Chess.com one, from the searched side', async
 
   await user.click(screen.getByRole('button', { name: 'Review game' }));
   expect(
-    await screen.findByRole('img', { name: /black at the bottom/ }),
+    await screen.findByRole('group', { name: /black at the bottom/ }),
   ).toBeInTheDocument();
 });
 

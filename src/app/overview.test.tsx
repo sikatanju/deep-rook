@@ -114,7 +114,7 @@ test('Review again opens the saved game at its saved level without the engine', 
   );
   // Black is the player, so Black is at the bottom of the board.
   expect(
-    await screen.findByRole('img', { name: /black at the bottom/ }),
+    await screen.findByRole('group', { name: /black at the bottom/ }),
   ).toBeInTheDocument();
   expect(screen.getByText('Fast review')).toBeInTheDocument();
   // jsdom has no Worker, so these figures can only have come from the store.

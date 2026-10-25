@@ -147,11 +147,21 @@ The Drill route (`#/drill`) turns saved reviews into practice. `drillsOf` takes 
 - **Wrapping.** Lines break between tokens at 80 columns and a comment is one token, so no `[%eval` is split from its value.
 - **Not verified.** Only a chess.js round trip and the app test check the output. Nobody has imported it into Lichess or ChessBase, so how they render the glyphs and sentences is a guess.
 
+### Side lines and the last review
+
+**Side lines.** The review board takes clicks. A move the game did not play opens a `Branch` (`src/lib/chess/branch.ts`): the game position it leaves (`base`, a viewer index), the plies played, and `at`, how many are on the board, so stepping back keeps the rest to step forward into. Playing the game's own next move just advances the game. Playing the next move already in the line steps forward and keeps the tail. Any other move cuts the tail. Any navigation of the game itself (move list, graph, `goTo`) drops the branch. The step keys and buttons walk the branch while one exists, and Escape or "Back to the game" leaves it. The game's analysis keeps focus on `base`.
+
+Positions on a branch are not game positions, so the analyzer does not search them. `createProbe` (`src/lib/analysis/probe.ts`) is a one-lane analyzer for them, reached through `useProbe`. It searches at the review's level after a 150 ms dwell, cancels by terminating the lane when asked about another position, and remembers every finished position by FEN, so stepping through a line costs nothing. A level change forgets its lines. The search input (position plus history back to the last irreversible move) comes from `searchInputAt`, shared with the analyzer. The probe costs one extra worker beside the analyzer's pool.
+
+A side move is graded by `gradeSideMove`: the engine's move is best, anything else takes the loss band of `classifyMoves`. Great, brilliant and miss are never given because they depend on the game around the move. The grade needs a settled line on both sides of the move: the game's line at `base` for the first move, the probe's remembered line for later ones. A move stepped past too quickly to be searched has no grade. The engine line under the coach is the current position's principal variation, up to 8 plies, and each move plays the line out to itself. The coach's "Best was" row carries "Try it", which rewinds to the position before the graded move and plays the engine's.
+
+**Last review.** `src/app/last-review.ts` keeps the game under review in `localStorage` (`lastReview`: version, replay, source, side, level), written whenever the loaded game changes and read once, synchronously, when the store mounts, so a refresh never flashes the empty review page. It stores the game, not its analysis. That is already in the saved reviews, or is searched again. `parseLastReview` is the boundary: a wrong version, an unknown level, a bad side or a damaged replay is no review, never a throw. The side line being explored is not restored.
+
 ### Sources and links
 
 **Lichess.** `GET /api/games/user/{name}` with `Accept: application/x-ndjson` and `pgnInJson=true` returns one game per line, newest first. `Accept` is a CORS-safelisted header and the response allows any origin, so no preflight and no server. Lichess answers 404 to crawler-looking User-Agents, which real browsers are not, but headless Chrome is. `parse.ts` keeps standard games with two named players and drops variants, aborted games and engine opponents. Pages count dropped lines too, so a page of variants does not look like the end of the history. `until` is the oldest `createdAt` seen. A 429 waits a minute once, as Lichess asks. `openingName` falls back to the `Opening` header, which Lichess writes in a different style than Chess.com's slug, so one opening can appear twice in the Overview table.
 
-**Share links.** `encodeReplay` writes the replay as a compact PGN (an allowlist of headers, SAN moves, `%clk` comments, `SetUp`/`FEN` for custom starts), deflates it and writes base64url. `decodeReplay` is the boundary for untrusted input. It caps the inflated size while streaming, rejects unknown versions and bad bytes, and sends the text through `parseReplay`. The receiving hook opens the game, then replaces the hash with `#/review` so a refresh or Back does not reopen it. A refresh after that shows an empty review, because the game lives only in memory.
+**Share links.** `encodeReplay` writes the replay as a compact PGN (an allowlist of headers, SAN moves, `%clk` comments, `SetUp`/`FEN` for custom starts), deflates it and writes base64url. `decodeReplay` is the boundary for untrusted input. It caps the inflated size while streaming, rejects unknown versions and bad bytes, and sends the text through `parseReplay`. The receiving hook opens the game, then replaces the hash with `#/review` so a refresh or Back does not reopen it. A refresh after that reopens the game from the last-review record (see Side lines and the last review).
 
 ### Module map
 
@@ -170,14 +180,17 @@ src/lib/analysis/schedule.ts     plan(): focus, first light, upgrade (pure)
 src/lib/analysis/protocol.ts     Job, FromEngine, Lane, SpawnLane, spawnWorkerLane
 src/lib/analysis/analyzer.ts     createAnalyzer: entries, lanes, job ids, flush
 src/lib/analysis/cache.ts        gameKey, parseStored, openIdbStore, memoryStore
+src/lib/analysis/inputs.ts       searchInputAt: a position plus its repetition history
+src/lib/analysis/probe.ts        createProbe: one lane for positions outside the game
 src/lib/analysis/overview.ts     summarize, overview (pure, over saved records)
 src/lib/analysis/export-pgn.ts   annotatedPgn, pgnFilename (pure, over one analysis)
 src/lib/analysis/drill.ts        drillsOf, drillQueue, judge (pure, over saved records)
 src/lib/analysis/drill-session.ts  step: the drill answer flow as a reducer
-src/lib/chess/play.ts            legal targets and typed moves, for the drill board
+src/lib/chess/play.ts            legal targets and typed moves, for the drill and review boards
+src/lib/chess/branch.ts          Branch: a side line played out of the game (pure)
 src/lib/chess/stage.ts           Stage, stageAt
 src/workers/engine.worker.ts     thin shell around createEngine
-src/hooks/use-game-analysis.tsx  AnalysisProvider, useGameAnalysis, useAnalysisStore  <- the UI's only door
+src/hooks/use-game-analysis.tsx  AnalysisProvider, useGameAnalysis, useAnalysisStore, useProbe  <- the UI's only door
 src/components/review/engine-panel.tsx  EnginePanel
 src/components/review/eval-bar.tsx      EvalBar
 ```

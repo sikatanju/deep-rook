@@ -95,7 +95,7 @@ test('lists games for a user and opens one in the review page', async () => {
   await user.click(row);
   await user.click(screen.getByRole('button', { name: 'Review game' }));
   expect(
-    await screen.findByRole('img', { name: /Chess board/ }),
+    await screen.findByRole('group', { name: /Chess board/ }),
   ).toBeInTheDocument();
   expect(
     within(screen.getByRole('group', { name: 'Black player' })).getByText(
@@ -116,11 +116,11 @@ test('picking a game row only stages it until Review game is pressed', async () 
     'aria-current',
     'page',
   );
-  expect(screen.queryByRole('img', { name: /Chess board/ })).toBeNull();
+  expect(screen.queryByRole('group', { name: /Chess board/ })).toBeNull();
 
   await user.click(screen.getByRole('button', { name: 'Review game' }));
   expect(
-    await screen.findByRole('img', { name: /Chess board/ }),
+    await screen.findByRole('group', { name: /Chess board/ }),
   ).toBeInTheDocument();
 });
 

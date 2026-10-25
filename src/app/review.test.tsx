@@ -61,11 +61,12 @@ test('steps through a game with buttons and keys', async () => {
 
 test('flips the board', async () => {
   const user = await openOperaGame();
-  const board = screen.getByRole('img', { name: /white at the bottom/ });
+  const board = screen.getByRole('group', { name: /white at the bottom/ });
   expect(board.firstElementChild).toHaveAttribute('data-square', 'a8');
   await user.keyboard('f');
   expect(
-    screen.getByRole('img', { name: /black at the bottom/ }).firstElementChild,
+    screen.getByRole('group', { name: /black at the bottom/ })
+      .firstElementChild,
   ).toHaveAttribute('data-square', 'h1');
 });
 
@@ -224,7 +225,7 @@ test('rejects an invalid PGN without leaving the games page', async () => {
   await user.type(screen.getByLabelText('PGN'), '1. e4 e4');
   await user.click(screen.getByRole('button', { name: 'Load PGN' }));
   expect(await screen.findByRole('alert')).toBeInTheDocument();
-  expect(screen.queryByRole('img', { name: /Chess board/ })).toBeNull();
+  expect(screen.queryByRole('group', { name: /Chess board/ })).toBeNull();
 });
 
 test('board colors can be changed in settings', async () => {

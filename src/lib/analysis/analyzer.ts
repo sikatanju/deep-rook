@@ -13,6 +13,7 @@ import {
   type StoredAnalysis,
 } from './cache';
 import type { GameAnalysis, PositionAnalysis } from './game-analysis';
+import { searchInputAt } from './inputs';
 import {
   ANALYSIS_LEVELS,
   LEVELS,
@@ -332,18 +333,11 @@ function settle(
   return satisfies(have, next) ? have! : next;
 }
 
-/**
- * Index i -> its FEN plus the game FENs back to the last irreversible move
- * (the FEN's halfmove clock), oldest first, for repetition detection.
- */
 function positionsOf(replay: Replay): Game['inputs'] {
   const fens = Array.from({ length: replay.plies.length + 1 }, (_, i) =>
     fenAt(replay, i),
   );
-  return fens.map((fen, i) => {
-    const halfmove = Number(fen.split(' ')[4]) || 0;
-    return { fen, history: fens.slice(Math.max(0, i - halfmove), i) };
-  });
+  return fens.map((_, i) => searchInputAt(fens, i));
 }
 
 function toSnapshot(

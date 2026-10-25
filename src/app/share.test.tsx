@@ -30,7 +30,7 @@ test('opening a review link reviews that game, then cleans the address', async (
   render(<App store={memoryStore()} />);
 
   expect(
-    await screen.findByRole('img', { name: /black at the bottom/ }),
+    await screen.findByRole('group', { name: /black at the bottom/ }),
   ).toBeInTheDocument();
   expect(within(player('White')).getByText('Paul Morphy')).toBeInTheDocument();
   expect(screen.getByRole('link', { name: 'Review' })).toHaveAttribute(

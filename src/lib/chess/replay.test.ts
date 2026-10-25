@@ -5,6 +5,7 @@ import {
   fenAt,
   formatClock,
   materialOf,
+  numberedSan,
   openingName,
   parseReplay,
 } from './replay';
@@ -58,4 +59,18 @@ test('derives the opening and formats clocks', () => {
   expect(formatClock(179.9)).toBe('2:59');
   expect(formatClock(3725)).toBe('1:02:05');
   expect(formatClock(9.4)).toBe('0:09.4');
+});
+
+test('numberedSan numbers a line the way a score sheet does', () => {
+  const start = parseReplay(OPERA_GAME).start;
+  const black =
+    'r1bqkbnr/pppp1ppp/2n5/4p3/4P3/5N2/PPPP1PPP/RNBQKB1R b KQkq - 2 3';
+  expect(numberedSan(black, ['Nf6', 'd4', 'exd4', 'Nxd4'])).toEqual([
+    '3… Nf6',
+    '4. d4',
+    'exd4',
+    '5. Nxd4',
+  ]);
+  expect(numberedSan(start, ['e4', 'e5'])).toEqual(['1. e4', 'e5']);
+  expect(numberedSan(start, [])).toEqual([]);
 });

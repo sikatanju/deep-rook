@@ -6,7 +6,7 @@
 import { Chess } from 'chess.js';
 
 import { fenAt, materialOf, type Ply, type Replay } from '@/lib/chess/replay';
-import { winPercent, type Variation } from '@/lib/chess/score';
+import { winPercent, type Line, type Variation } from '@/lib/chess/score';
 
 import type { PositionAnalysis } from './game-analysis';
 
@@ -104,6 +104,25 @@ export function classifyMoves(
       ? 'miss'
       : kind;
   });
+}
+
+/**
+ * A grade for one move out of a side line, from the engine lines on either
+ * side of it. Only the engine's move and the loss bands apply: great, brilliant
+ * and miss all lean on the game around the move.
+ */
+export function gradeSideMove(
+  ply: Ply,
+  before: Line,
+  after: Line,
+): Classification {
+  if (isPlayed(ply, before.pv[0])) return 'best';
+  const sign = ply.color === 'w' ? 1 : -1;
+  const loss = Math.max(
+    0,
+    sign * (winPercent(before.score) - winPercent(after.score)),
+  );
+  return BY_LOSS.find(([max]) => loss < max)![1];
 }
 
 /** Taking back on the square the opponent just captured on: forced by nature, not a find. */

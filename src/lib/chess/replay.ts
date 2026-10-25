@@ -155,3 +155,23 @@ export function sanLine(fen: string, uci: readonly string[]): string[] {
   }
   return out;
 }
+
+/**
+ * `sans` played from `fen`, numbered the way a score sheet reads: "12… Nf6"
+ * for Black's move opening the list, "13. Bd3" for White's, bare after that.
+ */
+export function numberedSan(fen: string, sans: readonly string[]): string[] {
+  const fields = fen.split(' ');
+  let number = Number(fields[5]);
+  let white = fields[1] === 'w';
+  return sans.map((san, i) => {
+    const text = white
+      ? `${number}. ${san}`
+      : i === 0
+        ? `${number}… ${san}`
+        : san;
+    if (!white) number++;
+    white = !white;
+    return text;
+  });
+}

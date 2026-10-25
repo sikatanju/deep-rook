@@ -12,16 +12,35 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { navigate } from '@/app/router';
 import { useStore, type Loaded } from '@/app/store';
 import { Board, movingPiece } from '@/components/board/board';
+import { PromotionPicker } from '@/components/board/promotion-picker';
 import { Highlight, PageHeader } from '@/components/layout/page-header';
 import { Panel } from '@/components/panel';
 import { Button } from '@/components/ui/button';
-import { useGameAnalysis } from '@/hooks/use-game-analysis';
-import { classifyMoves, type Classification } from '@/lib/analysis/classify';
+import { useGameAnalysis, useProbe } from '@/hooks/use-game-analysis';
+import { useMoveInput } from '@/hooks/use-move-input';
+import {
+  classifyMoves,
+  gradeSideMove,
+  type Classification,
+} from '@/lib/analysis/classify';
+import { searchInputAt } from '@/lib/analysis/inputs';
 import { ANALYSIS_LEVELS } from '@/lib/analysis/levels';
 import { evalSeries, gameReport } from '@/lib/analysis/report';
 import {
+  branchFen,
+  branchFens,
+  isGameMove,
+  playedPlies,
+  playLine,
+  playMove,
+  stepTo,
+  type Branch,
+} from '@/lib/chess/branch';
+import type { Move } from '@/lib/chess/play';
+import {
   fenAt,
   materialOf,
+  numberedSan,
   sanLine,
   type Ply,
   type Replay,
@@ -31,6 +50,7 @@ import { formatScore, type Variation } from '@/lib/chess/score';
 import { CoachBubble } from './coach-bubble';
 import { CopyLink } from './copy-link';
 import { EvalBar } from './eval-bar';
+import { EngineLine } from './engine-line';
 import { EvalGraph } from './eval-graph';
 import { ExportPgn } from './export-pgn';
 import { MoveList } from './move-list';
@@ -89,15 +109,20 @@ function Viewer({ loaded }: { loaded: Loaded }) {
   // so a step is one atomic update: a later re-render (the engine streams in
   // constantly) must not be able to recompute the flight away.
   const [nav, setNav] = useState({ at: 0, from: 0 });
+  // A side line the user is playing out of position `index`. Navigating the
+  // game itself (goTo) always leaves it.
+  const [branch, setBranch] = useState<Branch | null>(null);
 
   const goTo = useCallback(
-    (to: number) =>
+    (to: number) => {
+      setBranch(null);
       setNav((prev) => {
         const next = Math.min(last, Math.max(0, to));
         if (next === prev.at) return prev;
         setIndex(next);
         return { at: next, from: prev.at };
-      }),
+      });
+    },
     [last],
   );
 
@@ -117,38 +142,58 @@ function Viewer({ loaded }: { loaded: Loaded }) {
     return () => clearTimeout(t);
   }, [running, index, settings.autoplayMs, goTo]);
 
+  // What the step keys and buttons move along: the side line when there is
+  // one, else the game.
+  const stepper = useMemo(
+    () =>
+      branch
+        ? {
+            at: branch.at,
+            end: branch.plies.length,
+            to: (n: number) => setBranch(stepTo(branch, n)),
+          }
+        : { at: index, end: last, to: go },
+    [branch, index, last, go],
+  );
+
   useEffect(() => {
     function onKey(e: KeyboardEvent) {
       if (isTyping(e.target) || e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.key === 'Escape' && branch) {
+        e.preventDefault();
+        setBranch(null);
+        return;
+      }
       if (e.key === ' ') {
         if (e.target instanceof HTMLButtonElement) return;
         e.preventDefault();
+        if (branch) return;
         if (index >= last) goTo(0);
         setPlaying(index >= last || !running);
         return;
       }
+      const { at, end, to } = stepper;
       const keys: Record<string, () => void> = {
-        ArrowLeft: () => goTo(index - 1),
-        ArrowRight: () => goTo(index + 1),
-        ArrowUp: () => goTo(0),
-        ArrowDown: () => goTo(last),
-        Home: () => goTo(0),
-        End: () => goTo(last),
+        ArrowLeft: () => to(at - 1),
+        ArrowRight: () => to(at + 1),
+        ArrowUp: () => to(0),
+        ArrowDown: () => to(end),
+        Home: () => to(0),
+        End: () => to(end),
         f: () => setFlipped((f) => !f),
       };
       const action = keys[e.key];
       if (!action) return;
       e.preventDefault();
-      if (e.key !== 'f') setPlaying(false);
       action();
     }
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);
-  }, [goTo, index, last, running]);
+  }, [goTo, index, last, running, branch, stepper]);
 
   const analysis = useGameAnalysis(loaded, index);
   const here = analysis?.positions[index];
-  const line = here && here.status !== 'failed' ? here.line : null;
+  const gameLine = here && here.status !== 'failed' ? here.line : null;
   const grades = useMemo(
     () => (analysis ? classifyMoves(replay, analysis.positions) : []),
     [replay, analysis],
@@ -167,21 +212,78 @@ function Viewer({ loaded }: { loaded: Loaded }) {
   const moving = movingPiece(replay, nav.at, nav.from);
   const prior = analysis?.positions[index - 1];
 
+  // The side line's board is not a game position, so the probe searches it.
+  // Back at the line's start it is the game position again, already analysed.
+  const probeInput = useMemo(() => {
+    if (!branch || branch.at === 0) return null;
+    const fens = branchFens(replay, branch);
+    return searchInputAt(fens, fens.length - 1);
+  }, [replay, branch]);
+  const probe = useProbe(probeInput);
+  const probed = probeInput && probe.fen === probeInput.fen ? probe : null;
+  const line = branch?.at ? (probed?.line ?? null) : gameLine;
+
   const { headers, plies } = replay;
   const ply = index > 0 ? plies[index - 1] : undefined;
-  /** A graded move's alternative from the engine line before it, unless it is the move played. */
-  const instead = (variation: Variation | undefined) => {
-    if (!grade || !ply || !variation) return undefined;
-    const san = sanLine(fenAt(replay, index - 1), variation.pv.slice(0, 1))[0];
-    return san && san !== ply.san
+  const sidePly = branch?.at ? branch.plies[branch.at - 1] : undefined;
+  const shownPly = branch ? sidePly : ply;
+
+  /** `variation`'s first move from `fen`, unless it is `played`. */
+  const alternative = (
+    fen: string,
+    variation: Variation | undefined,
+    played: string | undefined,
+  ) => {
+    if (!variation || !played) return undefined;
+    const san = sanLine(fen, variation.pv.slice(0, 1))[0];
+    return san && san !== played
       ? { san, eval: formatScore(variation.score) }
       : undefined;
   };
+  /** A graded move's alternative from the engine line before it. */
+  const instead = (variation: Variation | undefined) => {
+    const choice =
+      grade && alternative(fenAt(replay, index - 1), variation, ply?.san);
+    return choice && variation
+      ? {
+          ...choice,
+          // Rewinds to the position the move was played in and plays the engine's instead.
+          onPlay: () => {
+            goTo(index - 1);
+            setBranch(
+              playLine(null, replay, index - 1, variation.pv.slice(0, 1)),
+            );
+          },
+        }
+      : undefined;
+  };
   const before = prior?.status === 'done' ? prior.line : undefined;
-  const fen = fenAt(replay, index);
+
+  const fen = branch ? branchFen(replay, branch) : fenAt(replay, index);
   const material = materialOf(fen);
   const sideToMove = fen.split(' ')[1] as 'w' | 'b';
-  const atEnd = index === last;
+  const atEnd = index === last && !branch;
+
+  // The side line's last move graded the way the game's moves are: by what it
+  // cost against the engine line before it. Needs both lines settled.
+  const sideBefore = (() => {
+    if (!branch || !sidePly) return undefined;
+    if (branch.at === 1) return here?.status === 'done' ? here.line : undefined;
+    return probe.settled.get(branch.plies[branch.at - 2]!.fen);
+  })();
+  const sideAfter = probed?.done ? probed.line : null;
+  const sideGrade =
+    sidePly && sideBefore && sideAfter
+      ? gradeSideMove(sidePly, sideBefore, sideAfter)
+      : null;
+
+  const input = useMoveInput(fen, (move: Move) => {
+    if (!branch && isGameMove(replay, index, move)) return go(index + 1);
+    const next = playMove(branch, replay, index, move);
+    if (!next) return;
+    setPlaying(false);
+    setBranch(next);
+  });
 
   const strip = (color: 'w' | 'b') => (
     <PlayerStrip
@@ -190,7 +292,7 @@ function Viewer({ loaded }: { loaded: Loaded }) {
       rating={headers[color === 'w' ? 'WhiteElo' : 'BlackElo']}
       captured={color === 'w' ? material.lost.b : material.lost.w}
       lead={Math.max(0, color === 'w' ? material.balance : -material.balance)}
-      clock={clockAt(replay, index, color)}
+      clock={branch ? undefined : clockAt(replay, index, color)}
       toMove={sideToMove === color && !atEnd}
     />
   );
@@ -201,7 +303,7 @@ function Viewer({ loaded }: { loaded: Loaded }) {
     if (index === 0)
       return {
         title: 'Ready when you are.',
-        body: 'Step through with the arrow keys or click the graph.',
+        body: 'Step through with the arrow keys or click the graph, or move a piece to try a line.',
       };
     if (!grade || !ply)
       return {
@@ -217,6 +319,81 @@ function Viewer({ loaded }: { loaded: Loaded }) {
     if (atEnd && result) sentences.push(`${result}.`);
     return { title: COACH_LINE[grade], body: sentences.join(' ') };
   })();
+
+  // The engine's plan from the board, each move a way to play it out.
+  const engineLine = line && (
+    <EngineLine
+      fen={fen}
+      pv={line.pv}
+      eval={formatScore(line.score)}
+      onPlay={(count) => {
+        const next = playLine(branch, replay, index, line.pv.slice(0, count));
+        if (!next) return;
+        setPlaying(false);
+        setBranch(next);
+      }}
+    />
+  );
+
+  const sideChoice =
+    branch && sidePly && sideGrade && sideBefore
+      ? alternative(
+          branch.at === 1
+            ? fenAt(replay, branch.base)
+            : branch.plies[branch.at - 2]!.fen,
+          sideBefore,
+          sidePly.san,
+        )
+      : undefined;
+  const sideBest =
+    branch && sideChoice && sideBefore
+      ? {
+          ...sideChoice,
+          // Takes the last move back and plays the engine's in its place.
+          onPlay: () =>
+            setBranch(
+              playLine(
+                stepTo(branch, branch.at - 1),
+                replay,
+                index,
+                sideBefore.pv.slice(0, 1),
+              ),
+            ),
+        }
+      : undefined;
+
+  // A move the line reached without stopping on it has no line before it to be
+  // graded against, so once its own search ends the title stops waiting.
+  const sideTitle = sideGrade
+    ? COACH_LINE[sideGrade]
+    : sidePly && probe.unavailable
+      ? 'The engine cannot run here.'
+      : sidePly && !probed?.done
+        ? 'Checking that move…'
+        : 'Your side line.';
+
+  const sideCoach = branch && (
+    <CoachBubble
+      grade={sideGrade ?? undefined}
+      move={sidePly && sideGrade ? moveLabel(sidePly) : undefined}
+      eval={sideGrade ? eval_ : undefined}
+      best={sideBest}
+      title={sideTitle}
+      footer={engineLine}
+      actions={
+        <Button size="sm" onClick={() => setBranch(null)}>
+          Back to the game
+        </Button>
+      }
+    >
+      {branch.at > 0
+        ? `Not part of the game. ${numberedSan(
+            fenAt(replay, branch.base),
+            playedPlies(branch).map((p) => p.san),
+          ).join(' ')}.`
+        : 'Not part of the game. Play a move, or step forward to pick the line back up.'}
+    </CoachBubble>
+  );
 
   const labels = useMemo(
     () => [
@@ -237,7 +414,7 @@ function Viewer({ loaded }: { loaded: Loaded }) {
     to: number,
     disabled: boolean,
   ) => (
-    <Button size="icon-sm" onClick={() => go(to)} disabled={disabled}>
+    <Button size="icon-sm" onClick={() => stepper.to(to)} disabled={disabled}>
       {icon}
       <span className="sr-only">{label}</span>
     </Button>
@@ -265,14 +442,15 @@ function Viewer({ loaded }: { loaded: Loaded }) {
               theme={settings.boardTheme}
               pieceSet={settings.pieceSet}
               coordinates={settings.coordinates}
-              lastMove={ply}
+              lastMove={shownPly}
               checkOn={
-                ply?.check ? (sideToMove === 'w' ? 'K' : 'k') : undefined
+                shownPly?.check ? (sideToMove === 'w' ? 'K' : 'k') : undefined
               }
               arrow={line?.pv[0]}
               second={line?.second?.pv[0]}
-              moving={moving}
-              grade={grade ?? null}
+              moving={branch ? null : moving}
+              grade={(branch ? sideGrade : grade) ?? null}
+              play={input.play}
             />
             <div
               role="slider"
@@ -327,18 +505,19 @@ function Viewer({ loaded }: { loaded: Loaded }) {
             'First move',
             <ChevronsLeftIcon aria-hidden />,
             0,
-            index === 0,
+            stepper.at === 0,
           )}
           {stepButton(
             'Previous move',
             <ChevronLeftIcon aria-hidden />,
-            index - 1,
-            index === 0,
+            stepper.at - 1,
+            stepper.at === 0,
           )}
           <Button
             variant="primary"
             size="sm"
             aria-pressed={running}
+            disabled={branch !== null}
             onClick={() => {
               if (atEnd) goTo(0);
               setPlaying(atEnd || !playing);
@@ -350,14 +529,14 @@ function Viewer({ loaded }: { loaded: Loaded }) {
           {stepButton(
             'Next move',
             <ChevronRightIcon aria-hidden />,
-            index + 1,
-            atEnd,
+            stepper.at + 1,
+            stepper.at === stepper.end,
           )}
           {stepButton(
             'Last move',
             <ChevronsRightIcon aria-hidden />,
-            last,
-            atEnd,
+            stepper.end,
+            stepper.at === stepper.end,
           )}
           <Button
             size="icon-sm"
@@ -371,16 +550,24 @@ function Viewer({ loaded }: { loaded: Loaded }) {
           <ExportPgn replay={replay} analysis={analysis} />
         </div>
         <div className="w-full max-w-2xl min-w-0 justify-self-center xl:col-start-2 xl:row-start-1 xl:mt-13 xl:max-w-none">
-          <CoachBubble
-            grade={grade ?? undefined}
-            move={ply && grade ? moveLabel(ply) : undefined}
-            eval={grade ? eval_ : undefined}
-            best={instead(before)}
-            next={instead(before?.second)}
-            title={coach.title}
-          >
-            {coach.body}
-          </CoachBubble>
+          {sideCoach ?? (
+            <CoachBubble
+              grade={grade ?? undefined}
+              move={ply && grade ? moveLabel(ply) : undefined}
+              eval={grade ? eval_ : undefined}
+              best={instead(before)}
+              next={instead(before?.second)}
+              title={coach.title}
+              footer={engineLine}
+            >
+              {coach.body}
+            </CoachBubble>
+          )}
+          {input.promoting && (
+            <div className="mt-3">
+              <PromotionPicker onPick={input.promote} />
+            </div>
+          )}
         </div>
         <section
           aria-label="Moves"

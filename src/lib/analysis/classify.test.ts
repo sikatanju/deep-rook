@@ -1,9 +1,9 @@
-import { expect, test } from 'vitest';
+import { describe, expect, test } from 'vitest';
 
 import { OPERA_GAME, parseReplay } from '@/lib/chess/replay';
 import type { Score, Variation } from '@/lib/chess/score';
 
-import { classifyMoves } from './classify';
+import { classifyMoves, gradeSideMove } from './classify';
 import type { PositionAnalysis } from './game-analysis';
 
 const replay = parseReplay(OPERA_GAME);
@@ -128,4 +128,37 @@ test('Qb8+ in the Opera Game is brilliant and Rd8# is best', () => {
   });
   expect(graded[30]).toBe('brilliant');
   expect(graded[32]).toBe('best');
+});
+
+describe('gradeSideMove', () => {
+  const replay = parseReplay(OPERA_GAME);
+  const white = replay.plies[0]!; // 1. e4
+  const black = replay.plies[1]!; // 1... e5
+  const cp = (n: number, pv: string[] = ['e2e4']) => ({
+    score: { kind: 'cp', cp: n } as const,
+    pv,
+    depth: 10,
+  });
+
+  test("the engine's own move is best", () => {
+    expect(gradeSideMove(white, cp(30), cp(30))).toBe('best');
+  });
+
+  test("grades the rest by the mover's loss, from either side", () => {
+    expect(gradeSideMove(white, cp(0, ['d2d4']), cp(-20))).toBe('excellent');
+    expect(gradeSideMove(white, cp(0, ['d2d4']), cp(-80))).toBe('inaccuracy');
+    expect(gradeSideMove(white, cp(0, ['d2d4']), cp(-900))).toBe('blunder');
+    // Black loses ground when the White-point-of-view score rises.
+    expect(gradeSideMove(black, cp(0, ['d7d5']), cp(900))).toBe('blunder');
+    expect(gradeSideMove(black, cp(0, ['d7d5']), cp(-900))).toBe('excellent');
+  });
+
+  test('has no great, brilliant or miss: those need the game around the move', () => {
+    const grades = [30, -30, -150, -400, -900].map((after) =>
+      gradeSideMove(white, cp(0, ['d2d4']), cp(after)),
+    );
+    expect(grades).not.toContain('great');
+    expect(grades).not.toContain('brilliant');
+    expect(grades).not.toContain('miss');
+  });
 });
