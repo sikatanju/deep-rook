@@ -2,8 +2,8 @@ import { describe, expect, test } from 'vitest';
 
 import { fenAt } from '@/lib/chess/replay';
 
-import { drillQueue, drillsOf, judge } from './drill';
-import { OPERA_SLIPS, stored } from './fixtures';
+import { drillQueue, drillsOf, judge, judgeAfter } from './drill';
+import { cpLine, OPERA_SLIPS, stored } from './fixtures';
 
 const BLACK = 'Duke Karl / Count Isouard';
 
@@ -98,9 +98,54 @@ test('drillQueue puts the costliest first, then the newer game, then the earlier
   ]);
 });
 
-test('judge compares the move with the engine’s, then with the one played', () => {
-  const [drill] = drillsOf(stored(OPERA_SLIPS), [BLACK]);
-  expect(judge(drill!, { from: 'd6', to: 'e5' })).toBe('best');
-  expect(judge(drill!, { from: 'g4', to: 'f3' })).toBe('played');
-  expect(judge(drill!, { from: 'g8', to: 'f6' })).toBe('other');
+describe('judge', () => {
+  /** Black's 4... Bxf3 drill, whose saved line puts White's eval at 0. */
+  function drillWithSecond(second?: { cp: number; pv: string[] }) {
+    const record = stored(OPERA_SLIPS);
+    if (second)
+      record.lines[7] = {
+        ...record.lines[7]!,
+        second: { score: { kind: 'cp', cp: second.cp }, pv: second.pv },
+      };
+    return drillsOf(record, [BLACK])[0]!;
+  }
+  const dxe5 = { from: 'd6', to: 'e5' } as const;
+
+  test('knows the engine’s move and the one played', () => {
+    const drill = drillWithSecond();
+    expect(judge(drill, dxe5)).toBe('best');
+    expect(judge(drill, { from: 'g4', to: 'f3' })).toBe('played');
+  });
+
+  test('any other move needs a search when there is no second line', () => {
+    expect(judge(drillWithSecond(), { from: 'g8', to: 'f6' })).toBeNull();
+  });
+
+  test('a second line within 5 points is close, and others still need a search', () => {
+    // +0.3 for White leaves Black 2.76 points short of the engine's 0.0.
+    const drill = drillWithSecond({ cp: 30, pv: ['b8d7'] });
+    expect(judge(drill, { from: 'b8', to: 'd7' })).toBe('close');
+    expect(judge(drill, { from: 'g8', to: 'f6' })).toBeNull();
+  });
+
+  test('a second line that falls short rules out every other move', () => {
+    const drill = drillWithSecond({ cp: 200, pv: ['b8d7'] });
+    expect(judge(drill, { from: 'b8', to: 'd7' })).toBe('other');
+    expect(judge(drill, { from: 'g8', to: 'f6' })).toBe('other');
+  });
+
+  test('judgeAfter grades a searched move by the points it gives up', () => {
+    const drill = drillWithSecond();
+    const close = judgeAfter(drill, cpLine(30));
+    expect(close.verdict).toBe('close');
+    expect(close.loss).toBeCloseTo(2.76, 2);
+    const short = judgeAfter(drill, cpLine(200));
+    expect(short.verdict).toBe('other');
+    expect(short.loss).toBeCloseTo(17.62, 2);
+    // Better for Black than the saved line: nothing lost.
+    expect(judgeAfter(drill, cpLine(-50))).toEqual({
+      verdict: 'close',
+      loss: 0,
+    });
+  });
 });

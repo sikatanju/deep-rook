@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useState } from 'react';
 
-import { useAnalysisStore } from '@/hooks/use-game-analysis';
+import { useAnalysisStore, useDrillProgress } from '@/hooks/use-game-analysis';
 import type { StoredAnalysis } from '@/lib/analysis/cache';
 
 /**
@@ -9,6 +9,7 @@ import type { StoredAnalysis } from '@/lib/analysis/cache';
  */
 export function useSavedReviews() {
   const store = useAnalysisStore();
+  const progress = useDrillProgress();
   const [records, setRecords] = useState<StoredAnalysis[] | null>(
     store ? null : [],
   );
@@ -22,10 +23,11 @@ export function useSavedReviews() {
     };
   }, [store]);
 
+  /** Drill progress goes too: it only means something next to its reviews. */
   const clear = useCallback(async () => {
-    await store?.clear();
+    await Promise.all([store?.clear(), progress?.clear()]);
     setRecords([]);
-  }, [store]);
+  }, [store, progress]);
 
   return { available: store !== null, records, clear };
 }

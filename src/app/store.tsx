@@ -13,6 +13,7 @@ import { AnalysisProvider } from '@/hooks/use-game-analysis';
 import { useGamePicker } from '@/hooks/use-game-picker';
 import { useLichessPicker } from '@/hooks/use-lichess-picker';
 import type { AnalysisStore } from '@/lib/analysis/cache';
+import type { ProgressStore } from '@/lib/analysis/drill-progress';
 import {
   DEFAULT_LEVEL,
   isAnalysisLevel,
@@ -177,9 +178,11 @@ export function useStore(): Store {
 export function AppProvider({
   children,
   store: analyses,
+  progress,
 }: {
   children: ReactNode;
   store?: AnalysisStore | null;
+  progress?: ProgressStore | null;
 }) {
   const picker = useGamePicker();
   const lichess = useLichessPicker();
@@ -311,6 +314,7 @@ export function AppProvider({
       <AnalysisProvider
         level={loaded?.level ?? settings.analysisLevel}
         store={analyses}
+        progress={progress}
       >
         {children}
       </AnalysisProvider>

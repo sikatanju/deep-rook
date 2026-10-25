@@ -9,6 +9,7 @@
 import { fenAt, type Ply, type Replay } from '@/lib/chess/replay';
 import type { Line, Variation } from '@/lib/chess/score';
 
+import { openIdb } from './idb';
 import { isAnalysisLevel, rank, type AnalysisLevel } from './levels';
 
 export type GameKey = string & { readonly __brand: 'GameKey' };
@@ -159,60 +160,24 @@ export function memoryStore(): AnalysisStore {
   };
 }
 
-const DB_NAME = 'deeprook';
-const STORE_NAME = 'analyses';
-
-function openDatabase(): Promise<IDBDatabase | null> {
-  return new Promise((resolve) => {
-    try {
-      const request = indexedDB.open(DB_NAME, 1);
-      request.onupgradeneeded = () =>
-        request.result.createObjectStore(STORE_NAME, { keyPath: 'key' });
-      request.onsuccess = () => resolve(request.result);
-      request.onerror = request.onblocked = () => resolve(null);
-    } catch {
-      resolve(null); // e.g. storage blocked by the browser
-    }
-  });
-}
-
 /** null where there is no IndexedDB (jsdom, some privacy modes). */
 export function openIdbStore(): AnalysisStore | null {
-  if (typeof indexedDB === 'undefined') return null;
-  let opened: Promise<IDBDatabase | null> | undefined;
-
-  /**
-   * Runs `work` in one transaction and resolves with what it passed to `set`
-   * once the transaction commits. Any failure resolves with `fallback`.
-   */
-  async function transact<T>(
-    mode: IDBTransactionMode,
-    fallback: T,
-    work: (store: IDBObjectStore, set: (result: T) => void) => void,
-  ): Promise<T> {
-    const database = await (opened ??= openDatabase());
-    if (!database) return fallback;
-    return new Promise<T>((resolve) => {
-      try {
-        const tx = database.transaction(STORE_NAME, mode);
-        let result = fallback;
-        tx.oncomplete = () => resolve(result);
-        tx.onerror = tx.onabort = () => resolve(fallback);
-        work(tx.objectStore(STORE_NAME), (value) => (result = value));
-      } catch {
-        resolve(fallback);
-      }
-    });
-  }
+  const transact = openIdb();
+  if (!transact) return null;
 
   return {
     load: (key) =>
-      transact<StoredAnalysis | null>('readonly', null, (store, set) => {
-        const request = store.get(key);
-        request.onsuccess = () => set(parseStored(request.result));
-      }),
+      transact<StoredAnalysis | null>(
+        'analyses',
+        'readonly',
+        null,
+        (store, set) => {
+          const request = store.get(key);
+          request.onsuccess = () => set(parseStored(request.result));
+        },
+      ),
     save: (record) =>
-      transact<void>('readwrite', undefined, (store) => {
+      transact<void>('analyses', 'readwrite', undefined, (store) => {
         const request = store.get(record.key);
         request.onsuccess = () => {
           const have = parseStored(request.result);
@@ -221,7 +186,7 @@ export function openIdbStore(): AnalysisStore | null {
         };
       }),
     list: () =>
-      transact<StoredAnalysis[]>('readonly', [], (store, set) => {
+      transact<StoredAnalysis[]>('analyses', 'readonly', [], (store, set) => {
         const request = store.getAll();
         request.onsuccess = () =>
           set(
@@ -232,7 +197,7 @@ export function openIdbStore(): AnalysisStore | null {
           );
       }),
     clear: () =>
-      transact<void>('readwrite', undefined, (store) => {
+      transact<void>('analyses', 'readwrite', undefined, (store) => {
         store.clear();
       }),
   };

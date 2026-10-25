@@ -20,6 +20,11 @@ const other: Action = { type: 'answer', verdict: 'other' };
 const show: Action = { type: 'show' };
 const skip: Action = { type: 'skip' };
 const next: Action = { type: 'next' };
+const check: Action = { type: 'check' };
+const checked = (verdict: 'close' | 'other'): Action => ({
+  type: 'checked',
+  verdict,
+});
 
 test('a first-try solve records first-try and waits for next', () => {
   const solved = run(best);
@@ -44,6 +49,42 @@ test('wrong answers count tries, and a later solve is a retry', () => {
     phase: 'solved',
     results: ['retry'],
   });
+});
+
+test('a close move solves like the best one', () => {
+  expect(run({ type: 'answer', verdict: 'close' })).toMatchObject({
+    phase: 'solved',
+    results: ['first-try'],
+  });
+});
+
+test('a move that needs a search waits in checking, then counts like any answer', () => {
+  expect(run(check)).toMatchObject({ phase: 'checking', tries: 0 });
+  expect(run(check, checked('close'))).toMatchObject({
+    phase: 'solved',
+    results: ['first-try'],
+  });
+  expect(run(check, checked('other'))).toMatchObject({
+    phase: 'wrong',
+    tries: 1,
+  });
+  expect(run(check, checked('other'), check, checked('close'))).toMatchObject({
+    phase: 'solved',
+    results: ['retry'],
+  });
+});
+
+test('checking takes no other move, and a late search result is ignored', () => {
+  const checking = run(check);
+  for (const action of [best, other, check, next])
+    expect(step(checking, action, TOTAL)).toBe(checking);
+  // Shown or skipped while the engine looked: its verdict changes nothing.
+  const shown = run(check, show);
+  expect(shown).toMatchObject({ phase: 'shown', results: ['shown'] });
+  expect(step(shown, checked('close'), TOTAL)).toBe(shown);
+  expect(run(check, skip)).toMatchObject({ at: 1, results: ['skipped'] });
+  const wrong = run(check, checked('other'));
+  expect(step(wrong, checked('other'), TOTAL)).toBe(wrong);
 });
 
 test('wrong then show records shown', () => {

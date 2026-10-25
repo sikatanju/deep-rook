@@ -30,7 +30,7 @@ function SavedReviews() {
     <Panel
       tag="Saved here"
       title="Saved reviews"
-      subtitle="Finished reviews are kept in this browser, so reopening a game skips the engine and the Overview can show your progress."
+      subtitle="Finished reviews are kept in this browser, so reopening a game skips the engine and the Overview can show your progress. Clearing them also clears your drill history."
     >
       {!available ? (
         <p className="text-ink-muted">

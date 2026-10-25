@@ -20,6 +20,7 @@ import { SettingsPage } from '@/components/settings/settings-page';
 import { Button } from '@/components/ui/button';
 import { useSharedLink, type SharedLink } from '@/hooks/use-shared-link';
 import type { AnalysisStore } from '@/lib/analysis/cache';
+import type { ProgressStore } from '@/lib/analysis/drill-progress';
 import { cn } from '@/lib/utils';
 
 const NAV: Record<Route, { label: string; icon: LucideIcon }> = {
@@ -135,9 +136,15 @@ function Shell() {
   );
 }
 
-export default function App({ store }: { store?: AnalysisStore | null }) {
+export default function App({
+  store,
+  progress,
+}: {
+  store?: AnalysisStore | null;
+  progress?: ProgressStore | null;
+}) {
   return (
-    <AppProvider store={store}>
+    <AppProvider store={store} progress={progress}>
       <Shell />
     </AppProvider>
   );

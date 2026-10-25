@@ -1,4 +1,4 @@
-import { useMemo, useReducer, useState } from 'react';
+import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 
 import { navigate } from '@/app/router';
 import { useStore } from '@/app/store';
@@ -10,31 +10,44 @@ import { Panel } from '@/components/panel';
 import { CoachBubble } from '@/components/review/coach-bubble';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useDrillProgress, useProbe } from '@/hooks/use-game-analysis';
 import { useMoveInput } from '@/hooks/use-move-input';
 import { useSavedReviews } from '@/hooks/use-saved-reviews';
 import {
   drillQueue,
   judge,
+  judgeAfter,
   type Drill,
   type Verdict,
 } from '@/lib/analysis/drill';
+import { plan, type DrillProgress } from '@/lib/analysis/drill-progress';
 import {
   finished,
   start,
   step,
   summary,
   type Action,
+  type Result,
   type Session,
 } from '@/lib/analysis/drill-session';
+import { searchInputAt } from '@/lib/analysis/inputs';
 import { sideOf } from '@/lib/analysis/overview';
+import type { ProbeInput, ProbeSnapshot } from '@/lib/analysis/probe';
+import { branchFens, playMove } from '@/lib/chess/branch';
 import { moveFromSan, type Move } from '@/lib/chess/play';
+import type { Ply } from '@/lib/chess/replay';
 
 const SIDE = { w: 'White', b: 'Black' } as const;
 
-const VERDICT_LINE: Record<Exclude<Verdict, 'best'>, string> = {
+const MISS_LINE: Record<'played' | 'other', string> = {
   played: 'That is the move you played.',
   other: "Not the engine's first choice.",
 };
+
+const date = new Intl.DateTimeFormat(undefined, {
+  month: 'short',
+  day: 'numeric',
+});
 
 /** "4… Bxf3" for Black's move 4, "5. Qxd8+" for White's. */
 const moveLabel = (moveNumber: number, color: 'w' | 'b', san: string) =>
@@ -108,6 +121,25 @@ function TypedMove({
   );
 }
 
+type Judged = { verdict: Verdict; loss: number | null };
+
+/** A move tried on a drill: judged from the saved lines, or waiting on a search of the position it leads to. */
+type Attempt = { ply: Ply } & ({ judged: Judged } | { input: ProbeInput });
+
+/** The search's verdict on `input`; null while it runs. No engine means the move falls short. */
+function searched(
+  drill: Drill,
+  input: ProbeInput,
+  probe: ProbeSnapshot,
+): Judged | null {
+  if (probe.fen !== input.fen) return null;
+  if (probe.unavailable) return { verdict: 'other', loss: null };
+  if (!probe.done) return null;
+  return probe.line
+    ? judgeAfter(drill, probe.line)
+    : { verdict: 'other', loss: null };
+}
+
 /** One puzzle. Keyed by drill id, so the selection resets on each position. */
 function DrillCard({
   drill,
@@ -119,90 +151,131 @@ function DrillCard({
   dispatch: (action: Action) => void;
 }) {
   const { settings, reviewReplay } = useStore();
-  const [miss, setMiss] = useState<Exclude<Verdict, 'best'> | null>(null);
+  const [attempt, setAttempt] = useState<Attempt | null>(null);
   const open = phase === 'asking' || phase === 'wrong';
   const { record, fen } = drill;
   const { headers } = record.replay;
+  // Keeps looking after the verdict, so the snapshot still holds it.
+  const probe = useProbe(attempt && 'input' in attempt ? attempt.input : null);
+  const judged =
+    attempt &&
+    ('judged' in attempt
+      ? attempt.judged
+      : searched(drill, attempt.input, probe));
+
+  const checked = phase === 'checking' ? judged?.verdict : undefined;
+  useEffect(() => {
+    if (checked) dispatch({ type: 'checked', verdict: checked });
+  }, [checked, dispatch]);
 
   function answer(move: Move) {
+    const branch = playMove(null, record.replay, drill.index - 1, move);
+    if (!branch) return;
+    const ply = branch.plies[0]!;
     const verdict = judge(drill, move);
-    if (verdict !== 'best') setMiss(verdict);
-    dispatch({ type: 'answer', verdict });
+    if (verdict) {
+      const loss = verdict === 'played' ? drill.loss : null;
+      setAttempt({ ply, judged: { verdict, loss } });
+      dispatch({ type: 'answer', verdict });
+      return;
+    }
+    const fens = branchFens(record.replay, branch);
+    setAttempt({ ply, input: searchInputAt(fens, fens.length - 1) });
+    dispatch({ type: 'check' });
   }
 
   const input = useMoveInput(fen, answer, open);
 
-  const actions = open ? (
-    <>
-      <Button size="sm" onClick={() => dispatch({ type: 'show' })}>
-        Show answer
-      </Button>
-      <Button
-        size="sm"
-        variant="ghost"
-        onClick={() => dispatch({ type: 'skip' })}
+  const actions =
+    open || phase === 'checking' ? (
+      <>
+        <Button size="sm" onClick={() => dispatch({ type: 'show' })}>
+          Show answer
+        </Button>
+        <Button
+          size="sm"
+          variant="ghost"
+          onClick={() => dispatch({ type: 'skip' })}
+        >
+          Skip
+        </Button>
+      </>
+    ) : (
+      <>
+        <Button
+          size="sm"
+          variant="primary"
+          onClick={() => dispatch({ type: 'next' })}
+        >
+          Next drill
+        </Button>
+        <Button
+          size="sm"
+          onClick={() =>
+            reviewReplay(
+              record.replay,
+              `${headers.White ?? 'White'} vs ${headers.Black ?? 'Black'}`,
+              drill.color,
+              record.level,
+            )
+          }
+        >
+          Review this game
+        </Button>
+      </>
+    );
+
+  const missed =
+    phase === 'wrong' &&
+    (judged?.verdict === 'played' || judged?.verdict === 'other')
+      ? judged.verdict
+      : null;
+  const close = phase === 'solved' && judged?.verdict === 'close';
+
+  const coach =
+    phase === 'checking' && attempt ? (
+      <CoachBubble title="Checking that move…" actions={actions}>
+        {`The engine is looking at ${attempt.ply.san}.`}
+      </CoachBubble>
+    ) : open ? (
+      <CoachBubble
+        title={missed ? MISS_LINE[missed] : 'Your move.'}
+        actions={actions}
       >
-        Skip
-      </Button>
-    </>
-  ) : (
-    <>
-      <Button
-        size="sm"
-        variant="primary"
-        onClick={() => dispatch({ type: 'next' })}
-      >
-        Next drill
-      </Button>
-      <Button
-        size="sm"
-        onClick={() =>
-          reviewReplay(
-            record.replay,
-            `${headers.White ?? 'White'} vs ${headers.Black ?? 'Black'}`,
-            drill.color,
-            record.level,
-          )
+        {missed
+          ? `${judged!.loss === null ? '' : `${attempt!.ply.san} gives up ${judged!.loss.toFixed(1)} points of winning chances. `}The engine's move, or one nearly as good, solves it.`
+          : `Move ${drill.moveNumber}, your game vs ${drill.opponent}. ${SIDE[drill.color]} to move. Find the engine's move, or one nearly as good.`}
+      </CoachBubble>
+    ) : (
+      <CoachBubble
+        grade={drill.grade}
+        move={moveLabel(drill.moveNumber, drill.color, drill.played.san)}
+        best={{ san: drill.best.san }}
+        title={
+          close
+            ? 'Close enough.'
+            : phase === 'solved'
+              ? 'You found it.'
+              : "Here is the engine's move."
         }
+        actions={actions}
       >
-        Review this game
-      </Button>
-    </>
-  );
+        {`${close ? `${attempt!.ply.san} is nearly as good as the engine's ${drill.best.san}. ` : ''}You played ${drill.played.san}, which cost ${drill.loss.toFixed(1)} points of winning chances. The engine goes ${numberedLine(drill)}.`}
+      </CoachBubble>
+    );
 
-  const coach = open ? (
-    <CoachBubble
-      title={phase === 'wrong' && miss ? VERDICT_LINE[miss] : 'Your move.'}
-      actions={actions}
-    >
-      {phase === 'wrong'
-        ? "Only the engine's top move counts."
-        : `Move ${drill.moveNumber}, your game vs ${drill.opponent}. ${SIDE[drill.color]} to move. Find the engine's move.`}
-    </CoachBubble>
-  ) : (
-    <CoachBubble
-      grade={drill.grade}
-      move={moveLabel(drill.moveNumber, drill.color, drill.played.san)}
-      best={{ san: drill.best.san }}
-      title={
-        phase === 'solved' ? 'You found it.' : "Here is the engine's move."
-      }
-      actions={actions}
-    >
-      {`You played ${drill.played.san}, which cost ${drill.loss.toFixed(1)} points of winning chances. The engine goes ${numberedLine(drill)}.`}
-    </CoachBubble>
-  );
-
+  const trying = phase === 'checking' && attempt;
   return (
     <div className="grid gap-6 lg:grid-cols-[minmax(0,1fr)_24rem] lg:items-start">
       <div className="flex w-full flex-col gap-4 justify-self-center lg:max-w-[max(22rem,calc(100svh-17rem))]">
         <Board
-          fen={fen}
+          fen={trying ? attempt.ply.fen : fen}
           flipped={drill.color === 'b'}
           theme={settings.boardTheme}
           pieceSet={settings.pieceSet}
           coordinates={settings.coordinates}
-          arrow={open ? undefined : drill.best.uci}
+          lastMove={trying ? attempt.ply : undefined}
+          arrow={open || trying ? undefined : drill.best.uci}
           play={input.play}
         />
         {input.promoting && <PromotionPicker onPick={input.promote} />}
@@ -221,9 +294,12 @@ function DrillCard({
 
 function DrillSession({
   queue,
+  onResult,
   onRestart,
 }: {
   queue: readonly Drill[];
+  /** null where nothing can be saved. */
+  onResult: ((drill: Drill, result: Result) => void) | null;
   onRestart: () => void;
 }) {
   const total = queue.length;
@@ -233,6 +309,13 @@ function DrillSession({
     start,
   );
 
+  // results[i] is written once per drill; the ref keeps a re-run effect from saving it twice.
+  const saved = useRef(0);
+  useEffect(() => {
+    for (; saved.current < session.results.length; saved.current++)
+      onResult?.(queue[saved.current]!, session.results[saved.current]!);
+  }, [session.results, queue, onResult]);
+
   if (finished(session, total)) {
     const counts = summary(session);
     return (
@@ -241,6 +324,12 @@ function DrillSession({
           Solved first try {counts['first-try']}, after retries {counts.retry},
           shown {counts.shown}, skipped {counts.skipped}
         </p>
+        {onResult && (
+          <p className="text-ink-muted">
+            The ones you missed come back next time. The ones you solved rest
+            for a while.
+          </p>
+        )}
         <div>
           <Button variant="primary" onClick={onRestart}>
             Start over
@@ -266,14 +355,53 @@ function DrillSession({
   );
 }
 
+/** What has been answered so far, read once per round so a session's queue holds still. */
+function useProgressAt(round: number) {
+  const store = useDrillProgress();
+  const [progress, setProgress] = useState<{
+    round: number;
+    now: number;
+    byId: ReadonlyMap<string, DrillProgress>;
+  } | null>(null);
+  useEffect(() => {
+    let current = true;
+    (store?.list() ?? Promise.resolve([])).then(
+      (list) =>
+        current &&
+        setProgress({
+          round,
+          now: Date.now(),
+          byId: new Map(list.map((p) => [p.id, p])),
+        }),
+    );
+    return () => {
+      current = false;
+    };
+  }, [store, round]);
+
+  const onResult = useMemo(
+    () =>
+      store &&
+      ((drill: Drill, result: Result) =>
+        void store.record(drill.id, result, Date.now())),
+    [store],
+  );
+  return { progress: progress?.round === round ? progress : null, onResult };
+}
+
 export function DrillPage() {
   const { records } = useSavedReviews();
   const usernames = useMemo(() => readSavedUsernames(), []);
-  const queue = useMemo(
-    () => records && drillQueue(records, usernames),
-    [records, usernames],
-  );
   const [round, setRound] = useState(0);
+  const [practice, setPractice] = useState(false);
+  const { progress, onResult } = useProgressAt(round);
+  const planned = useMemo(
+    () =>
+      records &&
+      progress &&
+      plan(drillQueue(records, usernames), progress.byId, progress.now),
+    [records, usernames, progress],
+  );
 
   const header = (
     <PageHeader eyebrow="From your saved reviews">
@@ -286,7 +414,7 @@ export function DrillPage() {
     </Button>
   );
 
-  if (!records || !queue)
+  if (!records || !planned)
     return (
       <>
         {header}
@@ -327,7 +455,7 @@ export function DrillPage() {
       </>
     );
 
-  if (queue.length === 0)
+  if (planned.due.length === 0 && planned.later.length === 0)
     return (
       <>
         {header}
@@ -341,13 +469,44 @@ export function DrillPage() {
       </>
     );
 
+  const queue = practice ? planned.later : planned.due;
+  if (planned.due.length === 0 && !practice) {
+    const next = progress!.byId.get(planned.later[0]!.id)!.due;
+    return (
+      <>
+        {header}
+        <CoachBubble
+          title="All caught up."
+          actions={
+            <>
+              <Button
+                size="sm"
+                variant="primary"
+                onClick={() => setPractice(true)}
+              >
+                Drill them anyway
+              </Button>
+              {goToGames('Review another game')}
+            </>
+          }
+        >
+          {`You have been through every drill. The next one comes back on ${date.format(next)}.`}
+        </CoachBubble>
+      </>
+    );
+  }
+
   return (
     <>
       {header}
       <DrillSession
         key={`${round}:${queue.map((d) => d.id).join()}`}
         queue={queue}
-        onRestart={() => setRound((r) => r + 1)}
+        onResult={onResult}
+        onRestart={() => {
+          setPractice(false);
+          setRound((r) => r + 1);
+        }}
       />
     </>
   );

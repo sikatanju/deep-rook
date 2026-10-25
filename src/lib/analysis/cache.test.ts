@@ -200,7 +200,7 @@ test('openIdbStore treats a corrupt record as absent', async () => {
   const good = stored();
   await store.save(good);
   await new Promise<void>((resolve, reject) => {
-    const open = indexedDB.open('deeprook', 1);
+    const open = indexedDB.open('deeprook');
     open.onsuccess = () => {
       const tx = open.result.transaction('analyses', 'readwrite');
       tx.objectStore('analyses').put({ ...good, lines: [] });
