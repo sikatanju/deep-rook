@@ -145,8 +145,8 @@ type Store = ReturnType<typeof useGamePicker> & {
   loaded: Loaded | null;
   stageGame: (game: Game) => void;
   stagePgn: (pgn: string, source: string) => void;
-  /** Reviews the staged game at the remembered mode and opens the review page. */
-  startReview: () => void;
+  /** Reviews the staged game at `level`, else the remembered mode, and opens the review page. */
+  startReview: (level?: AnalysisLevel) => void;
   /**
    * Reviews a game that is not on the Games page (a saved one) at `level` and
    * opens the review page, in one step: startReview would read a staged game
@@ -243,11 +243,14 @@ export function AppProvider({
     [],
   );
 
-  const startReview = useCallback(() => {
-    if (!staged) return;
-    setLoaded({ ...staged, level: settings.analysisLevel });
-    navigate('review');
-  }, [staged, settings.analysisLevel]);
+  const startReview = useCallback(
+    (level: AnalysisLevel = settings.analysisLevel) => {
+      if (!staged) return;
+      setLoaded({ ...staged, level });
+      navigate('review');
+    },
+    [staged, settings.analysisLevel],
+  );
 
   const reviewReplay = useCallback(
     (

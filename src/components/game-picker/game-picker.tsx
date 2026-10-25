@@ -10,6 +10,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { useBatchGame } from '@/hooks/use-game-analysis';
+import type { ReviewedGames } from '@/hooks/use-reviewed-games';
 import { errorMessages } from '@/lib/chesscom/errors';
 import { outcomeFor } from '@/lib/chesscom/session';
 import type { Game, MonthKey, Site } from '@/lib/chesscom/types';
@@ -17,6 +19,7 @@ import { lichessErrorMessages } from '@/lib/lichess/errors';
 import { cn } from '@/lib/utils';
 
 import { GameList } from './game-list';
+import type { RowMark } from './game-row';
 import { SITE_NAMES, UsernameForm } from './username-form';
 
 const monthFormat = new Intl.DateTimeFormat(undefined, {
@@ -74,7 +77,12 @@ function Alert({ children }: { children: string }) {
   );
 }
 
-function ChessComGames({ onStage }: { onStage: (game: Game) => void }) {
+type ListProps = {
+  onStage: (game: Game) => void;
+  markOf: (game: Game) => RowMark | undefined;
+};
+
+function ChessComGames({ onStage, markOf }: ListProps) {
   const { state, search, selectMonth } = useStore();
   return (
     <>
@@ -124,6 +132,7 @@ function ChessComGames({ onStage }: { onStage: (game: Game) => void }) {
                 games={state.games.games}
                 username={state.profile.username}
                 selectedId={state.selected?.id}
+                markOf={markOf}
                 onSelect={onStage}
                 empty="No standard chess games this month."
               />
@@ -135,7 +144,7 @@ function ChessComGames({ onStage }: { onStage: (game: Game) => void }) {
   );
 }
 
-function LichessGames({ onStage }: { onStage: (game: Game) => void }) {
+function LichessGames({ onStage, markOf }: ListProps) {
   const {
     lichess: { state, search, loadOlder },
   } = useStore();
@@ -164,6 +173,7 @@ function LichessGames({ onStage }: { onStage: (game: Game) => void }) {
               games={state.games}
               username={state.username}
               selectedId={state.selected?.id}
+              markOf={markOf}
               onSelect={onStage}
               empty="No standard chess games to show."
             />
@@ -188,9 +198,16 @@ function LichessGames({ onStage }: { onStage: (game: Game) => void }) {
   );
 }
 
-export function GamePicker() {
+export function GamePicker({ reviewed }: { reviewed: ReviewedGames | null }) {
   const { site, setSite, stageGame } = useStore();
   const [openError, setOpenError] = useState<string | null>(null);
+  const analyzing = useBatchGame();
+  const markOf = (game: Game): RowMark | undefined =>
+    game.id === analyzing
+      ? 'analyzing'
+      : reviewed?.byLink.has(game.url)
+        ? 'reviewed'
+        : undefined;
 
   function stage(game: Game) {
     try {
@@ -215,9 +232,9 @@ export function GamePicker() {
         }}
       />
       {site === 'chesscom' ? (
-        <ChessComGames onStage={stage} />
+        <ChessComGames onStage={stage} markOf={markOf} />
       ) : (
-        <LichessGames onStage={stage} />
+        <LichessGames onStage={stage} markOf={markOf} />
       )}
       {openError && <Alert>{openError}</Alert>}
     </Panel>

@@ -108,6 +108,12 @@ export function openingName(headers: Record<string, string>): string | null {
   return headers.Opening?.trim() || null;
 }
 
+/** The game's page: the Link header Chess.com writes, else the Site URL Lichess writes. */
+export function gameLink(headers: Record<string, string>): string | null {
+  const link = headers.Link ?? headers.Site;
+  return link?.startsWith('https://') ? link : null;
+}
+
 /** "1:02:03.4" for %clk, with the seconds' own decimals so a parse gives back the same number. */
 export function clockText(seconds: number): string {
   const h = Math.floor(seconds / 3600);

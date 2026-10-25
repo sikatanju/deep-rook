@@ -2,6 +2,14 @@ import { ResultStamp } from '@/components/game-picker/result-stamp';
 import type { Outcome } from '@/lib/chesscom/session';
 import { cn } from '@/lib/utils';
 
+/** What the saved reviews and the batch say about a listed game. */
+export type RowMark = 'reviewed' | 'analyzing';
+
+const MARKS: Record<RowMark, { label: string; className: string }> = {
+  reviewed: { label: 'Reviewed', className: 'bg-grade-best' },
+  analyzing: { label: 'Analyzing…', className: 'bg-accent' },
+};
+
 /**
  * One game in the picker: result stamp, opponent and their rating, time
  * control, your rating after the game, when. The whole row is the button; it
@@ -17,6 +25,7 @@ export function GameRow({
   when,
   dateTime,
   selected,
+  mark,
   onSelect,
 }: {
   result: Outcome;
@@ -29,6 +38,7 @@ export function GameRow({
   when: string;
   dateTime: string;
   selected: boolean;
+  mark?: RowMark;
   onSelect: () => void;
 }) {
   return (
@@ -44,14 +54,27 @@ export function GameRow({
       )}
     >
       <ResultStamp result={result} />
-      <span className="truncate font-bold">
-        <span className="sr-only">
-          {playedWhite ? 'White' : 'Black'} against{' '}
+      <span className="flex min-w-0 items-center gap-2">
+        <span className="truncate font-bold">
+          <span className="sr-only">
+            {playedWhite ? 'White' : 'Black'} against{' '}
+          </span>
+          {opponent}
+          <small className="ml-1.5 font-mono text-xs opacity-80">
+            ({opponentRating})
+          </small>
         </span>
-        {opponent}
-        <small className="ml-1.5 font-mono text-xs opacity-80">
-          ({opponentRating})
-        </small>
+        {mark && (
+          <span
+            data-mark={mark}
+            className={cn(
+              'border-line text-sticker-ink flex-none rounded-sm border-2 px-1.5 text-xs font-bold',
+              MARKS[mark].className,
+            )}
+          >
+            {MARKS[mark].label}
+          </span>
+        )}
       </span>
       <span className="border-line bg-surface-alt text-ink rounded-sm border-2 px-1.5 font-mono text-xs">
         {timeControl}

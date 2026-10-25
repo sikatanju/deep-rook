@@ -17,7 +17,13 @@ import {
   type AnalysisGame,
   type Analyzer,
 } from '@/lib/analysis/analyzer';
-import { openIdbStore, type AnalysisStore } from '@/lib/analysis/cache';
+import { createBatch, isActive, type Batch } from '@/lib/analysis/batch';
+import {
+  openIdbStore,
+  watched,
+  type AnalysisStore,
+  type WatchedStore,
+} from '@/lib/analysis/cache';
 import {
   openIdbProgress,
   type ProgressStore,
@@ -34,7 +40,8 @@ import type { SpawnLane } from '@/lib/analysis/protocol';
 
 const AnalyzerContext = createContext<Analyzer | null>(null);
 const ProbeContext = createContext<Probe | null>(null);
-const StoreContext = createContext<AnalysisStore | null>(null);
+const BatchContext = createContext<Batch | null>(null);
+const StoreContext = createContext<WatchedStore | null>(null);
 const ProgressContext = createContext<ProgressStore | null>(null);
 
 /**
@@ -56,9 +63,10 @@ export function AnalysisProvider({
   progress?: ProgressStore | null;
   children: ReactNode;
 }) {
-  const [saved] = useState(() =>
-    store === undefined ? openIdbStore() : store,
-  );
+  const [saved] = useState(() => {
+    const opened = store === undefined ? openIdbStore() : store;
+    return opened && watched(opened);
+  });
   const [drills] = useState(() =>
     progress === undefined ? openIdbProgress() : progress,
   );
@@ -66,16 +74,25 @@ export function AnalysisProvider({
     createAnalyzer({ level, spawn, store: saved }),
   );
   const [probe] = useState(() => createProbe({ level, spawn }));
+  const [batch] = useState(() =>
+    createBatch({
+      analyzer: createAnalyzer({ level, spawn, store: saved }),
+      foreground: analyzer,
+    }),
+  );
   useEffect(() => analyzer.setLevel(level), [analyzer, level]);
   useEffect(() => probe.setLevel(level), [probe, level]);
   useEffect(() => () => analyzer.dispose(), [analyzer]);
   useEffect(() => () => probe.dispose(), [probe]);
+  useEffect(() => () => batch.dispose(), [batch]);
   return (
     <StoreContext.Provider value={saved}>
       <ProgressContext.Provider value={drills}>
         <AnalyzerContext.Provider value={analyzer}>
           <ProbeContext.Provider value={probe}>
-            {children}
+            <BatchContext.Provider value={batch}>
+              {children}
+            </BatchContext.Provider>
           </ProbeContext.Provider>
         </AnalyzerContext.Provider>
       </ProgressContext.Provider>
@@ -84,7 +101,7 @@ export function AnalysisProvider({
 }
 
 /** The saved reviews, for pages that list or clear them. null where nothing can be saved. */
-export function useAnalysisStore(): AnalysisStore | null {
+export function useAnalysisStore(): WatchedStore | null {
   return useContext(StoreContext);
 }
 
@@ -123,4 +140,26 @@ export function useProbe(input: ProbeInput | null): ProbeSnapshot {
   useEffect(() => probe.look(input), [probe, input]);
   useEffect(() => () => probe.look(null), [probe]);
   return useSyncExternalStore(probe.subscribe, probe.getSnapshot);
+}
+
+/**
+ * Games reviewed in the background, one after another; see batch.ts. It runs
+ * across route changes and gives way to the review on screen.
+ */
+export function useBatch() {
+  const batch = useContext(BatchContext);
+  if (!batch) throw new Error('useBatch must be used within AnalysisProvider');
+  const snapshot = useSyncExternalStore(batch.subscribe, batch.getSnapshot);
+  return { snapshot, start: batch.start, cancel: batch.cancel };
+}
+
+/** The id of the game the batch is on, so a list re-renders only when it moves on. */
+export function useBatchGame(): string | null {
+  const batch = useContext(BatchContext);
+  if (!batch)
+    throw new Error('useBatchGame must be used within AnalysisProvider');
+  return useSyncExternalStore(batch.subscribe, () => {
+    const now = batch.getSnapshot();
+    return isActive(now) ? now.current.id : null;
+  });
 }

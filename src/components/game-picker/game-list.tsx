@@ -1,4 +1,4 @@
-import { GameRow } from '@/components/game-picker/game-row';
+import { GameRow, type RowMark } from '@/components/game-picker/game-row';
 import {
   SessionStrip,
   type SessionResult,
@@ -30,12 +30,14 @@ export function GameList({
   games,
   username,
   selectedId,
+  markOf,
   onSelect,
   empty,
 }: {
   games: Game[];
   username: string;
   selectedId: string | undefined;
+  markOf?: (game: Game) => RowMark | undefined;
   onSelect: (game: Game) => void;
   /** What to say when `games` is empty. */
   empty: string;
@@ -76,6 +78,7 @@ export function GameList({
                       when={dateFormat.format(game.endedAt)}
                       dateTime={game.endedAt.toISOString()}
                       selected={game.id === selectedId}
+                      mark={markOf?.(game)}
                       onSelect={() => onSelect(game)}
                     />
                   </li>

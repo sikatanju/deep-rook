@@ -129,6 +129,7 @@ Determinism is what makes a finished analysis worth keeping: the same game at th
 - **Shape.** `StoredAnalysis = { v, key, level, lines, replay, analyzedAt }`, with one `Line` per position and the replay kept so the Overview can grade and list the game without its source. `level` is the lowest level any position settled at.
 - **Reads go through `parseStored`.** A wrong `CACHE_VERSION`, an unknown level, a line count other than plies + 1, or a malformed line or replay is a miss, never a throw. Bump `CACHE_VERSION` whenever the engine, its evaluation, or the `Line` shape changes. Version 2 added the optional `second` line, which is validated like the first.
 - **One database.** `idb.ts` opens the `deeprook` database (version 2) with an `analyses` store and a `drills` store, creating whichever is missing on upgrade, so a version 1 database keeps its reviews. An open connection closes itself when a newer tab upgrades.
+- **Watched.** The provider wraps the store with `watched`, which calls its listeners after every save or clear settles. `useSavedReviews` reads the list again on each call, so a review that finishes anywhere (the review page, a batch) shows up on the page that lists reviews. Only the latest read lands, because reads can settle out of order.
 - **Never breaks a review.** `openIdbStore()` is null without IndexedDB, and every IndexedDB failure resolves like a miss. `save` keeps the higher level, inside one transaction. Failed positions are never cached, so a game with one is not saved.
 - **In the analyzer.** On a new game the analyzer marks it `loading` and plans nothing until the lookup settles, or until `CACHE_LOAD_MS` (1.5 s) passes so a hung database cannot stall analysis. A hit seeds each entry through `mergeLine` and `settle`, the same monotone writers the engine uses, so a late or repeated hit cannot make the document worse. A game is saved once every position has a line, none failed and all satisfy the current level, then again only after reaching a higher level.
 - **Overview.** `summarize` grades a record with `classifyMoves` and `gameReport` and keeps the player's half. `overview` aggregates the games where a saved Chess.com or Lichess username matches a PGN name (`sideOf` takes the list, and a game where both sides match counts as nobody's), and lists the rest without counting them. The trend covers the latest 20 games. Grade mix, mistakes per stage, time trouble (see Clocks) and openings cover every saved game. Openings are named by position (`src/lib/chess/openings.ts`): the deepest position of the game found in the Lichess opening table (CC0, 3,865 lines, built into `openings.json` by `pnpm openings` at a pinned commit) gives the name, so a transposition, a Lichess game and a pasted PGN all agree. Only a game the table never reaches falls back to the PGN's `ECOUrl` or `Opening` header. The table is a separate 70 kB (gzipped) chunk that the Overview loads before it groups anything, and the service worker precaches it. The stage split in `src/lib/chess/stage.ts` is an approximation (endgame at six or fewer pieces besides pawns and kings, else opening until ply 20).
@@ -140,6 +141,15 @@ The Drill route (`#/drill`) turns saved reviews into practice. `drillsOf` takes 
 - **Close enough counts.** A move solves the drill when it gives up less than `CLOSE_ENOUGH` (5) points of win chance against the saved line, the excellent and good bands. `judge` settles what the saved lines can: the engine's move, the move played in the game, and the second line's move. The second line is the best of the other moves, so when it falls short every other move does too and no search is needed. Any other move goes to the probe, the drill session waits in `checking`, and `judgeAfter` grades the searched position. Without an engine, such a move falls short. Show answer and Skip still work while the engine looks, and its late verdict is ignored.
 - **Progress is kept** (`drill-progress.ts`, the `drills` store). Each answer moves the drill between Leitner boxes that rest it 0, 1, 3, 7, 21 or 60 days: a first-try solve moves it up a box, a solve after a wrong try drops it to box 1, a shown answer to box 0. A skip records nothing. `plan` puts due drills first, the most missed first, then drills never answered in queue order. Resting drills wait, and when nothing is due the page says when the next one comes back and offers to drill them anyway. The plan is read once per round, so the queue holds still while answers are saved. Clearing the saved reviews clears the progress too.
 - `drill-session.ts` is the answer flow as a reducer.
+
+### Batch analysis (`src/lib/analysis/batch.ts`)
+
+The Games page can analyze the latest 5, 10 or 20 listed games in one go. Each one is saved as it finishes, so the Overview and the drills fill up without opening every game.
+
+- **A second analyzer, not a second scheduler.** `createBatch` drives an analyzer of its own, created with the same spawn and store. It views one game at position 0, waits until every position is settled, then views the next. Saving, cache hits and upgrades all happen in the analyzer the way they do for a review on screen. A game already saved at a lower level is upgraded from its saved lines.
+- **The review on screen goes first.** While the foreground analyzer has positions left to settle, the batch disposes its own lanes (phase `yielding`) and views the same game again once that work is done. The two pools never run at the same time, so the batch never slows a review down. A batch game that is also opened on screen is searched twice. Both searches give the same lines, and the save keeps the higher level.
+- **Skipping.** The panel leaves out listed games already saved at the chosen mode. Listed games are matched to saved reviews by the game's page link (the `Link` header Chess.com writes, the `Site` URL Lichess writes), because parsing a month of PGNs to get their position keys took about 8 ms a game. A game the link misses is only analyzed again, and the cache lookup by key then finds it. The staged game, already parsed, is matched by key, and a review saved at the chosen mode or deeper opens with "Open review" at its saved level.
+- **Lifetime.** The batch lives in `AnalysisProvider`, so it keeps going on other pages. A game that cannot be parsed, or that has a position the engine failed on, counts as failed and is not saved. Stop keeps the games already saved and drops the rest. The game rows show "Analyzing…" on the game under way and "Reviewed" on saved ones.
 
 ### Clocks (`src/lib/chess/clock.ts`)
 
@@ -191,7 +201,7 @@ src/lib/analysis/schedule.ts     plan(): focus, first light, upgrade (pure)
 src/lib/analysis/protocol.ts     Job, FromEngine, Lane, SpawnLane, spawnWorkerLane
 src/lib/analysis/analyzer.ts     createAnalyzer: entries, lanes, job ids, flush
 src/lib/analysis/idb.ts          openIdb: the one IndexedDB database and its stores
-src/lib/analysis/cache.ts        gameKey, parseStored, openIdbStore, memoryStore
+src/lib/analysis/cache.ts        gameKey, parseStored, openIdbStore, memoryStore, watched
 src/lib/analysis/inputs.ts       searchInputAt: a position plus its repetition history
 src/lib/analysis/probe.ts        createProbe: one lane for positions outside the game
 src/lib/analysis/overview.ts     summarize, overview (pure, over saved records)
@@ -199,13 +209,14 @@ src/lib/analysis/export-pgn.ts   annotatedPgn, pgnFilename (pure, over one analy
 src/lib/analysis/drill.ts        drillsOf, drillQueue, judge, judgeAfter (pure, over saved records)
 src/lib/analysis/drill-session.ts  step: the drill answer flow as a reducer
 src/lib/analysis/drill-progress.ts  advance, plan (pure); openIdbProgress, memoryProgress
+src/lib/analysis/batch.ts        createBatch: games analyzed one by one, after the review on screen
 src/lib/chess/clock.ts           moveClocks, parseTimeControl, formatSpent (pure)
 src/lib/chess/openings.ts        openingOf, loadOpeningBook (openings.json from pnpm openings)
 src/lib/chess/play.ts            legal targets and typed moves, for the drill and review boards
 src/lib/chess/branch.ts          Branch: a side line played out of the game (pure)
 src/lib/chess/stage.ts           Stage, stageAt
 src/workers/engine.worker.ts     thin shell around createEngine
-src/hooks/use-game-analysis.tsx  AnalysisProvider, useGameAnalysis, useAnalysisStore, useDrillProgress, useProbe  <- the UI's only door
+src/hooks/use-game-analysis.tsx  AnalysisProvider, useGameAnalysis, useAnalysisStore, useDrillProgress, useProbe, useBatch  <- the UI's only door
 src/components/review/engine-panel.tsx  EnginePanel
 src/components/review/eval-bar.tsx      EvalBar
 ```

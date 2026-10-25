@@ -142,6 +142,27 @@ export function parseStored(raw: unknown): StoredAnalysis | null {
   };
 }
 
+/** A store that says when its records change, so the pages that list them stay current. */
+export type WatchedStore = AnalysisStore & {
+  /** Called after each save or clear settles. */
+  subscribe(listener: () => void): () => void;
+};
+
+export function watched(store: AnalysisStore): WatchedStore {
+  const listeners = new Set<() => void>();
+  const changed = () => listeners.forEach((l) => l());
+  return {
+    load: (key) => store.load(key),
+    list: () => store.list(),
+    save: (record) => store.save(record).finally(changed),
+    clear: () => store.clear().finally(changed),
+    subscribe(listener) {
+      listeners.add(listener);
+      return () => listeners.delete(listener);
+    },
+  };
+}
+
 const newestFirst = (a: StoredAnalysis, b: StoredAnalysis) =>
   b.analyzedAt - a.analyzedAt;
 

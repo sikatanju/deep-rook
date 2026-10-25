@@ -34,11 +34,11 @@ vi.hoisted(() => {
 
 import App from './App';
 
-async function openOperaGame(store = memoryStore()) {
+async function openOperaGame(store = memoryStore(), action = 'Review game') {
   const user = userEvent.setup();
   render(<App store={store} />);
   await user.click(screen.getByRole('button', { name: 'Try the Opera Game' }));
-  await user.click(screen.getByRole('button', { name: 'Review game' }));
+  await user.click(await screen.findByRole('button', { name: action }));
   return user;
 }
 
@@ -189,7 +189,7 @@ test('"Try it" rewinds to the position and plays the engine\'s move', async () =
   const store = memoryStore();
   await store.save(stored({ ...OPERA_SLIPS, level: 'fast' }));
   localStorage.setItem('settings', JSON.stringify({ analysisLevel: 'fast' }));
-  const user = await openOperaGame(store);
+  const user = await openOperaGame(store, 'Open review');
   await user.click(within(moves()).getByRole('button', { name: 'Bxf3' }));
 
   await user.click(
