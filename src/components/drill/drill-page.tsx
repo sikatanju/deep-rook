@@ -3,12 +3,14 @@ import { useMemo, useReducer, useState } from 'react';
 import { navigate } from '@/app/router';
 import { useStore } from '@/app/store';
 import { Board } from '@/components/board/board';
+import { PromotionPicker } from '@/components/board/promotion-picker';
 import { readSavedUsernames } from '@/components/game-picker/username-form';
 import { Highlight, PageHeader } from '@/components/layout/page-header';
 import { Panel } from '@/components/panel';
 import { CoachBubble } from '@/components/review/coach-bubble';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useMoveInput } from '@/hooks/use-move-input';
 import { useSavedReviews } from '@/hooks/use-saved-reviews';
 import {
   drillQueue,
@@ -25,23 +27,9 @@ import {
   type Session,
 } from '@/lib/analysis/drill-session';
 import { sideOf } from '@/lib/analysis/overview';
-import {
-  moveFromSan,
-  needsPromotion,
-  ownsSquare,
-  targetsFrom,
-  type Move,
-  type Square,
-} from '@/lib/chess/play';
+import { moveFromSan, type Move } from '@/lib/chess/play';
 
 const SIDE = { w: 'White', b: 'Black' } as const;
-
-const PROMOTIONS = [
-  { piece: 'q', label: 'Queen' },
-  { piece: 'r', label: 'Rook' },
-  { piece: 'b', label: 'Bishop' },
-  { piece: 'n', label: 'Knight' },
-] as const;
 
 const VERDICT_LINE: Record<Exclude<Verdict, 'best'>, string> = {
   played: 'That is the move you played.',
@@ -131,8 +119,6 @@ function DrillCard({
   dispatch: (action: Action) => void;
 }) {
   const { settings, reviewReplay } = useStore();
-  const [selected, setSelected] = useState<Square | null>(null);
-  const [promoting, setPromoting] = useState<Move | null>(null);
   const [miss, setMiss] = useState<Exclude<Verdict, 'best'> | null>(null);
   const open = phase === 'asking' || phase === 'wrong';
   const { record, fen } = drill;
@@ -141,26 +127,10 @@ function DrillCard({
   function answer(move: Move) {
     const verdict = judge(drill, move);
     if (verdict !== 'best') setMiss(verdict);
-    setSelected(null);
-    setPromoting(null);
     dispatch({ type: 'answer', verdict });
   }
 
-  function onSquare(square: string) {
-    const at = square as Square;
-    if (ownsSquare(fen, at)) {
-      setPromoting(null);
-      setSelected(at === selected ? null : at);
-      return;
-    }
-    if (!selected || !targetsFrom(fen, selected).includes(at)) {
-      setSelected(null);
-      return;
-    }
-    if (needsPromotion(fen, selected, at))
-      setPromoting({ from: selected, to: at });
-    else answer({ from: selected, to: at });
-  }
+  const input = useMoveInput(fen, answer, open);
 
   const actions = open ? (
     <>
@@ -233,40 +203,15 @@ function DrillCard({
           pieceSet={settings.pieceSet}
           coordinates={settings.coordinates}
           arrow={open ? undefined : drill.best.uci}
-          play={
-            open
-              ? {
-                  selected,
-                  targets: selected ? targetsFrom(fen, selected) : [],
-                  onSquare,
-                }
-              : undefined
-          }
+          play={input.play}
         />
-        {promoting && (
-          <div
-            role="group"
-            aria-label="Promote to"
-            className="flex flex-wrap items-center gap-2"
-          >
-            <span className="font-bold">Promote to</span>
-            {PROMOTIONS.map(({ piece, label }) => (
-              <Button
-                key={piece}
-                size="sm"
-                onClick={() => answer({ ...promoting, promotion: piece })}
-              >
-                {label}
-              </Button>
-            ))}
-          </div>
-        )}
+        {input.promoting && <PromotionPicker onPick={input.promote} />}
       </div>
       <div className="flex flex-col gap-6">
         {coach}
         {open && (
           <Panel>
-            <TypedMove fen={fen} onMove={answer} />
+            <TypedMove fen={fen} onMove={input.submit} />
           </Panel>
         )}
       </div>
