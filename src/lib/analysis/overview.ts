@@ -3,6 +3,7 @@
 // aggregate. Only games where the player's side is known are aggregated; a
 // pasted PGN with no matching name is listed but never guessed at.
 
+import { openingOf, type OpeningBook } from '@/lib/chess/openings';
 import { fenAt, openingName } from '@/lib/chess/replay';
 import { stageAt, STAGES, type Stage } from '@/lib/chess/stage';
 import type { Outcome } from '@/lib/chesscom/session';
@@ -63,9 +64,11 @@ export function sideOf(
   return white === black ? null : white ? 'w' : 'b';
 }
 
+/** With a `book`, the opening is named by position; the PGN headers are the fallback. */
 export function summarize(
   record: StoredAnalysis,
   usernames: readonly string[],
+  book: OpeningBook | null = null,
 ): GameSummary {
   const { replay } = record;
   const { headers } = replay;
@@ -97,7 +100,7 @@ export function summarize(
     black: { name: headers.Black ?? 'Black', rating: headers.BlackElo ?? null },
     me,
     result: me ? (RESULT_BY_TAG[headers.Result ?? '']?.[me] ?? null) : null,
-    opening: openingName(headers),
+    opening: (book && openingOf(replay, book)?.name) ?? openingName(headers),
     accuracy: mine ? mine.accuracy : null,
     grades: mine
       ? mine.counts

@@ -8,6 +8,7 @@ import { Highlight, PageHeader } from '@/components/layout/page-header';
 import { Panel } from '@/components/panel';
 import { CoachBubble } from '@/components/review/coach-bubble';
 import { Button } from '@/components/ui/button';
+import { useOpeningBook } from '@/hooks/use-opening-book';
 import { useSavedReviews } from '@/hooks/use-saved-reviews';
 import type { StoredAnalysis } from '@/lib/analysis/cache';
 import { ANALYSIS_LEVELS } from '@/lib/analysis/levels';
@@ -36,11 +37,7 @@ function Pending() {
 
 function OpeningsTable({ openings }: { openings: OpeningStat[] }) {
   if (openings.length === 0)
-    return (
-      <p className="text-ink-muted">
-        No openings recorded yet. Games from Chess.com carry theirs.
-      </p>
-    );
+    return <p className="text-ink-muted">No openings named yet.</p>;
   const head = 'px-2 py-1.5 text-xs font-extrabold tracking-[0.08em] uppercase';
   return (
     <div className="overflow-x-auto">
@@ -144,9 +141,14 @@ export function OverviewPage() {
   const { reviewReplay } = useStore();
   const { records } = useSavedReviews();
   const usernames = useMemo(() => readSavedUsernames(), []);
+  const book = useOpeningBook();
+  // Waits for the opening table, so the openings never regroup under the reader.
   const summaries = useMemo(
-    () => records && records.map((r) => summarize(r, usernames)),
-    [records, usernames],
+    () =>
+      records &&
+      book !== undefined &&
+      records.map((r) => summarize(r, usernames, book)),
+    [records, usernames, book],
   );
   const data = useMemo(() => summaries && overview(summaries), [summaries]);
 

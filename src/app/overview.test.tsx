@@ -68,6 +68,11 @@ test('a saved review of the player shows their progress', async () => {
     '0.0 per 100 moves, 0 of 1',
   );
 
+  // The PGN names no opening; its moves do.
+  expect(
+    await screen.findByRole('rowheader', { name: 'Philidor Defense' }),
+  ).toBeInTheDocument();
+
   const recent = screen.getByRole('heading', { name: 'Recent games' });
   const game = within(recent.closest('[data-slot="card"]') as HTMLElement);
   expect(game.getByRole('listitem')).toHaveTextContent(

@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
 
+import { loadOpeningBook } from '@/lib/chess/openings';
 import { OPERA_GAME, parseReplay } from '@/lib/chess/replay';
 
 import { CLASSIFICATIONS, type Classification } from './classify';
@@ -100,6 +101,33 @@ describe('summarize', () => {
     expect(summarize(stored({ replay }), ['Paul Morphy']).opening).toBe(
       'Philidor Defense',
     );
+  });
+
+  test('with the opening table, a game is named by its moves before its headers', async () => {
+    const book = await loadOpeningBook();
+    const opening = (pgn: string) =>
+      summarize(stored({ replay: parseReplay(pgn) }), ['me'], book).opening;
+    const headed = (header: string, moves: string) =>
+      opening(`[White "me"]\n[Black "you"]\n${header}\n\n${moves} *`);
+    // The slug says Zukertort, the header says Queen's Pawn, the table names both.
+    expect(
+      headed(
+        '[ECOUrl "https://www.chess.com/openings/Zukertort-Opening-1...d5-2.d4"]',
+        '1. Nf3 d5 2. d4',
+      ),
+    ).toBe("Queen's Pawn Game: Zukertort Variation");
+    expect(headed('[Opening "Queen\'s Pawn Game"]', '1. d4 d5 2. Nf3')).toBe(
+      "Queen's Pawn Game: Zukertort Variation",
+    );
+    expect(headed('', '1. e4 c5')).toBe('Sicilian Defense');
+    // A position the table never reaches keeps the header's name.
+    expect(
+      opening(`[SetUp "1"]
+[FEN "7k/P7/8/8/8/8/8/K7 w - - 0 1"]
+[Opening "Endgame study"]
+
+1. a8=Q+ *`),
+    ).toBe('Endgame study');
   });
 
   test('a draw or an unfinished game', () => {

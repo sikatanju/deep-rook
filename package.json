@@ -14,7 +14,8 @@
     "format": "prettier --write .",
     "test": "vitest run",
     "bench": "node scripts/bench.mjs",
-    "match": "node scripts/match.mjs"
+    "match": "node scripts/match.mjs",
+    "openings": "node scripts/openings.mjs"
   },
   "dependencies": {
     "@astrojs/react": "^7.0.1",
