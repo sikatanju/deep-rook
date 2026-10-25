@@ -108,7 +108,7 @@ function isPly(value: unknown): value is Ply {
   );
 }
 
-function isReplay(value: unknown): value is Replay {
+export function isReplay(value: unknown): value is Replay {
   return (
     isRecord(value) &&
     typeof value.start === 'string' &&

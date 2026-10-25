@@ -1,4 +1,4 @@
-import { render, screen } from '@testing-library/react';
+import { cleanup, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { expect, test } from 'vitest';
 
@@ -249,4 +249,24 @@ test('board can be resized with the slider handle and reset', async () => {
   expect(column).toHaveStyle({ width: '280px' });
   await user.dblClick(handle);
   expect(column.style.width).toBe('');
+});
+
+test('a refresh reopens the game that was under review', async () => {
+  const user = await openOperaGame();
+  await user.keyboard('{End}');
+  cleanup();
+
+  location.hash = '#/review';
+  render(<App />);
+  expect(screen.queryByText('No game loaded.')).toBeNull();
+  expect(screen.getByRole('button', { name: 'Rd8#' })).toBeInTheDocument();
+  expect(
+    screen.getByRole('group', { name: /Chess board/ }),
+  ).toBeInTheDocument();
+});
+
+test('the game, its side and its level are saved as the review opens', async () => {
+  await openOperaGame();
+  const saved = JSON.parse(localStorage.getItem('lastReview')!);
+  expect(saved).toMatchObject({ v: 1, level: 'balanced', orientation: 'w' });
 });

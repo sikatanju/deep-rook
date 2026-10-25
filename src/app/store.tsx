@@ -7,6 +7,7 @@ import {
   type ReactNode,
 } from 'react';
 
+import { loadLastReview, saveLastReview } from '@/app/last-review';
 import { navigate } from '@/app/router';
 import { AnalysisProvider } from '@/hooks/use-game-analysis';
 import { useGamePicker } from '@/hooks/use-game-picker';
@@ -184,7 +185,11 @@ export function AppProvider({
   const lichess = useLichessPicker();
   const [site, setSite] = useState<Site>('chesscom');
   const [staged, setStaged] = useState<Staged | null>(null);
-  const [loaded, setLoaded] = useState<Loaded | null>(null);
+  // A refresh reopens the game that was under review.
+  const [loaded, setLoaded] = useState<Loaded | null>(() => {
+    const last = loadLastReview();
+    return last && { ...last, id: nextId++ };
+  });
   const [settings, setAll] = useState(loadSettings);
   const { selectGame: selectChessCom } = picker;
   const { selectGame: selectLichess } = lichess;
@@ -268,6 +273,12 @@ export function AppProvider({
   useEffect(() => {
     document.documentElement.dataset.theme = settings.palette;
   }, [settings.palette]);
+
+  useEffect(() => {
+    if (!loaded) return;
+    const { replay, source, orientation, level } = loaded;
+    saveLastReview({ replay, source, orientation, level });
+  }, [loaded]);
 
   useEffect(() => {
     try {
