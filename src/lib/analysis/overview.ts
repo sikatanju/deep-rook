@@ -3,6 +3,7 @@
 // aggregate. Only games where the player's side is known are aggregated; a
 // pasted PGN with no matching name is listed but never guessed at.
 
+import { moveClocks } from '@/lib/chess/clock';
 import { openingOf, type OpeningBook } from '@/lib/chess/openings';
 import { fenAt, openingName } from '@/lib/chess/replay';
 import { stageAt, STAGES, type Stage } from '@/lib/chess/stage';
@@ -18,7 +19,11 @@ import type { PositionAnalysis } from './game-analysis';
 import type { AnalysisLevel } from './levels';
 import { gameReport, MOMENT_GRADES } from './report';
 
-export type StageTally = { mistakes: number; plies: number };
+/** Graded moves of mine, and how many of them were mistakes, misses or blunders. */
+export type Tally = { mistakes: number; plies: number };
+
+/** Whether the clock said I was in time trouble when the move began. */
+export type Pressure = 'calm' | 'trouble';
 
 export type GameSummary = {
   key: GameKey;
@@ -36,7 +41,9 @@ export type GameSummary = {
   /** My grades. */
   grades: Record<Classification, number>;
   /** My graded plies by the stage they were played in, and how many were mistakes. */
-  stages: Record<Stage, StageTally>;
+  stages: Record<Stage, Tally>;
+  /** My graded plies by time pressure; null when none of them has a clock reading. */
+  clock: Record<Pressure, Tally> | null;
 };
 
 const RESULT_BY_TAG: Record<string, Record<'w' | 'b', Outcome>> = {
@@ -82,13 +89,25 @@ export function summarize(
 
   const stages = Object.fromEntries(
     STAGE_IDS.map((stage) => [stage, { mistakes: 0, plies: 0 }]),
-  ) as Record<Stage, StageTally>;
+  ) as Record<Stage, Tally>;
+  const clocks = moveClocks(replay);
+  let clock: Record<Pressure, Tally> | null = null;
+  const count = (tally: Tally, mistake: boolean) => {
+    tally.plies++;
+    if (mistake) tally.mistakes++;
+  };
   replay.plies.forEach((ply, p) => {
     const grade = grades[p];
     if (ply.color !== me || !grade) return;
-    const tally = stages[stageAt(fenAt(replay, p), p)];
-    tally.plies++;
-    if (MOMENT_GRADES.has(grade)) tally.mistakes++;
+    const mistake = MOMENT_GRADES.has(grade);
+    count(stages[stageAt(fenAt(replay, p), p)], mistake);
+    const at = clocks[p];
+    if (!at) return;
+    clock ??= {
+      calm: { mistakes: 0, plies: 0 },
+      trouble: { mistakes: 0, plies: 0 },
+    };
+    count(clock[at.trouble ? 'trouble' : 'calm'], mistake);
   });
 
   const mine = me && report[me === 'w' ? 'white' : 'black'];
@@ -109,10 +128,11 @@ export function summarize(
           number
         >),
     stages,
+    clock,
   };
 }
 
-export type StageStat = StageTally & {
+export type Rate = Tally & {
   /** Mistakes per 100 of my moves; null before any move. */
   per100: number | null;
 };
@@ -151,7 +171,9 @@ export type Overview = {
   /** Accuracy of my latest games, oldest first. */
   trend: { key: GameKey; analyzedAt: number; accuracy: number }[];
   gradeTotals: Record<Classification, number>;
-  stages: Record<Stage, StageStat>;
+  stages: Record<Stage, Rate>;
+  /** My moves by time pressure, over the games with clock readings. */
+  clock: { games: number } & Record<Pressure, Rate>;
   /** The openings I played worst, by mean accuracy, lowest first. */
   openings: OpeningStat[];
   /** My latest reviewed games, newest first, whoever I was in them. */
@@ -160,6 +182,12 @@ export type Overview = {
 
 const OPENINGS_SHOWN = 5;
 const RECENT_SHOWN = 10;
+
+const rate = (tallies: readonly Tally[]): Rate => {
+  const mistakes = tallies.reduce((n, t) => n + t.mistakes, 0);
+  const plies = tallies.reduce((n, t) => n + t.plies, 0);
+  return { mistakes, plies, per100: plies ? (mistakes * 100) / plies : null };
+};
 
 const mean = (values: number[]) =>
   values.length ? values.reduce((a, b) => a + b, 0) / values.length : null;
@@ -192,15 +220,15 @@ export function overview(
   ) as Record<Classification, number>;
 
   const stages = Object.fromEntries(
-    STAGE_IDS.map((stage) => {
-      const mistakes = mine.reduce((n, g) => n + g.stages[stage].mistakes, 0);
-      const plies = mine.reduce((n, g) => n + g.stages[stage].plies, 0);
-      return [
-        stage,
-        { mistakes, plies, per100: plies ? (mistakes * 100) / plies : null },
-      ];
-    }),
-  ) as Record<Stage, StageStat>;
+    STAGE_IDS.map((stage) => [stage, rate(mine.map((g) => g.stages[stage]))]),
+  ) as Record<Stage, Rate>;
+
+  const timed = mine.flatMap((g) => (g.clock ? [g.clock] : []));
+  const clock = {
+    games: timed.length,
+    calm: rate(timed.map((c) => c.calm)),
+    trouble: rate(timed.map((c) => c.trouble)),
+  };
 
   const byOpening = new Map<string, GameSummary[]>();
   for (const game of mine) {
@@ -240,6 +268,7 @@ export function overview(
     trend,
     gradeTotals,
     stages,
+    clock,
     openings,
     recent: newestFirst.slice(0, RECENT_SHOWN),
   };

@@ -25,7 +25,7 @@ import {
 } from '@/lib/analysis/classify';
 import { searchInputAt } from '@/lib/analysis/inputs';
 import { ANALYSIS_LEVELS } from '@/lib/analysis/levels';
-import { evalSeries, gameReport } from '@/lib/analysis/report';
+import { evalSeries, gameReport, MOMENT_GRADES } from '@/lib/analysis/report';
 import {
   branchFen,
   branchFens,
@@ -36,9 +36,11 @@ import {
   stepTo,
   type Branch,
 } from '@/lib/chess/branch';
+import { formatSpent, moveClocks } from '@/lib/chess/clock';
 import type { Move } from '@/lib/chess/play';
 import {
   fenAt,
+  formatClock,
   materialOf,
   numberedSan,
   sanLine,
@@ -54,6 +56,7 @@ import { EngineLine } from './engine-line';
 import { EvalGraph } from './eval-graph';
 import { ExportPgn } from './export-pgn';
 import { MoveList } from './move-list';
+import { MoveTimes } from './move-times';
 import { PlayerStrip } from './player-strip';
 import { ReportCard } from './report-card';
 
@@ -208,6 +211,7 @@ function Viewer({ loaded }: { loaded: Loaded }) {
     () => (analysis ? gameReport(replay, analysis.positions, grades) : null),
     [replay, analysis, grades],
   );
+  const clocks = useMemo(() => moveClocks(replay), [replay]);
   const grade = grades[index - 1];
   const moving = movingPiece(replay, nav.at, nav.from);
   const prior = analysis?.positions[index - 1];
@@ -315,6 +319,13 @@ function Viewer({ loaded }: { loaded: Loaded }) {
       sentences.push(
         `The eval went from ${formatScore(prior.line.score)} to ${formatScore(here.line.score)}.`,
       );
+    const timing = clocks[index - 1];
+    if (timing?.trouble)
+      sentences.push(
+        `Played in time trouble, with ${formatClock(timing.before)} on the clock.`,
+      );
+    else if (timing && MOMENT_GRADES.has(grade))
+      sentences.push(`That took ${formatSpent(timing.spent)}.`);
     const result = headers.Termination ?? headers.Result;
     if (atEnd && result) sentences.push(`${result}.`);
     return { title: COACH_LINE[grade], body: sentences.join(' ') };
@@ -400,12 +411,17 @@ function Viewer({ loaded }: { loaded: Loaded }) {
       'Start',
       ...replay.plies.map((p, i) => {
         const at = analysis?.positions[i + 1];
-        return at?.status === 'done'
-          ? `${moveLabel(p)}  ${formatScore(at.line.score)}`
-          : moveLabel(p);
+        const spent = clocks[i]?.spent;
+        return [
+          moveLabel(p),
+          at?.status === 'done' ? formatScore(at.line.score) : null,
+          spent === undefined ? null : formatSpent(spent),
+        ]
+          .filter((part) => part !== null)
+          .join('  ');
       }),
     ],
-    [replay, analysis],
+    [replay, analysis, clocks],
   );
 
   const stepButton = (
@@ -607,6 +623,7 @@ function Viewer({ loaded }: { loaded: Loaded }) {
               onScrub={go}
             />
           )}
+          <MoveTimes plies={plies} clocks={clocks} index={index} />
         </Panel>
         <ReportCard
           report={report}

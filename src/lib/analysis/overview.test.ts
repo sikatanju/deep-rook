@@ -81,6 +81,21 @@ describe('summarize', () => {
     expect(black.accuracy!).toBeGreaterThan(99.9);
   });
 
+  test('counts my moves by time pressure when the PGN has clocks', () => {
+    // A minute each. White drops under ten seconds at 2. Nf3 and blunders 3. Bb5.
+    const replay = parseReplay(`[White "me"]
+[Black "you"]
+[TimeControl "60+0"]
+
+1. e4 {[%clk 0:00:59]} e5 {[%clk 0:00:58]} 2. Nf3 {[%clk 0:00:08]} Nc6 {[%clk 0:00:50]} 3. Bb5 {[%clk 0:00:07]} a6 {[%clk 0:00:49]} 4. Ba4 {[%clk 0:00:06.5]} *`);
+    const cps = [0, 0, 0, 0, 0, -900, -900, -900];
+    expect(summarize(stored({ replay, cps }), ['me']).clock).toEqual({
+      calm: { plies: 2, mistakes: 0 },
+      trouble: { plies: 2, mistakes: 1 },
+    });
+    expect(summarize(record, ['Paul Morphy']).clock).toBeNull();
+  });
+
   test('matches any of my usernames, one per site', () => {
     expect(summarize(record, ['magnus', 'Paul Morphy']).me).toBe('w');
     expect(summarize(record, ['duke karl / count isouard', 'someone']).me).toBe(
@@ -165,6 +180,7 @@ function game(patch: Partial<GameSummary> = {}): GameSummary {
       middlegame: { plies: 10, mistakes: 2 },
       endgame: { plies: 0, mistakes: 0 },
     },
+    clock: null,
     ...patch,
   };
 }
@@ -190,6 +206,37 @@ describe('overview', () => {
     expect(o.stages.opening).toEqual({ plies: 20, mistakes: 2, per100: 10 });
     expect(o.stages.middlegame.per100).toBe(20);
     expect(o.stages.endgame.per100).toBeNull();
+  });
+
+  test('rates my mistakes in and out of time trouble over the games with clocks', () => {
+    const o = overview([
+      game({
+        clock: {
+          calm: { plies: 30, mistakes: 3 },
+          trouble: { plies: 10, mistakes: 4 },
+        },
+      }),
+      game({
+        clock: {
+          calm: { plies: 10, mistakes: 1 },
+          trouble: { plies: 0, mistakes: 0 },
+        },
+      }),
+      game(),
+      game({
+        me: null,
+        clock: {
+          calm: { plies: 99, mistakes: 99 },
+          trouble: { plies: 99, mistakes: 99 },
+        },
+      }),
+    ]);
+    expect(o.clock).toEqual({
+      games: 2,
+      calm: { plies: 40, mistakes: 4, per100: 10 },
+      trouble: { plies: 10, mistakes: 4, per100: 40 },
+    });
+    expect(overview([game()]).clock.trouble.per100).toBeNull();
   });
 
   test('lists every game recently, newest first, even the ones it does not count', () => {

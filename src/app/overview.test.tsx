@@ -62,9 +62,9 @@ test('a saved review of the player shows their progress', async () => {
 
   const blunders = document.querySelector('[data-grade="blunder"]')!;
   expect(blunders).toHaveAttribute('data-count', '1');
-  const opening = document.querySelector('[data-stage="opening"]')!;
+  const opening = document.querySelector('[data-row="opening"]')!;
   expect(opening).toHaveTextContent('10.0 per 100 moves, 1 of 10');
-  expect(document.querySelector('[data-stage="endgame"]')).toHaveTextContent(
+  expect(document.querySelector('[data-row="endgame"]')).toHaveTextContent(
     '0.0 per 100 moves, 0 of 1',
   );
 

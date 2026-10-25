@@ -19,7 +19,7 @@ import {
   type OpeningStat,
 } from '@/lib/analysis/overview';
 
-import { AccuracyTrend, GradeMix, StageBars } from './charts';
+import { AccuracyTrend, GradeMix, StageBars, TimeTrouble } from './charts';
 
 const date = new Intl.DateTimeFormat(undefined, {
   month: 'short',
@@ -235,7 +235,15 @@ export function OverviewPage() {
             {data ? <StageBars stages={data.stages} /> : <Pending />}
           </Panel>
           <Panel
+            tag="Clock"
+            title="Time trouble"
+            subtitle="Mistakes, misses and blunders per 100 of your moves, with time to think and with under a tenth of your starting time left (10 seconds at least)."
+          >
+            {data ? <TimeTrouble clock={data.clock} /> : <Pending />}
+          </Panel>
+          <Panel
             tag="Openings"
+            className="lg:col-span-2"
             title="Openings that cost you"
             subtitle="Lowest average accuracy first."
           >

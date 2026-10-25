@@ -1,6 +1,6 @@
 import { GradeSticker } from '@/components/review/grade-sticker';
 import { CLASSIFICATIONS, type Classification } from '@/lib/analysis/classify';
-import type { Overview } from '@/lib/analysis/overview';
+import type { Overview, Pressure, Rate } from '@/lib/analysis/overview';
 import { STAGES, type Stage } from '@/lib/chess/stage';
 
 const GRADES = Object.keys(CLASSIFICATIONS) as Classification[];
@@ -115,41 +115,95 @@ export function GradeMix({ totals }: { totals: Overview['gradeTotals'] }) {
   );
 }
 
-/** Mistakes per 100 of your moves in each stage, scaled to the worst one. */
-export function StageBars({ stages }: { stages: Overview['stages'] }) {
-  const worst = Math.max(1, ...STAGE_IDS.map((s) => stages[s].per100 ?? 0));
+/** Mistakes per 100 of your moves in each row, scaled to the worst one. */
+export function RateBars({
+  rows,
+}: {
+  rows: readonly { id: string; label: string; rate: Rate }[];
+}) {
+  const worst = Math.max(1, ...rows.map((r) => r.rate.per100 ?? 0));
   return (
     <ul className="flex flex-col gap-3">
-      {STAGE_IDS.map((id) => {
-        const { per100, mistakes, plies } = stages[id];
-        return (
-          <li key={id} data-stage={id} className="flex flex-col gap-1">
-            <div className="flex items-baseline justify-between gap-3">
-              <span className="font-extrabold">{STAGES[id].label}</span>
-              <span className="text-ink-muted text-sm">
-                {per100 === null ? (
-                  'No moves yet'
-                ) : (
-                  <>
-                    <span className={`${stat} text-ink`}>
-                      {per100.toFixed(1)}
-                    </span>{' '}
-                    per 100 moves, {mistakes} of {plies}
-                  </>
-                )}
-              </span>
-            </div>
-            <div className="bg-surface-alt h-5 rounded-sm">
-              {per100 !== null && per100 > 0 && (
-                <div
-                  className="border-line bg-grade-mistake h-full rounded-sm border-2"
-                  style={{ width: `${(per100 / worst) * 100}%` }}
-                />
+      {rows.map(({ id, label, rate: { per100, mistakes, plies } }) => (
+        <li key={id} data-row={id} className="flex flex-col gap-1">
+          <div className="flex items-baseline justify-between gap-3">
+            <span className="font-extrabold">{label}</span>
+            <span className="text-ink-muted text-sm">
+              {per100 === null ? (
+                'No moves yet'
+              ) : (
+                <>
+                  <span className={`${stat} text-ink`}>
+                    {per100.toFixed(1)}
+                  </span>{' '}
+                  per 100 moves, {mistakes} of {plies}
+                </>
               )}
-            </div>
-          </li>
-        );
-      })}
+            </span>
+          </div>
+          <div className="bg-surface-alt h-5 rounded-sm">
+            {per100 !== null && per100 > 0 && (
+              <div
+                className="border-line bg-grade-mistake h-full rounded-sm border-2"
+                style={{ width: `${(per100 / worst) * 100}%` }}
+              />
+            )}
+          </div>
+        </li>
+      ))}
     </ul>
+  );
+}
+
+export function StageBars({ stages }: { stages: Overview['stages'] }) {
+  return (
+    <RateBars
+      rows={STAGE_IDS.map((id) => ({
+        id,
+        label: STAGES[id].label,
+        rate: stages[id],
+      }))}
+    />
+  );
+}
+
+const PRESSURE_LABELS: Record<Pressure, string> = {
+  calm: 'With time on the clock',
+  trouble: 'In time trouble',
+};
+
+/** The same rate with time to think and without, and what share of the mistakes came short of time. */
+export function TimeTrouble({ clock }: { clock: Overview['clock'] }) {
+  if (clock.games === 0)
+    return (
+      <p className="text-ink-muted">
+        No clock readings yet. Chess.com and Lichess games carry them.
+      </p>
+    );
+  const { calm, trouble } = clock;
+  const all = calm.mistakes + trouble.mistakes;
+  return (
+    <div className="flex flex-col gap-4">
+      <RateBars
+        rows={(['calm', 'trouble'] as const).map((id) => ({
+          id,
+          label: PRESSURE_LABELS[id],
+          rate: clock[id],
+        }))}
+      />
+      <p className="text-ink-muted">
+        {all === 0 ? (
+          'No mistakes yet'
+        ) : (
+          <>
+            <span className={`${stat} text-ink`}>{trouble.mistakes}</span> of
+            your <span className={`${stat} text-ink`}>{all}</span>{' '}
+            {all === 1 ? 'mistake' : 'mistakes'} came in time trouble
+          </>
+        )}
+        , over <span className={stat}>{clock.games}</span>{' '}
+        {clock.games === 1 ? 'game' : 'games'} with clocks.
+      </p>
+    </div>
   );
 }
