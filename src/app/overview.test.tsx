@@ -2,8 +2,10 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { expect, test } from 'vitest';
 
+import { saveLastReview } from '@/app/last-review';
 import { memoryStore } from '@/lib/analysis/cache';
 import { stored } from '@/lib/analysis/fixtures';
+import { OPERA_GAME, parseReplay } from '@/lib/chess/replay';
 
 import App from './App';
 
@@ -130,21 +132,32 @@ test('Review again opens the saved game at its saved level without the engine', 
 test('Settings counts the saved reviews and clears them after a second press', async () => {
   const user = userEvent.setup();
   const store = await savedStore();
+  saveLastReview({
+    replay: parseReplay(OPERA_GAME),
+    source: 'Paul Morphy vs Duke Karl / Count Isouard',
+    orientation: 'b',
+    level: 'balanced',
+  });
   location.hash = '#/settings';
   render(<App store={store} />);
 
   expect(await screen.findByText('1 saved review')).toBeInTheDocument();
   await user.click(screen.getByRole('button', { name: 'Clear saved reviews' }));
   expect(await store.list()).toHaveLength(1);
+  expect(localStorage.getItem('lastReview')).not.toBeNull();
 
   await user.click(
     screen.getByRole('button', { name: 'Click again to clear' }),
   );
   expect(await screen.findByText('0 saved reviews')).toBeInTheDocument();
   expect(await store.list()).toEqual([]);
+  expect(localStorage.getItem('lastReview')).toBeNull();
   expect(
     screen.getByRole('button', { name: 'Clear saved reviews' }),
   ).toBeDisabled();
+
+  await user.click(screen.getByRole('link', { name: 'Review' }));
+  expect(screen.getByText('No game loaded.')).toBeInTheDocument();
 });
 
 test('Settings says so when this browser cannot save reviews', () => {

@@ -2,7 +2,12 @@ import { expect, test } from 'vitest';
 
 import { OPERA_GAME, parseReplay } from '@/lib/chess/replay';
 
-import { loadLastReview, parseLastReview, saveLastReview } from './last-review';
+import {
+  clearLastReview,
+  loadLastReview,
+  parseLastReview,
+  saveLastReview,
+} from './last-review';
 
 const review = {
   replay: parseReplay(OPERA_GAME),
@@ -17,6 +22,12 @@ test('a saved review reads back whole', () => {
 });
 
 test('nothing saved is no review', () => {
+  expect(loadLastReview()).toBeNull();
+});
+
+test('clearing removes the review a refresh would reopen', () => {
+  saveLastReview(review);
+  clearLastReview();
   expect(loadLastReview()).toBeNull();
 });
 

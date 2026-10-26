@@ -55,3 +55,12 @@ export function saveLastReview(review: LastReview): void {
     // Storage full or blocked: the review still works until it is closed.
   }
 }
+
+/** Drops the game a refresh would reopen. Settings and usernames stay. */
+export function clearLastReview(): void {
+  try {
+    localStorage.removeItem(KEY);
+  } catch {
+    // Storage blocked: there is nothing to reopen anyway.
+  }
+}

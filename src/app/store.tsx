@@ -7,7 +7,11 @@ import {
   type ReactNode,
 } from 'react';
 
-import { loadLastReview, saveLastReview } from '@/app/last-review';
+import {
+  clearLastReview,
+  loadLastReview,
+  saveLastReview,
+} from '@/app/last-review';
 import { navigate } from '@/app/router';
 import { AnalysisProvider } from '@/hooks/use-game-analysis';
 import { useGamePicker } from '@/hooks/use-game-picker';
@@ -63,6 +67,33 @@ const DEFAULT_SETTINGS: Settings = {
 };
 
 const SETTINGS_KEY = 'settings';
+/** A year, matching how long a saved palette used to live in local storage. */
+const SETTINGS_MAX_AGE = 60 * 60 * 24 * 365;
+
+function readSettingsCookie(): string | null {
+  try {
+    const prefix = `${SETTINGS_KEY}=`;
+    const found = document.cookie
+      .split(';')
+      .map((part) => part.trim())
+      .find((part) => part.startsWith(prefix));
+    if (!found) return null;
+    return decodeURIComponent(found.slice(prefix.length));
+  } catch {
+    return null;
+  }
+}
+
+/** The cookie is the copy that survives clearing local storage. */
+function writeSettingsCookie(settings: Settings): boolean {
+  try {
+    const value = encodeURIComponent(JSON.stringify(settings));
+    document.cookie = `${SETTINGS_KEY}=${value}; Path=/; Max-Age=${SETTINGS_MAX_AGE}; SameSite=Lax`;
+    return true;
+  } catch {
+    return false;
+  }
+}
 
 /** Field by field, so one stale or hand-edited value falls back alone. */
 export function parseSettings(raw: string | null): Settings {
@@ -105,12 +136,14 @@ export function parseSettings(raw: string | null): Settings {
 }
 
 /**
- * A saved palette wins. Without one, the old light/dark toggle's "dark" maps to
- * Arcade Night, the dark palette. layouts/main.astro makes the same choice
- * before first paint.
+ * The cookie wins. Without one, local storage still holds a palette saved
+ * before the move, and the old light/dark toggle's "dark" maps to Arcade
+ * Night. layouts/main.astro makes the same choice before first paint.
  */
 export function loadSettings(): Settings {
   try {
+    const cookie = readSettingsCookie();
+    if (cookie !== null) return parseSettings(cookie);
     const raw = localStorage.getItem(SETTINGS_KEY);
     const settings = parseSettings(raw);
     const saved = (raw && (JSON.parse(raw) as { palette?: unknown })) || {};
@@ -119,6 +152,23 @@ export function loadSettings(): Settings {
     return settings;
   } catch {
     return DEFAULT_SETTINGS; // storage blocked
+  }
+}
+
+export function saveSettings(settings: Settings): void {
+  if (writeSettingsCookie(settings)) {
+    try {
+      localStorage.removeItem(SETTINGS_KEY);
+      localStorage.removeItem('theme');
+    } catch {
+      // The cookie is already written.
+    }
+    return;
+  }
+  try {
+    localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
+  } catch {
+    // Cookie and local storage blocked: settings still work for this session.
   }
 }
 
@@ -160,6 +210,8 @@ type Store = ReturnType<typeof useGamePicker> & {
   ) => void;
   /** Changes the mode of the running review and the default for the next. */
   setReviewLevel: (level: AnalysisLevel) => void;
+  /** Forgets the game on screen, including the copy a refresh would reopen. */
+  forgetOpenReview: () => void;
   settings: Settings;
   setSettings: (patch: Partial<Settings>) => void;
 };
@@ -276,6 +328,11 @@ export function AppProvider({
     [setSettings],
   );
 
+  const forgetOpenReview = useCallback(() => {
+    clearLastReview();
+    setLoaded(null);
+  }, []);
+
   useEffect(() => {
     document.documentElement.dataset.theme = settings.palette;
   }, [settings.palette]);
@@ -287,11 +344,7 @@ export function AppProvider({
   }, [loaded]);
 
   useEffect(() => {
-    try {
-      localStorage.setItem(SETTINGS_KEY, JSON.stringify(settings));
-    } catch {
-      // Storage full or blocked: settings still work for this session.
-    }
+    saveSettings(settings);
   }, [settings]);
 
   const store = {
@@ -307,6 +360,7 @@ export function AppProvider({
     startReview,
     reviewReplay,
     setReviewLevel,
+    forgetOpenReview,
     settings,
     setSettings,
   };

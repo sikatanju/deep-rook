@@ -11,7 +11,9 @@ import { PieceSetPicker } from '@/components/settings/piece-set-picker';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Slider } from '@/components/ui/slider';
+import { useAnalyzer, useBatch } from '@/hooks/use-game-analysis';
 import { useSavedReviews } from '@/hooks/use-saved-reviews';
+import { isActive } from '@/lib/analysis/batch';
 import { fenAt, OPERA_GAME, parseReplay } from '@/lib/chess/replay';
 import { PALETTES } from '@/lib/palettes';
 
@@ -24,33 +26,44 @@ const label = 'text-xs leading-4 font-extrabold tracking-[0.08em] uppercase';
 /** Two presses, so a stray click cannot wipe the saved reviews. */
 function SavedReviews() {
   const { available, records, clear } = useSavedReviews();
+  const { loaded, forgetOpenReview } = useStore();
+  const analyzer = useAnalyzer();
+  const batch = useBatch();
   const [confirming, setConfirming] = useState(false);
   const count = records?.length ?? 0;
+  const running = isActive(batch.snapshot);
+  const nothing = (records === null || count === 0) && !loaded && !running;
   return (
     <Panel
       tag="Saved here"
       title="Saved reviews"
-      subtitle="Finished reviews are kept in this browser, so reopening a game skips the engine and the Overview can show your progress. Clearing them also clears your drill history."
+      subtitle="Finished reviews are kept in this browser, so reopening a game skips the engine and the Overview can show your progress. Clearing them also clears your drill history and the game a refresh would reopen. Palette, board, and pieces stay."
     >
-      {!available ? (
+      {!available && (
         <p className="text-ink-muted">
           This browser cannot save reviews. Each one is analyzed again when you
           open it.
         </p>
-      ) : (
+      )}
+      {(available || loaded || running) && (
         <div className="flex flex-wrap items-center gap-4">
-          <p aria-live="polite" className="font-bold">
-            {records === null
-              ? 'Counting…'
-              : `${count} saved ${count === 1 ? 'review' : 'reviews'}`}
-          </p>
+          {available && (
+            <p aria-live="polite" className="font-bold">
+              {records === null
+                ? 'Counting…'
+                : `${count} saved ${count === 1 ? 'review' : 'reviews'}`}
+            </p>
+          )}
           <Button
             size="sm"
             variant={confirming ? 'destructive' : 'default'}
-            disabled={count === 0}
+            disabled={nothing}
             onBlur={() => setConfirming(false)}
             onClick={async () => {
               if (!confirming) return setConfirming(true);
+              analyzer.drop();
+              batch.cancel();
+              forgetOpenReview();
               await clear();
               setConfirming(false);
             }}

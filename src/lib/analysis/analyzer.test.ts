@@ -218,6 +218,24 @@ describe('saved analyses', () => {
     lanes.reduce((n, lane) => n + lane.jobs.length, 0);
   const total = game.replay.plies.length + 1;
 
+  test('drop forgets the game, so a search that finishes afterwards is not saved', async () => {
+    const store = memoryStore();
+    const { lanes, spawn } = scripted();
+    const analyzer = createAnalyzer({
+      level: 'fast',
+      spawn,
+      lanes: 2,
+      store,
+    });
+    analyzer.view(game, 0);
+    await settleAll();
+    analyzer.drop();
+    drain(lanes);
+    await settleAll();
+    expect(analyzer.getSnapshot()).toBeNull();
+    expect(await store.list()).toEqual([]);
+  });
+
   test('a game reviewed once reopens complete with no engine work', async () => {
     const store = memoryStore();
     const first = scripted();

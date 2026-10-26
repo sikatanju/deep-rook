@@ -43,13 +43,39 @@ test('piece set is validated alone and defaults to Kiwen Suwi', () => {
 });
 
 describe('loadSettings', () => {
-  afterEach(() => localStorage.clear());
+  afterEach(() => {
+    localStorage.clear();
+    document.cookie = 'settings=; Path=/; Max-Age=0';
+  });
 
   test('the old dark toggle becomes Arcade Night until a palette is saved', () => {
     localStorage.setItem('theme', 'dark');
     expect(loadSettings().palette).toBe('arcade');
     localStorage.setItem('settings', '{"palette":"mint"}');
     expect(loadSettings().palette).toBe('mint');
+  });
+
+  test('a settings cookie wins over local storage', () => {
+    localStorage.setItem(
+      'settings',
+      JSON.stringify({
+        palette: 'mint',
+        boardTheme: 'brown',
+        pieceSet: 'kiwen',
+      }),
+    );
+    document.cookie = `settings=${encodeURIComponent(
+      JSON.stringify({
+        palette: 'arcade',
+        boardTheme: 'blue',
+        pieceSet: 'papercut',
+      }),
+    )}; Path=/`;
+    expect(loadSettings()).toMatchObject({
+      palette: 'arcade',
+      boardTheme: 'blue',
+      pieceSet: 'papercut',
+    });
   });
 
   test('the old light toggle changes nothing', () => {

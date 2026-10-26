@@ -5,5 +5,6 @@ import { afterEach } from 'vitest';
 afterEach(() => {
   cleanup();
   localStorage.clear();
+  document.cookie = 'settings=; Path=/; Max-Age=0';
   location.hash = '';
 });

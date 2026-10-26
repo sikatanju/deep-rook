@@ -136,7 +136,7 @@ export function createBatch({
   function stop(phase: 'cancelled' | 'unavailable') {
     queue = [];
     current = null;
-    analyzer.dispose();
+    analyzer.drop();
     publish({ phase, ...counts });
   }
 

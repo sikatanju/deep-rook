@@ -24,6 +24,7 @@ const { title } = Astro.props;
     <title>{title}</title>
     <script is:inline>
       // First paint: the saved palette, so the page never flashes the default.
+      // The cookie wins. Local storage is the copy from before that move.
       // Keep the ids and the old-toggle fallback in step with lib/palettes.ts
       // and loadSettings in app/store.tsx.
       (() => {
@@ -39,9 +40,18 @@ const { title } = Astro.props;
         ];
         let palette = 'pop';
         try {
-          const saved = JSON.parse(localStorage.getItem('settings') || '{}');
+          const prefix = 'settings=';
+          const fromCookie = document.cookie
+            .split(';')
+            .map((part) => part.trim())
+            .find((part) => part.startsWith(prefix));
+          const raw = fromCookie
+            ? decodeURIComponent(fromCookie.slice(prefix.length))
+            : localStorage.getItem('settings');
+          const saved = JSON.parse(raw || '{}');
           if (saved && ids.includes(saved.palette)) palette = saved.palette;
-          else if (localStorage.getItem('theme') === 'dark') palette = 'arcade';
+          else if (!fromCookie && localStorage.getItem('theme') === 'dark')
+            palette = 'arcade';
         } catch {}
         document.documentElement.dataset.theme = palette;
       })();

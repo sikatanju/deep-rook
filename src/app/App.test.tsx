@@ -145,10 +145,16 @@ test('choosing a palette sets data-theme and is remembered', async () => {
   await user.click(screen.getByRole('link', { name: 'Settings' }));
   await user.click(screen.getByRole('button', { name: 'Arcade Night' }));
   expect(document.documentElement.dataset.theme).toBe('arcade');
-  expect(JSON.parse(localStorage.getItem('settings')!)).toMatchObject({
+  const saved = document.cookie
+    .split(';')
+    .map((part) => part.trim())
+    .find((part) => part.startsWith('settings='));
+  expect(
+    JSON.parse(decodeURIComponent(saved!.slice('settings='.length))),
+  ).toMatchObject({
     palette: 'arcade',
   });
-  localStorage.clear();
+  expect(localStorage.getItem('settings')).toBeNull();
 });
 
 function stubLosingDay() {

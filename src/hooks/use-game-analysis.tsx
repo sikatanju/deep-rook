@@ -100,6 +100,14 @@ export function AnalysisProvider({
   );
 }
 
+/** The on-screen analyzer, so Settings can drop a game before it saves again. */
+export function useAnalyzer(): Analyzer {
+  const analyzer = useContext(AnalyzerContext);
+  if (!analyzer)
+    throw new Error('useAnalyzer must be used within AnalysisProvider');
+  return analyzer;
+}
+
 /** The saved reviews, for pages that list or clear them. null where nothing can be saved. */
 export function useAnalysisStore(): WatchedStore | null {
   return useContext(StoreContext);

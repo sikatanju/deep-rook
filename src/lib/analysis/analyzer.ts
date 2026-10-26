@@ -49,6 +49,11 @@ export type Analyzer = {
   getSnapshot(): GameAnalysis | null;
   /** Stops lanes and timers but keeps results; a later view() resumes (StrictMode-safe). */
   dispose(): void;
+  /**
+   * Stops the game and drops it. A load or a search that finishes afterwards
+   * cannot save, because the document it was writing is gone.
+   */
+  drop(): void;
 };
 
 export type AnalyzerOptions = {
@@ -317,6 +322,16 @@ export function createAnalyzer({
       flushTimer = undefined;
       // A resumed view() of the same position starts no new dwell timer.
       if (game) game.dwelled = true;
+    },
+    drop() {
+      disposed = true;
+      slots.forEach(stop);
+      clearTimeout(flushTimer);
+      clearTimeout(dwellTimer);
+      flushTimer = undefined;
+      game = null;
+      snapshot = null;
+      listeners.forEach((l) => l());
     },
   };
 }
