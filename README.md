@@ -53,7 +53,7 @@ DeepRook is an installable web app. In Chrome or Edge use Install (desktop) or A
 
 The look is the DeepRook neo-brutal system: 3px borders, hard offset shadows (zero blur), press-to-sink buttons, Bricolage Grotesque and Space Mono.
 
-- Tokens live in `src/styles/global.css`, generated from the system's `tokens.json`. Pop Quiz is on `:root`; the other seven palettes are `[data-theme="<id>"]` blocks. `@theme inline` exposes them as utilities (`bg-primary`, `bg-surface`, `text-ink`, `border-line`, `shadow-md`, `bg-grade-blunder`). `src/styles/tokens.test.ts` keeps the eight blocks declaring the same variables.
-- Palette ids are listed in `src/lib/palettes.ts`. The choice is a setting (`settings.palette`) and the Settings page switches it. Arcade Night is the dark palette.
+- Tokens live in `src/styles/global.css`, generated from the system's `tokens.json`. Pop Quiz is on `:root`; the other palettes are `[data-theme="<id>"]` blocks. `@theme inline` exposes them as utilities (`bg-primary`, `bg-surface`, `text-ink`, `border-line`, `shadow-md`, `bg-grade-blunder`). `src/styles/tokens.test.ts` keeps the blocks declaring the same variables.
+- Palette ids are listed in `src/lib/palettes.ts`. The choice is a setting (`settings.palette`) and the Settings page switches it. Arcade Night, Lantern, Tidepool, and Carbon are the dark palettes.
 - Never hard-code black for a border or shadow: use `border-line` and the `shadow-*` utilities, which follow the palette. Text on any coloured fill is `text-sticker-ink`.
 - Fonts are self-hosted with Fontsource, so the app keeps working offline.

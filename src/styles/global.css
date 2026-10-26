@@ -8,7 +8,7 @@
 /*
  * DeepRook design system (neo-brutal). Colours below are generated from the
  * system's tokens.json: Pop Quiz on :root, every other palette on
- * [data-theme="<id>"]. tokens.test.ts keeps the eight blocks in step.
+ * [data-theme="<id>"]. tokens.test.ts keeps the blocks in step.
  * Never hard-code black for a border or shadow; use `line` / `shadow-ink`.
  */
 
@@ -282,6 +282,111 @@
   --grade-miss: #ff8ac4;
   --grade-blunder: #ff5c5c;
   --shadow-ink: #ff4fd8;
+  color-scheme: dark;
+}
+
+[data-theme='lantern'] {
+  --ground: #1c1410;
+  --surface: #2b211a;
+  --surface-alt: #3d2e24;
+  --ink: #fff6ec;
+  --ink-muted: #d4c0ab;
+  --line: #fff6ec;
+  --sticker-ink: #111111;
+  --primary: #ffc14d;
+  --accent: #ff6a4a;
+  --pop-3: #ffe08a;
+  --pop-4: #7ddeb0;
+  --win: #8ee0a8;
+  --loss: #ff6b6b;
+  --draw: #9a8878;
+  --focus: #ffe08a;
+  --board-light: #f8ead4;
+  --board-dark: #c56a32;
+  --board-move: #ffc14dbf;
+  --board-arrow: #000000;
+  --eval-white: #fff6ec;
+  --eval-black: #100c09;
+  --grade-brilliant: #3df0ff;
+  --grade-great: #6fa8ff;
+  --grade-best: #4fe3a6;
+  --grade-excellent: #a8eb7a;
+  --grade-good: #d8e8c8;
+  --grade-inaccuracy: #ffe14d;
+  --grade-mistake: #ffa94d;
+  --grade-miss: #ff8ac4;
+  --grade-blunder: #ff5c5c;
+  --shadow-ink: #ff6a4a;
+  color-scheme: dark;
+}
+
+[data-theme='tidepool'] {
+  --ground: #0b1c22;
+  --surface: #12303a;
+  --surface-alt: #1a4250;
+  --ink: #e9f8fb;
+  --ink-muted: #a9d0d8;
+  --line: #e9f8fb;
+  --sticker-ink: #111111;
+  --primary: #5eecff;
+  --accent: #ffd24a;
+  --pop-3: #ff8ec8;
+  --pop-4: #8dffc8;
+  --win: #6eecc0;
+  --loss: #ff7388;
+  --draw: #7f9aa3;
+  --focus: #ffd24a;
+  --board-light: #e5f7fa;
+  --board-dark: #3d9aaf;
+  --board-move: #5eecffbf;
+  --board-arrow: #000000;
+  --eval-white: #e9f8fb;
+  --eval-black: #061014;
+  --grade-brilliant: #3df0ff;
+  --grade-great: #6fa8ff;
+  --grade-best: #4fe3a6;
+  --grade-excellent: #a8eb7a;
+  --grade-good: #d8e8c8;
+  --grade-inaccuracy: #ffe14d;
+  --grade-mistake: #ffa94d;
+  --grade-miss: #ff8ac4;
+  --grade-blunder: #ff5c5c;
+  --shadow-ink: #5eecff;
+  color-scheme: dark;
+}
+
+[data-theme='carbon'] {
+  --ground: #141618;
+  --surface: #1e2328;
+  --surface-alt: #2a3138;
+  --ink: #f4f6f7;
+  --ink-muted: #b4bcc4;
+  --line: #f4f6f7;
+  --sticker-ink: #111111;
+  --primary: #ff8a5b;
+  --accent: #7ee7ff;
+  --pop-3: #d6ff4a;
+  --pop-4: #ffc14d;
+  --win: #8ee7a0;
+  --loss: #ff6b6b;
+  --draw: #8e979f;
+  --focus: #7ee7ff;
+  --board-light: #e7ecef;
+  --board-dark: #6a7886;
+  --board-move: #ff8a5bbf;
+  --board-arrow: #000000;
+  --eval-white: #f4f6f7;
+  --eval-black: #0c0e10;
+  --grade-brilliant: #3df0ff;
+  --grade-great: #6fa8ff;
+  --grade-best: #4fe3a6;
+  --grade-excellent: #a8eb7a;
+  --grade-good: #d8e8c8;
+  --grade-inaccuracy: #ffe14d;
+  --grade-mistake: #ffa94d;
+  --grade-miss: #ff8ac4;
+  --grade-blunder: #ff5c5c;
+  --shadow-ink: #ff8a5b;
   color-scheme: dark;
 }
 
