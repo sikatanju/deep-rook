@@ -43,7 +43,7 @@ export function SessionStrip({
       <div
         role="img"
         aria-label={`${results.length} games: ${won} ${WORD.W}, ${lost} ${WORD.L}, ${drawn} ${WORD.D}`}
-        className="border-line bg-line mt-4 flex border-3 shadow-md"
+        className="border-line bg-line mt-4 flex flex-wrap gap-y-5 border-3 shadow-md"
       >
         {results.map((r, i) => (
           <span
