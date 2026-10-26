@@ -28,6 +28,21 @@ test('without ratings it shows totals only', () => {
   expect(screen.queryByText('Peak')).toBeNull();
 });
 
+test('a long day shows the latest 15 blocks and still counts the whole day', () => {
+  const results = ['L', ...Array.from({ length: 15 }, () => 'W' as const)];
+  const ratings = [2000, ...Array.from({ length: 15 }, () => 1500)];
+  render(<SessionStrip results={results} ratings={ratings} />);
+  const img = screen.getByRole('img', {
+    name: 'Latest 15 of 16 games: 15 won, 0 lost, 0 drawn',
+  });
+  expect(img).toHaveTextContent('W'.repeat(15));
+  expect(img.textContent).not.toContain('L');
+  expect(screen.getByText('Won').nextSibling).toHaveTextContent('15');
+  expect(screen.getByText('Lost').nextSibling).toHaveTextContent('1');
+  expect(screen.getByText('Peak').nextSibling).toHaveTextContent('2000');
+  expect(screen.getByText('Net').nextSibling).toHaveTextContent('-500');
+});
+
 test('a lone game has a peak but no net change', () => {
   render(<SessionStrip results={['W']} ratings={[1500]} />);
   expect(screen.queryByText('Net')).toBeNull();
