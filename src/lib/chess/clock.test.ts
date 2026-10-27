@@ -1,6 +1,7 @@
 import { expect, test } from 'vitest';
 
 import {
+  clockShowing,
   formatSpent,
   moveClocks,
   parseTimeControl,
@@ -14,7 +15,12 @@ const clocked = (control: string, moves: string) =>
 test('reads base and increment from the TimeControl header', () => {
   expect(parseTimeControl('180+2')).toEqual({ base: 180, increment: 2 });
   expect(parseTimeControl('600')).toEqual({ base: 600, increment: 0 });
-  for (const tag of ['1/86400', '-', '', '0+1', undefined])
+  expect(parseTimeControl('1/86400')).toEqual({
+    base: 86400,
+    increment: 0,
+    perMove: true,
+  });
+  for (const tag of ['-', '', '0+1', '40/7200', undefined])
     expect(parseTimeControl(tag)).toBeNull();
 });
 
@@ -75,6 +81,24 @@ test('no time control, no clocks', () => {
   const replay = parseReplay('1. e4 {[%clk 0:02:59]} e5 {[%clk 0:02:58]}');
   expect(moveClocks(replay)).toEqual([null, null]);
   expect(moveClocks(clocked('1/86400', '1. e4 e5'))).toEqual([null, null]);
+});
+
+test('a correspondence move spends a fresh day, and a gap does not blank the next', () => {
+  const replay = clocked(
+    '1/86400',
+    '1. e4 {[%clk 23:00:00]} e5 {[%clk 22:00:00]} 2. Nf3 Nc6 {[%clk 23:30:00]}',
+  );
+  expect(moveClocks(replay)).toEqual([
+    { spent: 3600, before: 86400, trouble: false },
+    { spent: 7200, before: 86400, trouble: false },
+    null,
+    { spent: 1800, before: 86400, trouble: false },
+  ]);
+  expect(clockShowing(replay, 0, 'w')).toBe(86400);
+  expect(clockShowing(replay, 1, 'w')).toBe(82800);
+  expect(clockShowing(replay, 1, 'b')).toBe(86400);
+  expect(clockShowing(replay, 2, 'w')).toBe(86400);
+  expect(clockShowing(replay, 3, 'b')).toBe(86400);
 });
 
 test('formats time spent for prose', () => {

@@ -1,6 +1,6 @@
-// The review on screen, kept in this browser so a refresh reopens it. Only the
-// game is kept: its analysis is already in the saved reviews (or is redone),
-// and the side line being explored is not worth restoring.
+// The review on screen, kept in this browser so a refresh reopens it. The game
+// and the ply on screen are kept. Its analysis is already in the saved reviews
+// (or is redone). The side line being explored is not worth restoring.
 
 import { isReplay } from '@/lib/analysis/cache';
 import { isAnalysisLevel, type AnalysisLevel } from '@/lib/analysis/levels';
@@ -14,14 +14,26 @@ export type LastReview = {
   source: string;
   orientation: 'w' | 'b';
   level: AnalysisLevel;
+  /** Viewer index. A missing or impossible value reads back as the start. */
+  index: number;
 };
+
+/** A ply index inside this game, or the start when the stored value is unusable. */
+function plyIndex(raw: unknown, length: number): number {
+  return typeof raw === 'number' &&
+    Number.isInteger(raw) &&
+    raw >= 0 &&
+    raw <= length
+    ? raw
+    : 0;
+}
 
 /** Anything but a current-version record of a whole game is no review, never a throw. */
 export function parseLastReview(raw: string | null): LastReview | null {
   try {
     const data: unknown = JSON.parse(raw ?? 'null');
     if (typeof data !== 'object' || data === null) return null;
-    const { v, replay, source, orientation, level } = data as Record<
+    const { v, replay, source, orientation, level, index } = data as Record<
       string,
       unknown
     >;
@@ -34,7 +46,13 @@ export function parseLastReview(raw: string | null): LastReview | null {
       !isAnalysisLevel(level)
     )
       return null;
-    return { replay, source, orientation, level };
+    return {
+      replay,
+      source,
+      orientation,
+      level,
+      index: plyIndex(index, replay.plies.length),
+    };
   } catch {
     return null;
   }

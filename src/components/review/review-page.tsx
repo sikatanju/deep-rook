@@ -36,7 +36,7 @@ import {
   stepTo,
   type Branch,
 } from '@/lib/chess/branch';
-import { formatSpent, moveClocks } from '@/lib/chess/clock';
+import { clockShowing, formatSpent, moveClocks } from '@/lib/chess/clock';
 import type { Move } from '@/lib/chess/play';
 import {
   fenAt,
@@ -59,15 +59,6 @@ import { MoveList } from './move-list';
 import { MoveTimes } from './move-times';
 import { PlayerStrip } from './player-strip';
 import { ReportCard } from './report-card';
-
-function clockAt(replay: Replay, index: number, color: 'w' | 'b') {
-  for (let i = index; i >= 1; i--) {
-    const ply = replay.plies[i - 1]!;
-    if (ply.color === color) return ply.clock;
-  }
-  const base = Number(replay.headers.TimeControl?.split('+')[0]);
-  return Number.isFinite(base) && base > 0 ? base : undefined;
-}
 
 const MIN_SIZE = 280;
 const MAX_SIZE = 2200;
@@ -100,9 +91,9 @@ const moveLabel = (ply: Ply) =>
 
 function Viewer({ loaded }: { loaded: Loaded }) {
   const { replay, orientation } = loaded;
-  const { settings } = useStore();
+  const { settings, setReviewIndex } = useStore();
   const last = replay.plies.length;
-  const [index, setIndex] = useState(0);
+  const [index, setIndex] = useState(loaded.index);
   const [flipped, setFlipped] = useState(orientation === 'b');
   const [playing, setPlaying] = useState(false);
   const [size, setSize] = useState<number | null>(null);
@@ -111,7 +102,7 @@ function Viewer({ loaded }: { loaded: Loaded }) {
   // The position the viewer is coming from, held in the same state as the index
   // so a step is one atomic update: a later re-render (the engine streams in
   // constantly) must not be able to recompute the flight away.
-  const [nav, setNav] = useState({ at: 0, from: 0 });
+  const [nav, setNav] = useState({ at: loaded.index, from: loaded.index });
   // A side line the user is playing out of position `index`. Navigating the
   // game itself (goTo) always leaves it.
   const [branch, setBranch] = useState<Branch | null>(null);
@@ -136,6 +127,10 @@ function Viewer({ loaded }: { loaded: Loaded }) {
     },
     [goTo],
   );
+
+  useEffect(() => {
+    setReviewIndex(index);
+  }, [index, setReviewIndex]);
 
   const running = playing && index < last;
 
@@ -296,7 +291,7 @@ function Viewer({ loaded }: { loaded: Loaded }) {
       rating={headers[color === 'w' ? 'WhiteElo' : 'BlackElo']}
       captured={color === 'w' ? material.lost.b : material.lost.w}
       lead={Math.max(0, color === 'w' ? material.balance : -material.balance)}
-      clock={branch ? undefined : clockAt(replay, index, color)}
+      clock={branch ? undefined : clockShowing(replay, index, color)}
       toMove={sideToMove === color && !atEnd}
     />
   );

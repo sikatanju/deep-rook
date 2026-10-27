@@ -183,8 +183,8 @@ export type Staged = {
   orientation: 'w' | 'b';
 };
 
-/** What the Viewer reviews: a staged game plus the mode it was started at. */
-export type Loaded = Staged & { level: AnalysisLevel };
+/** What the Viewer reviews: a staged game, the mode, and the ply on screen. */
+export type Loaded = Staged & { level: AnalysisLevel; index: number };
 
 type Store = ReturnType<typeof useGamePicker> & {
   lichess: ReturnType<typeof useLichessPicker>;
@@ -210,6 +210,8 @@ type Store = ReturnType<typeof useGamePicker> & {
   ) => void;
   /** Changes the mode of the running review and the default for the next. */
   setReviewLevel: (level: AnalysisLevel) => void;
+  /** Remembers the ply a refresh should reopen. The side line stays unsaved. */
+  setReviewIndex: (index: number) => void;
   /** Forgets the game on screen, including the copy a refresh would reopen. */
   forgetOpenReview: () => void;
   settings: Settings;
@@ -298,7 +300,11 @@ export function AppProvider({
   const startReview = useCallback(
     (level: AnalysisLevel = settings.analysisLevel) => {
       if (!staged) return;
-      setLoaded({ ...staged, level });
+      setLoaded((current) => ({
+        ...staged,
+        level,
+        index: current?.id === staged.id ? current.index : 0,
+      }));
       navigate('review');
     },
     [staged, settings.analysisLevel],
@@ -313,7 +319,7 @@ export function AppProvider({
     ) => {
       const game = { id: nextId++, replay, source, orientation };
       setStaged(game);
-      setLoaded({ ...game, level });
+      setLoaded({ ...game, level, index: 0 });
       selectGame(null);
       navigate('review');
     },
@@ -328,6 +334,10 @@ export function AppProvider({
     [setSettings],
   );
 
+  const setReviewIndex = useCallback((index: number) => {
+    setLoaded((l) => (l && l.index !== index ? { ...l, index } : l));
+  }, []);
+
   const forgetOpenReview = useCallback(() => {
     clearLastReview();
     setLoaded(null);
@@ -339,8 +349,8 @@ export function AppProvider({
 
   useEffect(() => {
     if (!loaded) return;
-    const { replay, source, orientation, level } = loaded;
-    saveLastReview({ replay, source, orientation, level });
+    const { replay, source, orientation, level, index } = loaded;
+    saveLastReview({ replay, source, orientation, level, index });
   }, [loaded]);
 
   useEffect(() => {
@@ -360,6 +370,7 @@ export function AppProvider({
     startReview,
     reviewReplay,
     setReviewLevel,
+    setReviewIndex,
     forgetOpenReview,
     settings,
     setSettings,

@@ -40,13 +40,13 @@ test('wins, losses and draws read the same as Chess.com games', () => {
   expect(outcomeFor(draw!, 'martin99991').outcome).toBe('draw');
 });
 
-test('maps every speed onto the four time classes', () => {
+test('maps every speed onto a time class', () => {
   const speeds = {
     ultraBullet: 'bullet',
     bullet: 'bullet',
     blitz: 'blitz',
     rapid: 'rapid',
-    classical: 'rapid',
+    classical: 'classical',
     correspondence: 'daily',
   };
   for (const [speed, timeClass] of Object.entries(speeds)) {

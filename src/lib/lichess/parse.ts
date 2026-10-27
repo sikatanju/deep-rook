@@ -9,7 +9,7 @@ const TIME_CLASSES: Record<string, TimeClass> = {
   bullet: 'bullet',
   blitz: 'blitz',
   rapid: 'rapid',
-  classical: 'rapid',
+  classical: 'classical',
   correspondence: 'daily',
 };
 

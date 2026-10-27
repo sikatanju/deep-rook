@@ -6,11 +6,28 @@
 
 import type { Replay } from './replay';
 
-export type TimeControl = { base: number; increment: number };
+export type TimeControl = {
+  base: number;
+  increment: number;
+  /**
+   * Correspondence. `1/86400` is one move in that many seconds, and each move
+   * starts with a fresh allotment. Unused time does not carry.
+   */
+  perMove?: boolean;
+};
 
-/** "180+2" or "600"; null for daily games ("1/86400"), "-" and anything else. */
+/**
+ * "180+2", "600", or correspondence "1/86400".
+ * Null for "-", "0+1", a multi-period control, and anything else.
+ */
 export function parseTimeControl(tag: string | undefined): TimeControl | null {
-  const m = /^(\d+)(?:\+(\d+))?$/.exec(tag?.trim() ?? '');
+  const text = tag?.trim() ?? '';
+  const daily = /^1\/(\d+)$/.exec(text);
+  if (daily) {
+    const base = Number(daily[1]);
+    return base > 0 ? { base, increment: 0, perMove: true } : null;
+  }
+  const m = /^(\d+)(?:\+(\d+))?$/.exec(text);
   const base = Number(m?.[1]);
   return m && base > 0 ? { base, increment: Number(m[2] ?? 0) } : null;
 }
@@ -32,11 +49,46 @@ export type MoveClock = {
   trouble: boolean;
 };
 
+/**
+ * Seconds to show for `color` at viewer index `index`.
+ * A live clock is the side's latest reading, or the base before they have moved.
+ * A correspondence clock resets every turn, so only the side who just moved
+ * shows the reading. The other side shows a full allotment.
+ */
+export function clockShowing(
+  replay: Replay,
+  index: number,
+  color: 'w' | 'b',
+): number | undefined {
+  const control = parseTimeControl(replay.headers.TimeControl);
+  if (!control) return undefined;
+  if (control.perMove) {
+    const last = index > 0 ? replay.plies[index - 1] : undefined;
+    if (last?.color === color) return last.clock;
+    return control.base;
+  }
+  for (let i = index; i >= 1; i--) {
+    const ply = replay.plies[i - 1]!;
+    if (ply.color === color) return ply.clock;
+  }
+  return control.base;
+}
+
 /** Per ply; null without a time control, and where a clock reading is missing. */
 export function moveClocks(replay: Replay): (MoveClock | null)[] {
   const control = parseTimeControl(replay.headers.TimeControl);
   if (!control) return replay.plies.map(() => null);
   const line = troubleLine(control);
+  if (control.perMove) {
+    return replay.plies.map(({ clock }) => {
+      if (clock === undefined) return null;
+      return {
+        spent: Math.max(0, control.base - clock),
+        before: control.base,
+        trouble: control.base < line,
+      };
+    });
+  }
   const left: Record<'w' | 'b', number | null> = {
     w: control.base,
     b: control.base,

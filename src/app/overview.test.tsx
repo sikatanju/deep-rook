@@ -137,6 +137,7 @@ test('Settings counts the saved reviews and clears them after a second press', a
     source: 'Paul Morphy vs Duke Karl / Count Isouard',
     orientation: 'b',
     level: 'balanced',
+    index: 0,
   });
   location.hash = '#/settings';
   render(<App store={store} />);

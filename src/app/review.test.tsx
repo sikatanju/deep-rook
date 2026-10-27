@@ -252,22 +252,33 @@ test('board can be resized with the slider handle and reset', async () => {
   expect(column.style.width).toBe('');
 });
 
-test('a refresh reopens the game that was under review', async () => {
+test('a refresh reopens the game on the ply you left', async () => {
   const user = await openOperaGame();
   await user.keyboard('{End}');
+  const saved = JSON.parse(localStorage.getItem('lastReview')!);
+  expect(saved.index).toBeGreaterThan(0);
   cleanup();
 
   location.hash = '#/review';
   render(<App />);
   expect(screen.queryByText('No game loaded.')).toBeNull();
-  expect(screen.getByRole('button', { name: 'Rd8#' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Rd8#' })).toHaveAttribute(
+    'aria-current',
+    'step',
+  );
+  expect(screen.getByRole('button', { name: 'Next move' })).toBeDisabled();
   expect(
     screen.getByRole('group', { name: /Chess board/ }),
   ).toBeInTheDocument();
 });
 
-test('the game, its side and its level are saved as the review opens', async () => {
+test('the game, its side, its level and its ply are saved as the review opens', async () => {
   await openOperaGame();
   const saved = JSON.parse(localStorage.getItem('lastReview')!);
-  expect(saved).toMatchObject({ v: 1, level: 'balanced', orientation: 'w' });
+  expect(saved).toMatchObject({
+    v: 1,
+    level: 'balanced',
+    orientation: 'w',
+    index: 0,
+  });
 });

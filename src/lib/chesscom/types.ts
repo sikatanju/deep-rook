@@ -4,7 +4,7 @@ export type MonthKey = `${number}-${string}`;
 /** Where a game was played. */
 export type Site = 'chesscom' | 'lichess';
 
-export type TimeClass = 'bullet' | 'blitz' | 'rapid' | 'daily';
+export type TimeClass = 'bullet' | 'blitz' | 'rapid' | 'classical' | 'daily';
 
 export type Side = { username: string; rating: number; result: string };
 

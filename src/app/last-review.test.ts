@@ -14,11 +14,25 @@ const review = {
   source: 'Paul Morphy vs Duke Karl / Count Isouard',
   orientation: 'b' as const,
   level: 'deep' as const,
+  index: 4,
 };
 
 test('a saved review reads back whole', () => {
   saveLastReview(review);
   expect(loadLastReview()).toEqual(review);
+});
+
+test('a review saved before ply was stored reopens at the start', () => {
+  const { index: _, ...older } = review;
+  localStorage.setItem('lastReview', JSON.stringify({ v: 1, ...older }));
+  expect(loadLastReview()).toEqual({ ...review, index: 0 });
+});
+
+test('an impossible ply reopens at the start', () => {
+  saveLastReview({ ...review, index: 999 });
+  expect(loadLastReview()?.index).toBe(0);
+  saveLastReview({ ...review, index: 1.5 });
+  expect(loadLastReview()?.index).toBe(0);
 });
 
 test('nothing saved is no review', () => {
