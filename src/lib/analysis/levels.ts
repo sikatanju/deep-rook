@@ -41,3 +41,16 @@ export const satisfies = (have: AnalysisLevel | null, want: AnalysisLevel) =>
 export function isAnalysisLevel(value: unknown): value is AnalysisLevel {
   return typeof value === 'string' && Object.hasOwn(ANALYSIS_LEVELS, value);
 }
+
+/**
+ * The review badge. A line stopped by time or nodes keeps the level that was
+ * asked for and names the depth it reached. A finished depth or a mate names
+ * only that level.
+ */
+export function badgeLabel(
+  requested: AnalysisLevel,
+  line: { depth: number; capped?: 'time' | 'nodes' } | null,
+): string {
+  const name = `${ANALYSIS_LEVELS[requested].label} review`;
+  return line?.capped ? `${name}, depth ${line.depth}` : name;
+}

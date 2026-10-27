@@ -24,7 +24,7 @@ import {
   type Classification,
 } from '@/lib/analysis/classify';
 import { searchInputAt } from '@/lib/analysis/inputs';
-import { ANALYSIS_LEVELS } from '@/lib/analysis/levels';
+import { badgeLabel } from '@/lib/analysis/levels';
 import { evalSeries, gameReport, MOMENT_GRADES } from '@/lib/analysis/report';
 import {
   branchFen,
@@ -623,7 +623,10 @@ function Viewer({ loaded }: { loaded: Loaded }) {
         <ReportCard
           report={report}
           onJump={go}
-          level={ANALYSIS_LEVELS[loaded.level].label}
+          level={badgeLabel(
+            loaded.level,
+            here?.status === 'done' ? here.line : null,
+          )}
           white={{
             name: headers.White,
             rating: headers.WhiteElo,

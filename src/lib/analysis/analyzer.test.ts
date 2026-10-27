@@ -73,6 +73,26 @@ test('focus is searched first and streams into the document', () => {
   });
 });
 
+test('a search stopped by nodes or time keeps that on the line', () => {
+  for (const reason of ['nodes', 'time', 'depth', 'mate'] as const) {
+    const { lanes, spawn } = scripted();
+    const analyzer = createAnalyzer({ level: 'deep', spawn, lanes: 1 });
+    analyzer.view(game, 0);
+    const job = lanes[0]!.jobs[0]!;
+    lanes[0]!.send({
+      kind: 'done',
+      jobId: job.jobId,
+      outcome: { line: line(11), reason, nodes: 1, ms: 1 },
+    });
+    vi.advanceTimersByTime(FLUSH_MS);
+    const capped = reason === 'nodes' || reason === 'time' ? reason : undefined;
+    expect(analyzer.getSnapshot()!.positions[0]).toEqual({
+      status: 'done',
+      line: capped ? { ...line(11), capped } : line(11),
+    });
+  }
+});
+
 test('a new game terminates running jobs and ignores their late messages', () => {
   const { lanes, spawn } = scripted();
   const analyzer = createAnalyzer({ level: 'fast', spawn, lanes: 1 });

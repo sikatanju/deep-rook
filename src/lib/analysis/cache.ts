@@ -87,11 +87,12 @@ function isVariation(value: unknown): value is Variation {
 
 function isLine(value: unknown): value is Line {
   if (!isRecord(value)) return false;
-  const { depth, second } = value;
+  const { depth, second, capped } = value;
   return (
     isVariation(value) &&
     isNumber(depth) &&
-    (second === undefined || isVariation(second))
+    (second === undefined || isVariation(second)) &&
+    (capped === undefined || capped === 'time' || capped === 'nodes')
   );
 }
 

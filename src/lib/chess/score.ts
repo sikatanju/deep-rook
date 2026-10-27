@@ -21,7 +21,16 @@ export type Variation = { score: Score; pv: readonly string[] };
  * best line. Absent when the root has fewer than two legal moves; readers
  * treat a missing second line as unknown.
  */
-export type Line = Variation & { depth: number; second?: Variation };
+export type Line = Variation & {
+  depth: number;
+  second?: Variation;
+  /**
+   * Set when the search stopped on the time or node cap before the depth it
+   * was asked for. Absent when that depth was reached or a mate was proved.
+   * The engine leaves it unset; the analyzer writes it from the stop reason.
+   */
+  capped?: 'time' | 'nodes';
+};
 
 /**
  * How a score reads on screen: one decimal with a sign ("+1.4", "-0.6", "0.0"),

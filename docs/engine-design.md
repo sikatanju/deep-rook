@@ -50,7 +50,7 @@ Components never see a worker, a job, a lane, or a side-to-move score. Lint bloc
 GameAnalysis     = { gameId; level; positions: readonly PositionAnalysis[]; done }
 PositionAnalysis = { status: 'queued' | 'searching'; line: Line | null }
                  | { status: 'done'; line: Line } | { status: 'failed' }
-Line             = Variation & { depth; second?: Variation }
+Line             = Variation & { depth; second?: Variation; capped?: 'time' | 'nodes' }
 Variation        = { score: Score; pv: readonly string[] /* UCI */ }
 Score            = { kind: 'cp'; cp } | { kind: 'mate'; winner: 'w' | 'b'; moves }  // White POV
 ```
@@ -77,7 +77,7 @@ Pool size, scheduling order, worker identity, and preemption therefore cannot ch
 | balanced (default) | 12    | 1.5M     | 5 s      |
 | deep               | 16    | 10M      | 20 s     |
 
-Per position, iterative deepening runs to `depth` and stops at whichever cap binds first. Each iteration searches two lines (see Search), and both share the caps. A partial iteration is discarded, including one cut during its second line. The search also stops early on a proven mate. Key order is rank order, and a test asserts that every column strictly increases. Settings options, persisted-value validation, the scheduler, and the worker limits all derive from this table. The numbers are calibrated with `pnpm bench` (see Verification).
+Per position, iterative deepening runs to `depth` and stops at whichever cap binds first. Each iteration searches two lines (see Search), and both share the caps. A partial iteration is discarded, including one cut during its second line. The search also stops early on a proven mate. Key order is rank order, and a test asserts that every column strictly increases. Settings options, persisted-value validation, the scheduler, and the worker limits all derive from this table. The numbers are calibrated with `pnpm bench` (see Verification). A search that reaches its depth or a mate is badged with the level that was asked for. A search that stops on the time or node cap keeps that level and adds the depth the line reached (`Deep review, depth 11`). The line keeps `capped: 'time' | 'nodes'` so a reopened game says the same thing. The settled level stays the level that was asked for, so a cap does not schedule the position again.
 
 ### Concurrency: lanes behind the document
 
@@ -139,7 +139,7 @@ Determinism is what makes a finished analysis worth keeping: the same game at th
 The Drill route (`#/drill`) turns saved reviews into practice. `drillsOf` takes every mistake, miss and blunder the player made (from `mistakesOf`, the uncapped version of the report's key moments) in games where the saved username names their side. It asks for the move from the position before it, and drops any moment whose engine move is missing or illegal there.
 
 - **Close enough counts.** A move solves the drill when it gives up less than `CLOSE_ENOUGH` (5) points of win chance against the saved line, the excellent and good bands. `judge` settles what the saved lines can: the engine's move, the move played in the game, and the second line's move. The second line is the best of the other moves, so when it falls short every other move does too and no search is needed. Any other move goes to the probe, the drill session waits in `checking`, and `judgeAfter` grades the searched position. Without an engine, such a move falls short. Show answer and Skip still work while the engine looks, and its late verdict is ignored.
-- **Progress is kept** (`drill-progress.ts`, the `drills` store). Each answer moves the drill between Leitner boxes that rest it 0, 1, 3, 7, 21 or 60 days: a first-try solve moves it up a box, a solve after a wrong try drops it to box 1, a shown answer to box 0. A skip records nothing. `plan` puts due drills first, the most missed first, then drills never answered in queue order. Resting drills wait, and when nothing is due the page says when the next one comes back and offers to drill them anyway. The plan is read once per round, so the queue holds still while answers are saved. Clearing the saved reviews clears the progress too.
+- **Progress is kept** (`drill-progress.ts`, the `drills` store). Each answer moves the drill between Leitner boxes that rest it 0, 1, 3, 7, 21 or 60 days: a first-try solve moves it up a box, a solve after a wrong try drops it to box 1, a shown answer to box 0. A skip records nothing. `plan` puts due drills first, the most missed first, then drills never answered in queue order. Resting drills wait, and when nothing is due the page says when the next one comes back and offers to drill them anyway. That pass writes nothing, the way a skip does, and the page says so. The plan is read once per round, so the queue holds still while answers are saved. Clearing the saved reviews clears the progress too.
 - `drill-session.ts` is the answer flow as a reducer.
 
 ### Batch analysis (`src/lib/analysis/batch.ts`)

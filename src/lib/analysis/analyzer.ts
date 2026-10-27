@@ -240,7 +240,7 @@ export function createAnalyzer({
       entry.line = mergeLine(entry.line, message.line);
     } else {
       if (message.kind === 'done') {
-        entry.line = mergeLine(entry.line, message.outcome.line);
+        entry.line = mergeLine(entry.line, lineOf(message.outcome));
         entry.settled = settle(entry.settled, job.level);
       } else {
         entry.failed = true;
@@ -339,6 +339,14 @@ export function createAnalyzer({
 /** Keeps the deeper line; on equal depth the newer one. */
 function mergeLine(have: Line | null, next: Line): Line {
   return have && have.depth > next.depth ? have : next;
+}
+
+/** A time or node cap is part of the line. Depth and mate are not. */
+function lineOf(outcome: { line: Line; reason: string }): Line {
+  const { line, reason } = outcome;
+  return reason === 'time' || reason === 'nodes'
+    ? { ...line, capped: reason }
+    : line;
 }
 
 function settle(

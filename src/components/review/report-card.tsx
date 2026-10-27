@@ -40,7 +40,7 @@ export function ReportCard({
 }: {
   report: GameReport | null;
   onJump: (index: number) => void;
-  /** The review mode that produced it, e.g. "Balanced". */
+  /** The review badge, e.g. "Balanced review" or "Fast review, depth 9". */
   level?: string;
   white?: Who;
   black?: Who;
@@ -115,7 +115,7 @@ export function ReportCard({
         </h3>
         {level && (
           <span className="text-xs leading-4 font-extrabold tracking-[0.08em] uppercase">
-            {level} review
+            {level}
           </span>
         )}
       </header>

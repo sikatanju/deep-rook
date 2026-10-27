@@ -241,10 +241,22 @@ test('with every drill resting it says when the next is due, and drills anyway o
       /^You have been through every drill\. The next one comes back on /,
     ),
   ).toBeInTheDocument();
+  expect(screen.getByText(/does not move that/)).toBeInTheDocument();
   expect(screen.queryByRole('group', { name: /Chess board/ })).toBeNull();
 
+  const before = await progress.list();
   await user.click(screen.getByRole('button', { name: 'Drill them anyway' }));
   expect(screen.getByText('Drill 1 of 2')).toBeInTheDocument();
+
+  await user.click(screen.getByRole('button', { name: 'Show answer' }));
+  await user.click(screen.getByRole('button', { name: 'Next drill' }));
+  await user.click(screen.getByRole('button', { name: 'Show answer' }));
+  await user.click(screen.getByRole('button', { name: 'Next drill' }));
+
+  expect(
+    screen.getByText('Nothing was saved. They come back on the same day.'),
+  ).toBeInTheDocument();
+  expect(await progress.list()).toEqual(before);
 });
 
 test('Review this game opens the saved game with the player at the bottom', async () => {

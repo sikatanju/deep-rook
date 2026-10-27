@@ -113,9 +113,21 @@ test('every malformed record is a miss, never a throw', () => {
     'a ply with a bad color': withPly({ color: 'x' }),
     'a ply with a non-boolean check': withPly({ check: 'yes' }),
     'a ply with a text clock': withPly({ clock: 'fast' }),
+    'a line stopped for a reason that is not a cap': withLine({
+      score: { kind: 'cp', cp: 1 },
+      pv: [],
+      depth: 1,
+      capped: 'depth',
+    }),
   };
   for (const [name, raw] of Object.entries(bad))
     expect(parseStored(raw), name).toBeNull();
+});
+
+test('a line stopped on a cap round-trips', () => {
+  const record = stored();
+  record.lines[1] = { ...record.lines[1]!, depth: 9, capped: 'nodes' };
+  expect(parseStored(structuredClone(record))).toEqual(record);
 });
 
 test('a mate score round-trips', () => {

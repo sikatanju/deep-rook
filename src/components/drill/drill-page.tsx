@@ -295,11 +295,14 @@ function DrillCard({
 function DrillSession({
   queue,
   onResult,
+  practice,
   onRestart,
 }: {
   queue: readonly Drill[];
-  /** null where nothing can be saved. */
+  /** null where nothing can be saved, and during a practice pass. */
   onResult: ((drill: Drill, result: Result) => void) | null;
+  /** A pass over resting drills. Answers are not recorded. */
+  practice: boolean;
   onRestart: () => void;
 }) {
   const total = queue.length;
@@ -324,11 +327,17 @@ function DrillSession({
           Solved first try {counts['first-try']}, after retries {counts.retry},
           shown {counts.shown}, skipped {counts.skipped}
         </p>
-        {onResult && (
+        {practice ? (
           <p className="text-ink-muted">
-            The ones you missed come back next time. The ones you solved rest
-            for a while.
+            Nothing was saved. They come back on the same day.
           </p>
+        ) : (
+          onResult && (
+            <p className="text-ink-muted">
+              The ones you missed come back next time. The ones you solved rest
+              for a while.
+            </p>
+          )
         )}
         <div>
           <Button variant="primary" onClick={onRestart}>
@@ -490,7 +499,7 @@ export function DrillPage() {
             </>
           }
         >
-          {`You have been through every drill. The next one comes back on ${date.format(next)}.`}
+          {`You have been through every drill. The next one comes back on ${date.format(next)}. Drilling them now does not move that.`}
         </CoachBubble>
       </>
     );
@@ -502,7 +511,8 @@ export function DrillPage() {
       <DrillSession
         key={`${round}:${queue.map((d) => d.id).join()}`}
         queue={queue}
-        onResult={onResult}
+        onResult={practice ? null : onResult}
+        practice={practice}
         onRestart={() => {
           setPractice(false);
           setRound((r) => r + 1);
