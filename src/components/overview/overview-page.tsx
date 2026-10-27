@@ -14,9 +14,11 @@ import type { StoredAnalysis } from '@/lib/analysis/cache';
 import { ANALYSIS_LEVELS } from '@/lib/analysis/levels';
 import {
   overview,
+  TREND_LIMIT,
   summarize,
   type GameSummary,
   type OpeningStat,
+  type Overview,
 } from '@/lib/analysis/overview';
 
 import { AccuracyTrend, GradeMix, StageBars, TimeTrouble } from './charts';
@@ -25,6 +27,37 @@ const date = new Intl.DateTimeFormat(undefined, {
   month: 'short',
   day: 'numeric',
 });
+
+const games = (n: number) => `${n} ${n === 1 ? 'game' : 'games'}`;
+
+/** The trend is capped. The other panels count every game matched to you. */
+function trendSubtitle(data: Overview | false | null) {
+  if (!data)
+    return `Your latest games, at most ${TREND_LIMIT}, oldest to newest.`;
+  if (data.trend.length === 0)
+    return 'No accuracy figures in the games matched to you.';
+  return `Your latest ${games(data.trend.length)}, oldest to newest.`;
+}
+
+function matchedGames(data: Overview | false | null) {
+  if (!data) return 'every game matched to you';
+  return data.games === 1
+    ? 'the game matched to you'
+    : `all ${data.games} games matched to you`;
+}
+
+function clockSubtitle(data: Overview | false | null) {
+  const rule =
+    'Mistakes, misses and blunders per 100 of your moves, with time to think and with under a tenth of your starting time left (10 seconds at least)';
+  if (!data) return `${rule}, in every matched game with a clock.`;
+  if (data.clock.games === 0)
+    return `${rule}. None of the games matched to you have a clock.`;
+  const which =
+    data.clock.games === 1
+      ? 'the matched game with a clock'
+      : `all ${data.clock.games} matched games with a clock`;
+  return `${rule}, in ${which}.`;
+}
 
 /** Holds a panel's height while the saved reviews are read. */
 function Pending() {
@@ -125,10 +158,15 @@ function RecentGames({
           >
             {date.format(g.analyzedAt)}
           </time>
-          <Button size="sm" onClick={() => onReview(g)}>
+          <Button
+            size="sm"
+            disabled={g.me === null}
+            onClick={() => onReview(g)}
+          >
             Review again
             <span className="sr-only">
               : {g.white.name} vs {g.black.name}
+              {g.me === null ? ', not matched to you' : ''}
             </span>
           </Button>
         </li>
@@ -154,11 +192,13 @@ export function OverviewPage() {
 
   function reviewAgain(game: GameSummary) {
     const record = records?.find((r: StoredAnalysis) => r.key === game.key);
-    if (!record) return;
+    // A game with no matched side is listed and not counted. Sitting White
+    // would be a guess about which player you were.
+    if (!record || !game.me) return;
     reviewReplay(
       record.replay,
       `${game.white.name} vs ${game.black.name}`,
-      game.me ?? 'w',
+      game.me,
       record.level,
     );
   }
@@ -213,31 +253,27 @@ export function OverviewPage() {
       )}
       {(!data || data.games > 0) && (
         <div className="grid gap-8 lg:grid-cols-2 lg:items-start">
-          <Panel
-            tag="Trend"
-            title="Accuracy"
-            subtitle="Your latest games, oldest to newest."
-          >
+          <Panel tag="Trend" title="Accuracy" subtitle={trendSubtitle(data)}>
             {data ? <AccuracyTrend games={data.trend} /> : <Pending />}
           </Panel>
           <Panel
             tag="Moves"
             title="Grade mix"
-            subtitle="Every move you played in the games above."
+            subtitle={`Every move you played in ${matchedGames(data)}.`}
           >
             {data ? <GradeMix totals={data.gradeTotals} /> : <Pending />}
           </Panel>
           <Panel
             tag="Stages"
             title="Where mistakes happen"
-            subtitle="Mistakes, misses and blunders per 100 of your moves."
+            subtitle={`Mistakes, misses and blunders per 100 of your moves in ${matchedGames(data)}.`}
           >
             {data ? <StageBars stages={data.stages} /> : <Pending />}
           </Panel>
           <Panel
             tag="Clock"
             title="Time trouble"
-            subtitle="Mistakes, misses and blunders per 100 of your moves, with time to think and with under a tenth of your starting time left (10 seconds at least)."
+            subtitle={clockSubtitle(data)}
           >
             {data ? <TimeTrouble clock={data.clock} /> : <Pending />}
           </Panel>

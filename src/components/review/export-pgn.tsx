@@ -5,7 +5,11 @@ import { annotatedPgn, pgnFilename } from '@/lib/analysis/export-pgn';
 import type { GameAnalysis } from '@/lib/analysis/game-analysis';
 import type { Replay } from '@/lib/chess/replay';
 
-/** Saves the reviewed game as a PGN with evals and grades, once every position has settled. */
+/**
+ * Saves the reviewed game as a PGN with evals and grades, once every position
+ * has a line. A failed position has settled and still has no eval, so `done`
+ * reaching the position count is not enough.
+ */
 export function ExportPgn({
   replay,
   analysis,
@@ -14,7 +18,8 @@ export function ExportPgn({
   analysis: GameAnalysis | null;
 }) {
   const ready =
-    analysis !== null && analysis.done === analysis.positions.length;
+    analysis !== null &&
+    analysis.positions.every((position) => position.status === 'done');
 
   function onDownload() {
     if (!analysis) return;
@@ -37,7 +42,9 @@ export function ExportPgn({
       title={
         ready
           ? 'Download annotated PGN'
-          : 'Download annotated PGN (once the review finishes)'
+          : analysis?.positions.some((position) => position.status === 'failed')
+            ? 'Download annotated PGN (a position has no eval)'
+            : 'Download annotated PGN (once the review finishes)'
       }
       disabled={!ready}
       onClick={onDownload}

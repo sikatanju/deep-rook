@@ -82,6 +82,21 @@ test('a saved review of the player shows their progress', async () => {
   );
   expect(game.getByText('Won')).toBeInTheDocument();
   expect(game.getByText('Balanced')).toBeInTheDocument();
+
+  const beside = (name: string) =>
+    screen.getByRole('heading', { name }).parentElement!;
+  expect(beside('Accuracy')).toHaveTextContent(
+    'Your latest 1 game, oldest to newest.',
+  );
+  expect(beside('Grade mix')).toHaveTextContent(
+    'Every move you played in the game matched to you.',
+  );
+  expect(beside('Where mistakes happen')).toHaveTextContent(
+    'Mistakes, misses and blunders per 100 of your moves in the game matched to you.',
+  );
+  expect(beside('Time trouble')).toHaveTextContent(
+    'None of the games matched to you have a clock.',
+  );
 });
 
 test('a Lichess username counts beside a Chess.com one', async () => {
@@ -104,6 +119,7 @@ test('games that are not the player’s are listed but never counted', async () 
   expect(screen.queryByText('Grade mix')).toBeNull();
   expect(screen.getByRole('listitem')).toHaveTextContent(/Paul Morphy/);
   expect(screen.queryByText('Won')).toBeNull();
+  expect(screen.getByRole('button', { name: /^Review again/ })).toBeDisabled();
 });
 
 test('Review again opens the saved game at its saved level without the engine', async () => {

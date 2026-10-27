@@ -180,6 +180,8 @@ export type Overview = {
   recent: GameSummary[];
 };
 
+/** Accuracy trend length. Grade, stage, and clock totals cover every matched game. */
+export const TREND_LIMIT = 20;
 const OPENINGS_SHOWN = 5;
 const RECENT_SHOWN = 10;
 
@@ -192,10 +194,10 @@ const rate = (tallies: readonly Tally[]): Rate => {
 const mean = (values: number[]) =>
   values.length ? values.reduce((a, b) => a + b, 0) / values.length : null;
 
-/** `last` bounds the accuracy trend only; the other figures cover every game. */
+/** `last` bounds the accuracy trend only; the other figures cover every matched game. */
 export function overview(
   summaries: readonly GameSummary[],
-  last = 20,
+  last = TREND_LIMIT,
 ): Overview {
   const newestFirst = [...summaries].sort(
     (a, b) => b.analyzedAt - a.analyzedAt,

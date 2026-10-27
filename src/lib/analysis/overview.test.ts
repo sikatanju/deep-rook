@@ -4,7 +4,7 @@ import { loadOpeningBook } from '@/lib/chess/openings';
 import { OPERA_GAME, parseReplay } from '@/lib/chess/replay';
 
 import { CLASSIFICATIONS, type Classification } from './classify';
-import { overview, summarize, type GameSummary } from './overview';
+import { TREND_LIMIT, overview, summarize, type GameSummary } from './overview';
 import { stored } from './fixtures';
 import type { GameKey } from './cache';
 
@@ -257,9 +257,12 @@ describe('overview', () => {
       game({ accuracy: null }),
     ];
     const o = overview(summaries);
-    expect(o.trend).toHaveLength(20);
+    expect(o.trend).toHaveLength(TREND_LIMIT);
     expect(o.trend.map((t) => t.accuracy)).toEqual(
-      Array.from({ length: 20 }, (_, i) => 55 + i),
+      Array.from(
+        { length: TREND_LIMIT },
+        (_, i) => 50 + (25 - TREND_LIMIT) + i,
+      ),
     );
     expect(overview(summaries, 3).trend.map((t) => t.accuracy)).toEqual([
       72, 73, 74,
