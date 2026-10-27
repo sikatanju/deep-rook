@@ -34,6 +34,12 @@ describe('drillsOf', () => {
     });
   });
 
+  test('a position with no line drops only the moves it brackets', () => {
+    const record = stored(OPERA_SLIPS);
+    record.lines[14] = null;
+    expect(drillsOf(record, [BLACK]).map((d) => d.index)).toEqual([8]);
+  });
+
   test('matches the username in any case', () => {
     expect(drillsOf(stored(OPERA_SLIPS), [BLACK.toUpperCase()])).toHaveLength(
       2,

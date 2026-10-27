@@ -346,7 +346,7 @@ describe('saved analyses', () => {
     expect(save).toHaveBeenCalledTimes(2);
   });
 
-  test('a position the engine failed on keeps the game from being saved', async () => {
+  test('a position the engine failed on is saved as a gap, and the finished lines are kept', async () => {
     const store = memoryStore();
     const save = vi.spyOn(store, 'save');
     const { lanes, spawn } = scripted();
@@ -354,6 +354,63 @@ describe('saved analyses', () => {
     analyzer.view(game, 0);
     await settleAll();
     drain(lanes, 1);
+    await settleAll();
+
+    expect(analyzer.getSnapshot()!.done).toBe(total);
+    expect(save).toHaveBeenCalledOnce();
+    const record = save.mock.calls[0]![0] as StoredAnalysis;
+    expect(record.lines.filter((line) => line === null)).toHaveLength(1);
+    expect(record.lines.filter((line) => line !== null)).toHaveLength(total - 1);
+    expect(record.level).toBe('fast');
+
+    const second = scripted();
+    const after = createAnalyzer({
+      level: 'fast',
+      spawn: second.spawn,
+      lanes: 2,
+      store,
+    });
+    after.view({ ...game, id: 2 }, 0);
+    await settleAll();
+    expect(jobsPosted(second.lanes)).toBe(0);
+    const shown = after.getSnapshot()!;
+    expect(shown.done).toBe(total);
+    expect(shown.positions.filter((p) => p.status === 'failed')).toHaveLength(1);
+    expect(shown.positions.filter((p) => p.status === 'done')).toHaveLength(
+      total - 1,
+    );
+  });
+
+  test('a failed upgrade keeps the line that position already settled', async () => {
+    const store = memoryStore();
+    const { lanes, spawn } = scripted();
+    const analyzer = createAnalyzer({ level: 'fast', spawn, lanes: 2, store });
+    analyzer.view(game, 0);
+    await settleAll();
+    drain(lanes);
+    await settleAll();
+    const key = gameKey(game.replay);
+    const before = (await store.load(key))!.lines.map((line) => line?.depth);
+
+    analyzer.setLevel('deep');
+    await settleAll();
+    drain(lanes, 1);
+    await settleAll();
+
+    const after = await store.load(key);
+    expect(after!.lines.every((line) => line !== null)).toBe(true);
+    expect(after!.level).toBe('fast');
+    expect(after!.lines.map((line) => line?.depth)).toEqual(before);
+  });
+
+  test('a game the engine failed on entirely is not saved', async () => {
+    const store = memoryStore();
+    const save = vi.spyOn(store, 'save');
+    const { lanes, spawn } = scripted();
+    const analyzer = createAnalyzer({ level: 'fast', spawn, lanes: 2, store });
+    analyzer.view(game, 0);
+    await settleAll();
+    drain(lanes, total);
     await settleAll();
 
     expect(analyzer.getSnapshot()!.done).toBe(total);

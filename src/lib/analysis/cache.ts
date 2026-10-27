@@ -19,10 +19,13 @@ export const CACHE_VERSION = 2;
 export type StoredAnalysis = {
   v: typeof CACHE_VERSION;
   key: GameKey;
-  /** The lowest level every position settled at. */
+  /** The lowest level a position with a line settled at. */
   level: AnalysisLevel;
-  /** `replay.plies.length + 1` entries, one per position. */
-  lines: Line[];
+  /**
+   * `replay.plies.length + 1` entries, one per position. null where the
+   * engine failed and left no settled line.
+   */
+  lines: (Line | null)[];
   replay: Replay;
   /** ms since the epoch. */
   analyzedAt: number;
@@ -85,6 +88,10 @@ function isVariation(value: unknown): value is Variation {
     : score.kind === 'mate' && isColor(score.winner) && isNumber(score.moves);
 }
 
+function isStoredLine(value: unknown): value is Line | null {
+  return value === null || isLine(value);
+}
+
 function isLine(value: unknown): value is Line {
   if (!isRecord(value)) return false;
   const { depth, second, capped } = value;
@@ -132,7 +139,7 @@ export function parseStored(raw: unknown): StoredAnalysis | null {
   if (!isNumber(analyzedAt) || !isReplay(replay)) return null;
   if (!Array.isArray(lines) || lines.length !== replay.plies.length + 1)
     return null;
-  if (!lines.every(isLine)) return null;
+  if (!lines.every(isStoredLine)) return null;
   return {
     v: CACHE_VERSION,
     key: key as GameKey,

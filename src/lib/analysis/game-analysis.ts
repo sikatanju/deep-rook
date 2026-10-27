@@ -35,3 +35,12 @@ export type PositionAnalysis =
   | { status: 'queued' | 'searching'; line: Line | null }
   | { status: 'done'; line: Line }
   | { status: 'failed' };
+
+/** A stored line is settled. A null is a position the engine failed on. */
+export function positionsFromStored(
+  lines: readonly (Line | null)[],
+): PositionAnalysis[] {
+  return lines.map((line) =>
+    line ? { status: 'done', line } : { status: 'failed' },
+  );
+}

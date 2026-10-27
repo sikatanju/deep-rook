@@ -8,7 +8,7 @@ import { winPercent, type Line, type Score } from '@/lib/chess/score';
 
 import type { StoredAnalysis } from './cache';
 import { classifyMoves } from './classify';
-import type { PositionAnalysis } from './game-analysis';
+import { positionsFromStored } from './game-analysis';
 import { sideOf } from './overview';
 import { mistakesOf } from './report';
 
@@ -45,18 +45,17 @@ export function drillsOf(
   const { replay, lines } = record;
   const me = sideOf(replay.headers, usernames);
   if (!me) return [];
-  const positions = lines.map((line): PositionAnalysis => ({
-    status: 'done',
-    line,
-  }));
+  const positions = positionsFromStored(lines);
   const grades = classifyMoves(replay, positions);
   const them = me === 'w' ? 'Black' : 'White';
   const opponent = replay.headers[them] ?? them;
 
   return mistakesOf(replay, positions, grades).flatMap((moment): Drill[] => {
     if (moment.color !== me) return [];
+    const before = lines[moment.index - 1];
+    if (!before) return [];
     const fen = fenAt(replay, moment.index - 1);
-    const pv = lines[moment.index - 1]!.pv;
+    const pv = before.pv;
     const line = sanLine(fen, pv.slice(0, LINE_PLIES));
     if (line.length === 0) return [];
     const ply = replay.plies[moment.index - 1]!;

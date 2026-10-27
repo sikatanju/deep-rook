@@ -15,7 +15,7 @@ import {
   CLASSIFICATIONS,
   type Classification,
 } from './classify';
-import type { PositionAnalysis } from './game-analysis';
+import { positionsFromStored } from './game-analysis';
 import type { AnalysisLevel } from './levels';
 import { gameReport, MOMENT_GRADES } from './report';
 
@@ -79,10 +79,7 @@ export function summarize(
 ): GameSummary {
   const { replay } = record;
   const { headers } = replay;
-  const positions = record.lines.map((line): PositionAnalysis => ({
-    status: 'done',
-    line,
-  }));
+  const positions = positionsFromStored(record.lines);
   const grades = classifyMoves(replay, positions);
   const report = gameReport(replay, positions, grades);
   const me = sideOf(headers, usernames);

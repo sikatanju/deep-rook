@@ -69,7 +69,6 @@ test('every malformed record is a miss, never a throw', () => {
     'a line too few': { ...good, lines: good.lines.slice(1) },
     'a line too many': { ...good, lines: [...good.lines, good.lines[0]] },
     'lines that are not an array': { ...good, lines: {} },
-    'a line that is null': withLine(null),
     'a line with no depth': withLine({ score: { kind: 'cp', cp: 1 }, pv: [] }),
     'a line with a non-numeric cp': withLine({
       score: { kind: 'cp', cp: '1' },
@@ -122,6 +121,12 @@ test('every malformed record is a miss, never a throw', () => {
   };
   for (const [name, raw] of Object.entries(bad))
     expect(parseStored(raw), name).toBeNull();
+});
+
+test('a missing line round-trips as a gap', () => {
+  const record = stored();
+  record.lines[2] = null;
+  expect(parseStored(structuredClone(record))).toEqual(record);
 });
 
 test('a line stopped on a cap round-trips', () => {

@@ -23,7 +23,7 @@ type Counts = {
   total: number;
   /** Games behind us, failed ones included. */
   finished: number;
-  /** Games that could not be read or analyzed, and so were not saved. */
+  /** Games that could not be read, or that the engine failed on entirely. */
   failed: number;
 };
 
@@ -145,7 +145,7 @@ export function createBatch({
     if (!current || analysis?.gameId !== current.id) return;
     if (analysis.unavailable) return stop('unavailable');
     if (analysis.done < analysis.positions.length) return report();
-    const failed = analysis.positions.some((p) => p.status === 'failed');
+    const failed = analysis.positions.every((p) => p.status === 'failed');
     counts = {
       ...counts,
       finished: counts.finished + 1,

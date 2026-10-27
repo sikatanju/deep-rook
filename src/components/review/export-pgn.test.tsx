@@ -12,7 +12,8 @@ import { ExportPgn } from './export-pgn';
 function analysis(patch: Record<number, PositionAnalysis> = {}): GameAnalysis {
   const record = stored(OPERA_SLIPS);
   const positions = record.lines.map(
-    (line, i): PositionAnalysis => patch[i] ?? { status: 'done', line },
+    (line, i): PositionAnalysis =>
+      patch[i] ?? (line ? { status: 'done', line } : { status: 'failed' }),
   );
   return {
     gameId: 1,

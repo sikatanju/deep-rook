@@ -161,24 +161,41 @@ export function createAnalyzer({
     if (commands.length) markDirty();
   }
 
-  /** Saves a finished game once per level reached. Fire and forget: the cache never blocks a review. */
+  /**
+   * Saves a finished game once per level reached. A position that never
+   * settled is stored as a gap, so the lines that did settle are kept.
+   * A game with no settled line is not saved. Fire and forget: the cache
+   * never blocks a review.
+   */
   function persist(target: Game) {
     if (!store) return;
     const { entries } = target;
     if (
-      !entries.every((e) => e.line && !e.failed && satisfies(e.settled, level))
+      !entries.every(
+        (e) => e.failed || (e.line && satisfies(e.settled, level)),
+      )
     )
       return;
-    const lowest = entries
-      .map((e) => e.settled!)
-      .reduce((low, at) => (rank(at) < rank(low) ? at : low));
+    // A later search can fail after a line already settled. Keep that line.
+    // Only a position that never settled is a gap.
+    const lines = entries.map((e) =>
+      e.failed ? (e.settled && e.line ? e.line : null) : e.line!,
+    );
+    const settled = lines.flatMap((line, i) => {
+      const at = entries[i]!.settled;
+      return line && at ? [at] : [];
+    });
+    if (settled.length === 0) return;
+    const lowest = settled.reduce((low, at) =>
+      rank(at) < rank(low) ? at : low,
+    );
     if (satisfies(target.saved, lowest)) return;
     target.saved = lowest;
     const record: StoredAnalysis = {
       v: CACHE_VERSION,
       key: target.key,
       level: lowest,
-      lines: entries.map((e) => e.line!),
+      lines,
       replay: target.replay,
       analyzedAt: Date.now(),
     };
@@ -206,6 +223,10 @@ export function createAnalyzer({
         if (hit) {
           record.lines.forEach((line, i) => {
             const entry = target.entries[i]!;
+            if (!line) {
+              if (!entry.line) entry.failed = true;
+              return;
+            }
             entry.line = mergeLine(entry.line, line);
             entry.settled = settle(entry.settled, record.level);
           });

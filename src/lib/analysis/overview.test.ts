@@ -57,6 +57,19 @@ describe('summarize', () => {
     expect(unmatched.stages.opening.plies).toBe(0);
   });
 
+  test('keeps the graded moves when one position has no line', () => {
+    const partial = stored({ cps });
+    partial.lines[12] = null;
+    const summary = summarize(partial, ['Paul Morphy']);
+    const plies = (game: GameSummary) =>
+      game.stages.opening.plies +
+      game.stages.middlegame.plies +
+      game.stages.endgame.plies;
+    expect(plies(summary)).toBeGreaterThan(0);
+    expect(plies(summary)).toBeLessThan(plies(summarize(record, ['Paul Morphy'])));
+    expect(summary.accuracy).not.toBeNull();
+  });
+
   test('counts my grades, accuracy and mistakes by stage, not my opponent’s', () => {
     const white = summarize(record, ['Paul Morphy']);
     expect(white.grades).toMatchObject({

@@ -12,7 +12,8 @@ function analysisOf(
   patch: Record<number, PositionAnalysis> = {},
 ): GameAnalysis {
   const positions = record.lines.map(
-    (line, i): PositionAnalysis => patch[i] ?? { status: 'done', line },
+    (line, i): PositionAnalysis =>
+      patch[i] ?? (line ? { status: 'done', line } : { status: 'failed' }),
   );
   return {
     gameId: 1,
