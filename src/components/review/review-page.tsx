@@ -46,7 +46,6 @@ import {
   numberedSan,
   sanLine,
   type Ply,
-  type Replay,
 } from '@/lib/chess/replay';
 import { formatScore, type Variation } from '@/lib/chess/score';
 import { soundFor } from '@/lib/sound';

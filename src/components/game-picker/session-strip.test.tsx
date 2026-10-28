@@ -29,7 +29,10 @@ test('without ratings it shows totals only', () => {
 });
 
 test('a long day shows the latest 15 blocks and still counts the whole day', () => {
-  const results = ['L', ...Array.from({ length: 15 }, () => 'W' as const)];
+  const results = [
+    'L' as const,
+    ...Array.from({ length: 15 }, () => 'W' as const),
+  ];
   const ratings = [2000, ...Array.from({ length: 15 }, () => 1500)];
   render(<SessionStrip results={results} ratings={ratings} />);
   const img = screen.getByRole('img', {

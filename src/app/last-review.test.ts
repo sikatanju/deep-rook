@@ -23,7 +23,8 @@ test('a saved review reads back whole', () => {
 });
 
 test('a review saved before ply was stored reopens at the start', () => {
-  const { index: _, ...older } = review;
+  const older: Partial<typeof review> = { ...review };
+  delete older.index;
   localStorage.setItem('lastReview', JSON.stringify({ v: 1, ...older }));
   expect(loadLastReview()).toEqual({ ...review, index: 0 });
 });
