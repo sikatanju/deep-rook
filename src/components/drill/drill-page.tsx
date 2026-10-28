@@ -17,6 +17,7 @@ import { useSound } from '@/hooks/use-sound';
 import { useSavedReviews } from '@/hooks/use-saved-reviews';
 import {
   drillQueue,
+  drillReason,
   judge,
   judgeAfter,
   type Drill,
@@ -267,6 +268,7 @@ function DrillCard({
       ? judged.verdict
       : null;
   const close = phase === 'solved' && judged?.verdict === 'close';
+  const reason = useMemo(() => drillReason(drill), [drill]);
 
   const coach =
     phase === 'checking' && attempt ? (
@@ -296,7 +298,7 @@ function DrillCard({
         }
         actions={actions}
       >
-        {`${close ? `${attempt!.ply.san} is nearly as good as the engine's ${drill.best.san}. ` : ''}You played ${drill.played.san}, which cost ${drill.loss.toFixed(1)} points of winning chances. The engine goes ${numberedLine(drill)}.`}
+        {`${close ? `${attempt!.ply.san} is nearly as good as the engine's ${drill.best.san}. ` : ''}You played ${drill.played.san}, which cost ${drill.loss.toFixed(1)} points of winning chances. ${reason ? `It ${reason}. ` : ''}The engine goes ${numberedLine(drill)}.`}
       </CoachBubble>
     );
 

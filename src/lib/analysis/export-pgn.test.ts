@@ -56,6 +56,22 @@ test('a blunder carries its glyph, its eval and the engine move', () => {
   expect(pgn).toContain('7... Qe7 $2 {[%eval 9.00] Mistake. Best was Nc6.}');
 });
 
+test('a reason, when one fits, goes between the grade and the engine move', () => {
+  const pgn = exportOf({
+    8: {
+      status: 'done',
+      line: {
+        score: { kind: 'mate', winner: 'w', moves: 3 },
+        pv: ['d1f3'],
+        depth: 12,
+      },
+    },
+  }).replace(/\n/g, ' ');
+  expect(pgn).toContain(
+    '4... Bxf3 $4 {[%eval #3] Blunder. Allows mate in 3, starting with Qxf3. Best was dxe5.}',
+  );
+});
+
 test('opens with the level and each side’s estimated accuracy', () => {
   const body = exportOf().split('\n\n')[1]!;
   expect(body).toMatch(

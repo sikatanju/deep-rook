@@ -8,6 +8,7 @@ import { winPercent, type Line, type Score } from '@/lib/chess/score';
 
 import type { StoredAnalysis } from './cache';
 import { classifyMoves } from './classify';
+import { explainMove } from './explain';
 import { positionsFromStored } from './game-analysis';
 import { sideOf } from './overview';
 import { mistakesOf } from './report';
@@ -77,6 +78,16 @@ export function drillsOf(
       },
     ];
   });
+}
+
+/** Why the move played in the game cost what it did, as `explainMove` puts it. */
+export function drillReason(drill: Drill): string | null {
+  const { replay, lines } = drill.record;
+  const before = lines[drill.index - 1];
+  const after = lines[drill.index];
+  const ply = replay.plies[drill.index - 1];
+  if (!before || !after || !ply) return null;
+  return explainMove(drill.grade, drill.fen, ply, before, after);
 }
 
 /** Costliest first; ties go to the newer game, then the earlier move. */

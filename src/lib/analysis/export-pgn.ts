@@ -13,6 +13,7 @@ import {
   classifyMoves,
   type Classification,
 } from './classify';
+import { explainMove } from './explain';
 import type { GameAnalysis } from './game-analysis';
 import { ANALYSIS_LEVELS } from './levels';
 import { gameReport } from './report';
@@ -105,12 +106,18 @@ export function annotatedPgn(replay: Replay, analysis: GameAnalysis): string {
     if (ply.clock !== undefined) comment.push(`[%clk ${clockText(ply.clock)}]`);
     if (grade && mark) {
       const before = positions[p];
+      const settled = before?.status === 'done' ? before.line : null;
       const best =
-        mark.best && before?.status === 'done'
-          ? sanLine(fenAt(replay, p), before.line.pv.slice(0, 1))[0]
+        mark.best && settled
+          ? sanLine(fenAt(replay, p), settled.pv.slice(0, 1))[0]
           : undefined;
+      const why =
+        settled && after?.status === 'done'
+          ? explainMove(grade, fenAt(replay, p), ply, settled, after.line)
+          : null;
       comment.push(
         `${CLASSIFICATIONS[grade].label}.`,
+        ...(why ? [`${why[0]!.toUpperCase()}${why.slice(1)}.`] : []),
         ...(best && best !== ply.san ? [`Best was ${best}.`] : []),
       );
     }

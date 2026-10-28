@@ -26,6 +26,7 @@ import {
   gradeSideMove,
   type Classification,
 } from '@/lib/analysis/classify';
+import { explainMove } from '@/lib/analysis/explain';
 import { searchInputAt } from '@/lib/analysis/inputs';
 import { badgeLabel } from '@/lib/analysis/levels';
 import { sideOf } from '@/lib/analysis/overview';
@@ -288,6 +289,17 @@ function Viewer({ loaded }: { loaded: Loaded }) {
     sidePly && sideBefore && sideAfter
       ? gradeSideMove(sidePly, sideBefore, sideAfter)
       : null;
+  // The position the side line's last move was played from.
+  const sideFrom =
+    branch && branch.at > 0
+      ? branch.at === 1
+        ? fenAt(replay, branch.base)
+        : branch.plies[branch.at - 2]!.fen
+      : undefined;
+  const sideWhy =
+    sidePly && sideGrade && sideBefore && sideAfter && sideFrom
+      ? explainMove(sideGrade, sideFrom, sidePly, sideBefore, sideAfter)
+      : null;
 
   const input = useMoveInput(fen, (move: Move) => {
     if (!branch && isGameMove(replay, index, move)) return go(index + 1);
@@ -323,10 +335,19 @@ function Viewer({ loaded }: { loaded: Loaded }) {
         body: 'The coach speaks up once the engine has settled this move.',
       };
     const sentences = [];
-    if (prior?.status === 'done' && here?.status === 'done')
+    if (prior?.status === 'done' && here?.status === 'done') {
+      const why = explainMove(
+        grade,
+        fenAt(replay, index - 1),
+        ply,
+        prior.line,
+        here.line,
+      );
+      if (why) sentences.push(`${ply.san} ${why}.`);
       sentences.push(
         `The eval went from ${formatScore(prior.line.score)} to ${formatScore(here.line.score)}.`,
       );
+    }
     const timing = clocks[index - 1];
     if (timing?.trouble)
       sentences.push(
@@ -355,14 +376,8 @@ function Viewer({ loaded }: { loaded: Loaded }) {
   );
 
   const sideChoice =
-    branch && sidePly && sideGrade && sideBefore
-      ? alternative(
-          branch.at === 1
-            ? fenAt(replay, branch.base)
-            : branch.plies[branch.at - 2]!.fen,
-          sideBefore,
-          sidePly.san,
-        )
+    sidePly && sideGrade && sideBefore && sideFrom
+      ? alternative(sideFrom, sideBefore, sidePly.san)
       : undefined;
   const sideBest =
     branch && sideChoice && sideBefore
@@ -409,7 +424,9 @@ function Viewer({ loaded }: { loaded: Loaded }) {
         ? `Not part of the game. ${numberedSan(
             fenAt(replay, branch.base),
             playedPlies(branch).map((p) => p.san),
-          ).join(' ')}.`
+          ).join(
+            ' ',
+          )}.${sideWhy && sidePly ? ` ${sidePly.san} ${sideWhy}.` : ''}`
         : 'Not part of the game. Play a move, or step forward to pick the line back up.'}
     </CoachBubble>
   );
