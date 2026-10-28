@@ -142,6 +142,26 @@ for (const [name, make] of [
     await store.clear();
     expect(await store.list()).toEqual([]);
   });
+
+  test(`${name} restores progress, keeping the later answer`, async () => {
+    const store: ProgressStore = make();
+    await store.clear();
+    await store.record('a', 'first-try', NOW + 10);
+    const entry = (id: string, box: number, at: number) => ({
+      id,
+      box,
+      due: at,
+      last: 'retry' as const,
+      at,
+    });
+    await store.restore([entry('a', 5, NOW), entry('b', 3, NOW)]);
+    const list = async () =>
+      new Map((await store.list()).map((p) => [p.id, p]));
+    expect((await list()).get('a')).toMatchObject({ box: 1 });
+    expect((await list()).get('b')).toMatchObject({ box: 3 });
+    await store.restore([entry('a', 4, NOW + 20)]);
+    expect((await list()).get('a')).toMatchObject({ box: 4 });
+  });
 }
 
 test('answers given at once all count', async () => {

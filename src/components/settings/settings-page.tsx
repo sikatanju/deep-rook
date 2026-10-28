@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useRef, useState } from 'react';
 
 import { useStore } from '@/app/store';
 import { Board } from '@/components/board/board';
@@ -11,8 +11,14 @@ import { PieceSetPicker } from '@/components/settings/piece-set-picker';
 import { Button } from '@/components/ui/button';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Slider } from '@/components/ui/slider';
-import { useAnalyzer, useBatch } from '@/hooks/use-game-analysis';
+import {
+  useAnalysisStore,
+  useAnalyzer,
+  useBatch,
+  useDrillProgress,
+} from '@/hooks/use-game-analysis';
 import { useSavedReviews } from '@/hooks/use-saved-reviews';
+import { exportBackup, importBackup } from '@/lib/analysis/backup';
 import { isActive } from '@/lib/analysis/batch';
 import { fenAt, OPERA_GAME, parseReplay } from '@/lib/chess/replay';
 import { PALETTES } from '@/lib/palettes';
@@ -30,6 +36,10 @@ function SavedReviews() {
   const analyzer = useAnalyzer();
   const batch = useBatch();
   const [confirming, setConfirming] = useState(false);
+  const [note, setNote] = useState('');
+  const picker = useRef<HTMLInputElement>(null);
+  const reviews = useAnalysisStore();
+  const drills = useDrillProgress();
   const count = records?.length ?? 0;
   const running = isActive(batch.snapshot);
   const nothing = (records === null || count === 0) && !loaded && !running;
@@ -70,6 +80,59 @@ function SavedReviews() {
           >
             {confirming ? 'Click again to clear' : 'Clear saved reviews'}
           </Button>
+        </div>
+      )}
+      {available && (
+        <div className="flex flex-wrap items-center gap-4">
+          <Button
+            size="sm"
+            disabled={count === 0}
+            onClick={async () => {
+              const text = await exportBackup(reviews, drills);
+              const link = document.createElement('a');
+              link.href = URL.createObjectURL(
+                new Blob([text], { type: 'application/json' }),
+              );
+              link.download = `deeprook-backup-${new Date().toISOString().slice(0, 10)}.json`;
+              link.click();
+              URL.revokeObjectURL(link.href);
+              setNote('Backup downloaded.');
+            }}
+          >
+            Export backup
+          </Button>
+          <Button size="sm" onClick={() => picker.current?.click()}>
+            Import backup
+          </Button>
+          <input
+            ref={picker}
+            type="file"
+            accept="application/json,.json"
+            hidden
+            data-testid="backup-file"
+            onChange={async (e) => {
+              const file = e.target.files?.[0];
+              e.target.value = '';
+              if (!file) return;
+              try {
+                const done = await importBackup(
+                  await file.text(),
+                  reviews,
+                  drills,
+                );
+                setNote(
+                  `Imported ${done.reviews} ${done.reviews === 1 ? 'review' : 'reviews'} and ${done.drills} drill ${done.drills === 1 ? 'record' : 'records'}.`,
+                );
+              } catch (error) {
+                setNote(
+                  error instanceof Error ? error.message : 'Import failed.',
+                );
+              }
+            }}
+          />
+          <p aria-live="polite" className="text-ink-muted text-sm">
+            {note}
+          </p>
         </div>
       )}
     </Panel>

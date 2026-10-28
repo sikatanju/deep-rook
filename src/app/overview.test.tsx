@@ -3,6 +3,7 @@ import userEvent from '@testing-library/user-event';
 import { expect, test } from 'vitest';
 
 import { saveLastReview } from '@/app/last-review';
+import { exportBackup } from '@/lib/analysis/backup';
 import { memoryStore } from '@/lib/analysis/cache';
 import { stored } from '@/lib/analysis/fixtures';
 import { OPERA_GAME, parseReplay } from '@/lib/chess/replay';
@@ -212,4 +213,27 @@ test('the filter narrows the Overview by speed and side', async () => {
   expect(
     await screen.findByRole('img', { name: /^Accuracy over your last 1 game/ }),
   ).toBeInTheDocument();
+});
+
+test('Settings imports a backup file into the saved reviews', async () => {
+  const user = userEvent.setup();
+  const source = await savedStore();
+  const backup = await exportBackup(source, null);
+  location.hash = '#/settings';
+  render(<App store={memoryStore()} />);
+
+  expect(await screen.findByText('0 saved reviews')).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Export backup' })).toBeDisabled();
+
+  const file = (text: string) =>
+    new File([text], 'backup.json', { type: 'application/json' });
+  await user.upload(screen.getByTestId('backup-file'), file('nope'));
+  expect(await screen.findByText(/not a DeepRook backup/)).toBeInTheDocument();
+
+  await user.upload(screen.getByTestId('backup-file'), file(backup));
+  expect(await screen.findByText('1 saved review')).toBeInTheDocument();
+  expect(
+    screen.getByText('Imported 1 review and 0 drill records.'),
+  ).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: 'Export backup' })).toBeEnabled();
 });

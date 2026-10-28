@@ -76,6 +76,8 @@ export type ProgressStore = {
   list(): Promise<DrillProgress[]>;
   /** Advances one drill's progress; a skip writes nothing. */
   record(id: string, result: Result, now: number): Promise<void>;
+  /** Puts back saved progress. Where a drill already has some, the later answer stays. */
+  restore(entries: DrillProgress[]): Promise<void>;
   clear(): Promise<void>;
 };
 
@@ -101,6 +103,10 @@ export function memoryProgress(): ProgressStore {
     record: async (id, result, now) => {
       const next = advance(entries.get(id), id, result, now);
       if (next) entries.set(id, next);
+    },
+    restore: async (restored) => {
+      for (const p of restored)
+        if (p.at > (entries.get(p.id)?.at ?? -Infinity)) entries.set(p.id, p);
     },
     clear: async () => entries.clear(),
   };
@@ -130,6 +136,16 @@ export function openIdbProgress(): ProgressStore | null {
           const next = advance(have, id, result, now);
           if (next) store.put(next);
         };
+      }),
+    restore: (restored) =>
+      transact<void>('drills', 'readwrite', undefined, (store) => {
+        for (const p of restored) {
+          const request = store.get(p.id);
+          request.onsuccess = () => {
+            const have = parseProgress(request.result);
+            if (!have || p.at > have.at) store.put(p);
+          };
+        }
       }),
     clear: () =>
       transact<void>('drills', 'readwrite', undefined, (store) => {
