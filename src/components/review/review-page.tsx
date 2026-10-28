@@ -18,6 +18,7 @@ import { Panel } from '@/components/panel';
 import { Button } from '@/components/ui/button';
 import { useGameAnalysis, useProbe } from '@/hooks/use-game-analysis';
 import { useMoveInput } from '@/hooks/use-move-input';
+import { useSound } from '@/hooks/use-sound';
 import {
   classifyMoves,
   gradeSideMove,
@@ -48,6 +49,7 @@ import {
   type Replay,
 } from '@/lib/chess/replay';
 import { formatScore, type Variation } from '@/lib/chess/score';
+import { soundFor } from '@/lib/sound';
 
 import { CoachBubble } from './coach-bubble';
 import { CopyLink } from './copy-link';
@@ -226,6 +228,15 @@ function Viewer({ loaded }: { loaded: Loaded }) {
   const ply = index > 0 ? plies[index - 1] : undefined;
   const sidePly = branch?.at ? branch.plies[branch.at - 1] : undefined;
   const shownPly = branch ? sidePly : ply;
+
+  // One sound per move that appears on the board. Keyed by position, so leaving
+  // a side line back onto the same move stays quiet, and the first render too.
+  const sound = useSound();
+  const heard = useRef(shownPly?.fen);
+  useEffect(() => {
+    if (shownPly && shownPly.fen !== heard.current) sound(soundFor(shownPly));
+    heard.current = shownPly?.fen;
+  }, [shownPly, sound]);
 
   /** `variation`'s first move from `fen`, unless it is `played`. */
   const alternative = (

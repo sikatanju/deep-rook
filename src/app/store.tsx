@@ -53,6 +53,7 @@ export type Settings = {
   boardTheme: BoardTheme;
   pieceSet: PieceSet;
   coordinates: boolean;
+  sound: boolean;
   autoplayMs: number;
   analysisLevel: AnalysisLevel;
 };
@@ -62,6 +63,7 @@ const DEFAULT_SETTINGS: Settings = {
   boardTheme: 'palette',
   pieceSet: 'kiwen',
   coordinates: true,
+  sound: true,
   autoplayMs: 900,
   analysisLevel: DEFAULT_LEVEL,
 };
@@ -111,6 +113,7 @@ export function parseSettings(raw: string | null): Settings {
     boardTheme,
     pieceSet,
     coordinates,
+    sound,
     autoplayMs,
     analysisLevel,
   } = data;
@@ -125,6 +128,7 @@ export function parseSettings(raw: string | null): Settings {
         ? (pieceSet as PieceSet)
         : d.pieceSet,
     coordinates: typeof coordinates === 'boolean' ? coordinates : d.coordinates,
+    sound: typeof sound === 'boolean' ? sound : d.sound,
     autoplayMs:
       typeof autoplayMs === 'number' && autoplayMs >= 300 && autoplayMs <= 2500
         ? autoplayMs
@@ -147,7 +151,12 @@ export function loadSettings(): Settings {
     const raw = localStorage.getItem(SETTINGS_KEY);
     const settings = parseSettings(raw);
     const saved = (raw && (JSON.parse(raw) as { palette?: unknown })) || {};
-    if (!isPaletteId(saved.palette) && localStorage.getItem('theme') === 'dark')
+    // No palette chosen yet: follow the OS, until the first change saves one.
+    if (
+      !isPaletteId(saved.palette) &&
+      (localStorage.getItem('theme') === 'dark' ||
+        window.matchMedia?.('(prefers-color-scheme: dark)').matches)
+    )
       return { ...settings, palette: 'arcade' };
     return settings;
   } catch {

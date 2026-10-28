@@ -18,6 +18,7 @@ import { OverviewPage } from '@/components/overview/overview-page';
 import { ReviewPage } from '@/components/review/review-page';
 import { SettingsPage } from '@/components/settings/settings-page';
 import { Button } from '@/components/ui/button';
+import { useDueDrills } from '@/hooks/use-due-drills';
 import { useSharedLink, type SharedLink } from '@/hooks/use-shared-link';
 import type { AnalysisStore } from '@/lib/analysis/cache';
 import type { ProgressStore } from '@/lib/analysis/drill-progress';
@@ -93,6 +94,8 @@ function Shell() {
   const { Page, wide } = PAGES[route];
   const [collapsed, toggle] = useRailCollapsed();
   const { link, dismiss } = useSharedLink();
+  // Not on the drill page itself: mid-session the count would be stale.
+  const due = useDueDrills(route);
   return (
     <div
       className={cn(
@@ -110,6 +113,7 @@ function Shell() {
           id,
           ...NAV[id],
           pinned: id === 'settings',
+          badge: id === 'drill' && route !== 'drill' ? due : undefined,
         }))}
       />
       <div className="flex min-w-0 flex-col">

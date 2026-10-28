@@ -5,6 +5,7 @@ import {
   formatSpent,
   moveClocks,
   parseTimeControl,
+  timeClassOf,
   troubleLine,
 } from './clock';
 import { parseReplay } from './replay';
@@ -108,4 +109,21 @@ test('formats time spent for prose', () => {
   expect(formatSpent(42.4)).toBe('42s');
   expect(formatSpent(65)).toBe('1:05');
   expect(formatSpent(59.6)).toBe('1:00');
+});
+
+test('names the speed of a control by base plus 40 increments', () => {
+  const speeds = ['60', '180', '300+3', '600', '900+10', '1800', '1/86400'].map(
+    timeClassOf,
+  );
+  expect(speeds).toEqual([
+    'bullet',
+    'blitz',
+    'blitz',
+    'rapid',
+    'rapid',
+    'classical',
+    'daily',
+  ]);
+  expect(timeClassOf('-')).toBeNull();
+  expect(timeClassOf(undefined)).toBeNull();
 });

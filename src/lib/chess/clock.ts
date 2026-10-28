@@ -4,6 +4,8 @@
 // before it, plus the increment, minus the time left after. A side's first
 // move is the exception: neither site adds the increment to it.
 
+import type { TimeClass } from '@/lib/chesscom/types';
+
 import type { Replay } from './replay';
 
 export type TimeControl = {
@@ -30,6 +32,20 @@ export function parseTimeControl(tag: string | undefined): TimeControl | null {
   const m = /^(\d+)(?:\+(\d+))?$/.exec(text);
   const base = Number(m?.[1]);
   return m && base > 0 ? { base, increment: Number(m[2] ?? 0) } : null;
+}
+
+/**
+ * The speed a control plays at, by Lichess's rule: base plus 40 increments is
+ * the estimated length of a game. Null when the tag says nothing usable.
+ */
+export function timeClassOf(tag: string | undefined): TimeClass | null {
+  const control = parseTimeControl(tag);
+  if (!control) return null;
+  if (control.perMove) return 'daily';
+  const length = control.base + 40 * control.increment;
+  if (length < 180) return 'bullet';
+  if (length < 480) return 'blitz';
+  return length < 1500 ? 'rapid' : 'classical';
 }
 
 /** Time trouble: under this share of the starting time when the move began… */

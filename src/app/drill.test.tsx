@@ -144,6 +144,37 @@ test('the best move solves the drill and reveals what was played', async () => {
   ).toBeInTheDocument();
 });
 
+test('Enter moves on after a solve, but not while typing a move', async () => {
+  const user = await openDrill();
+  await screen.findByText('Drill 1 of 2');
+
+  // Enter in the field submits the move; it does not also skip ahead.
+  await user.type(screen.getByLabelText('Type your move'), 'dxe5{Enter}');
+  expect(screen.getByText('You found it.')).toBeInTheDocument();
+  expect(screen.getByText('Drill 1 of 2')).toBeInTheDocument();
+
+  await user.keyboard('{Enter}');
+  expect(screen.getByText('Drill 2 of 2')).toBeInTheDocument();
+  // Not settled yet: Enter does nothing.
+  await user.keyboard('{Enter}');
+  expect(screen.getByText('Drill 2 of 2')).toBeInTheDocument();
+});
+
+test('the rail counts the drills that are due, except on the drill page', async () => {
+  const store = memoryStore();
+  await store.save(stored({ ...OPERA_SLIPS, level: 'fast' }));
+  localStorage.setItem('lastUsername', BLACK);
+  location.hash = '#/games';
+  render(<App store={store} progress={memoryProgress()} />);
+  expect(
+    await screen.findByRole('link', { name: 'Drill, 2 due' }),
+  ).toBeInTheDocument();
+
+  location.hash = '#/drill';
+  expect(await screen.findByText('Drill 1 of 2')).toBeInTheDocument();
+  expect(screen.getByRole('link', { name: 'Drill' })).toBeInTheDocument();
+});
+
 test('a typed move is judged, and illegal text is not a try', async () => {
   const user = await openDrill();
   await screen.findByText('Drill 1 of 2');

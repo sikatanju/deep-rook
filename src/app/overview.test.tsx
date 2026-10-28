@@ -185,3 +185,31 @@ test('Settings says so when this browser cannot save reviews', () => {
     screen.queryByRole('button', { name: 'Clear saved reviews' }),
   ).toBeNull();
 });
+
+test('the filter narrows the Overview by speed and side', async () => {
+  localStorage.setItem('lastUsername', 'paul morphy');
+  const store = memoryStore();
+  const replay = parseReplay(
+    OPERA_GAME.replace('[Result', '[TimeControl "300+3"]\n[Result'),
+  );
+  await store.save(stored({ replay, cps }));
+  const user = userEvent.setup();
+  openOverview(store);
+
+  const speed = await screen.findByRole('group', { name: 'Time control' });
+  expect(
+    within(speed)
+      .getAllByRole('button')
+      .map((b) => b.textContent),
+  ).toEqual(['Any speed', 'Blitz']);
+
+  await user.click(screen.getByRole('button', { name: 'Black' }));
+  expect(screen.getByText('No games match this filter.')).toBeInTheDocument();
+  expect(screen.queryByRole('img', { name: /^Accuracy/ })).toBeNull();
+
+  await user.click(screen.getByRole('button', { name: 'White' }));
+  await user.click(screen.getByRole('button', { name: 'Blitz' }));
+  expect(
+    await screen.findByRole('img', { name: /^Accuracy over your last 1 game/ }),
+  ).toBeInTheDocument();
+});

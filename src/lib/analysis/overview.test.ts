@@ -4,7 +4,13 @@ import { loadOpeningBook } from '@/lib/chess/openings';
 import { OPERA_GAME, parseReplay } from '@/lib/chess/replay';
 
 import { CLASSIFICATIONS, type Classification } from './classify';
-import { TREND_LIMIT, overview, summarize, type GameSummary } from './overview';
+import {
+  TREND_LIMIT,
+  filterGames,
+  overview,
+  summarize,
+  type GameSummary,
+} from './overview';
 import { stored } from './fixtures';
 import type { GameKey } from './cache';
 
@@ -66,7 +72,9 @@ describe('summarize', () => {
       game.stages.middlegame.plies +
       game.stages.endgame.plies;
     expect(plies(summary)).toBeGreaterThan(0);
-    expect(plies(summary)).toBeLessThan(plies(summarize(record, ['Paul Morphy'])));
+    expect(plies(summary)).toBeLessThan(
+      plies(summarize(record, ['Paul Morphy'])),
+    );
     expect(summary.accuracy).not.toBeNull();
   });
 
@@ -186,6 +194,7 @@ function game(patch: Partial<GameSummary> = {}): GameSummary {
     me: 'w',
     result: 'win',
     opening: null,
+    timeClass: 'blitz',
     accuracy: 80,
     grades: zeroGrades,
     stages: {
@@ -350,4 +359,18 @@ describe('overview', () => {
       recent: [],
     });
   });
+});
+
+test('filterGames keeps the speed and the side asked for, and a game with no side fails any side', () => {
+  const blitzWhite = game();
+  const rapidBlack = game({ timeClass: 'rapid', me: 'b' });
+  const unmatched = game({ timeClass: 'rapid', me: null });
+  const all = [blitzWhite, rapidBlack, unmatched];
+  expect(filterGames(all, { speed: 'all', side: 'all' })).toEqual(all);
+  expect(filterGames(all, { speed: 'rapid', side: 'all' })).toEqual([
+    rapidBlack,
+    unmatched,
+  ]);
+  expect(filterGames(all, { speed: 'all', side: 'w' })).toEqual([blitzWhite]);
+  expect(filterGames(all, { speed: 'rapid', side: 'b' })).toEqual([rapidBlack]);
 });

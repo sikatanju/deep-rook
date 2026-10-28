@@ -25,8 +25,8 @@ const { title } = Astro.props;
     <script is:inline>
       // First paint: the saved palette, so the page never flashes the default.
       // The cookie wins. Local storage is the copy from before that move.
-      // Keep the ids and the old-toggle fallback in step with lib/palettes.ts
-      // and loadSettings in app/store.tsx.
+      // Keep the ids and the fallbacks (old toggle, then the OS dark setting)
+      // in step with lib/palettes.ts and loadSettings in app/store.tsx.
       (() => {
         const ids = [
           'pop',
@@ -53,7 +53,11 @@ const { title } = Astro.props;
             : localStorage.getItem('settings');
           const saved = JSON.parse(raw || '{}');
           if (saved && ids.includes(saved.palette)) palette = saved.palette;
-          else if (!fromCookie && localStorage.getItem('theme') === 'dark')
+          else if (
+            !fromCookie &&
+            (localStorage.getItem('theme') === 'dark' ||
+              matchMedia('(prefers-color-scheme: dark)').matches)
+          )
             palette = 'arcade';
         } catch {}
         document.documentElement.dataset.theme = palette;

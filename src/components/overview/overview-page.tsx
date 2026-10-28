@@ -1,4 +1,4 @@
-import { useMemo } from 'react';
+import { useMemo, useState } from 'react';
 
 import { navigate } from '@/app/router';
 import { useStore } from '@/app/store';
@@ -12,10 +12,14 @@ import { useOpeningBook } from '@/hooks/use-opening-book';
 import { useSavedReviews } from '@/hooks/use-saved-reviews';
 import type { StoredAnalysis } from '@/lib/analysis/cache';
 import { ANALYSIS_LEVELS } from '@/lib/analysis/levels';
+import type { TimeClass } from '@/lib/chesscom/types';
 import {
+  filterGames,
+  NO_FILTER,
   overview,
   TREND_LIMIT,
   summarize,
+  type Filter,
   type GameSummary,
   type OpeningStat,
   type Overview,
@@ -175,6 +179,51 @@ function RecentGames({
   );
 }
 
+const SPEEDS = ['bullet', 'blitz', 'rapid', 'classical', 'daily'] as const;
+const SIDES = [
+  { id: 'all', name: 'Either side' },
+  { id: 'w', name: 'White' },
+  { id: 'b', name: 'Black' },
+] as const;
+const cap = (s: string) => s[0]!.toUpperCase() + s.slice(1);
+
+function Filters({
+  filter,
+  speeds,
+  onChange,
+}: {
+  filter: Filter;
+  speeds: readonly TimeClass[];
+  onChange: (filter: Filter) => void;
+}) {
+  const chip = (active: boolean, name: string, patch: Partial<Filter>) => (
+    <Button
+      key={name}
+      size="sm"
+      variant={active ? 'primary' : 'default'}
+      aria-pressed={active}
+      onClick={() => onChange({ ...filter, ...patch })}
+    >
+      {name}
+    </Button>
+  );
+  return (
+    <div className="flex flex-wrap gap-x-8 gap-y-3">
+      <div
+        role="group"
+        aria-label="Time control"
+        className="flex flex-wrap gap-2"
+      >
+        {chip(filter.speed === 'all', 'Any speed', { speed: 'all' })}
+        {speeds.map((s) => chip(filter.speed === s, cap(s), { speed: s }))}
+      </div>
+      <div role="group" aria-label="Side" className="flex flex-wrap gap-2">
+        {SIDES.map((s) => chip(filter.side === s.id, s.name, { side: s.id }))}
+      </div>
+    </div>
+  );
+}
+
 export function OverviewPage() {
   const { reviewReplay } = useStore();
   const { records } = useSavedReviews();
@@ -188,7 +237,24 @@ export function OverviewPage() {
       records.map((r) => summarize(r, usernames, book)),
     [records, usernames, book],
   );
-  const data = useMemo(() => summaries && overview(summaries), [summaries]);
+  const [filter, setFilter] = useState<Filter>(NO_FILTER);
+  // The empty states and the filter's choices read the unfiltered games, so
+  // a filter that matches nothing never says "none of these are yours".
+  const everything = useMemo(
+    () => summaries && overview(summaries),
+    [summaries],
+  );
+  const data = useMemo(
+    () => summaries && overview(filterGames(summaries, filter)),
+    [summaries, filter],
+  );
+  const speeds = useMemo(
+    () =>
+      SPEEDS.filter((s) =>
+        summaries && summaries.some((g) => g.me !== null && g.timeClass === s),
+      ),
+    [summaries],
+  );
 
   function reviewAgain(game: GameSummary) {
     const record = records?.find((r: StoredAnalysis) => r.key === game.key);
@@ -234,7 +300,10 @@ export function OverviewPage() {
   return (
     <>
       {header}
-      {data && data.games === 0 && (
+      {everything && everything.games > 0 && (
+        <Filters filter={filter} speeds={speeds} onChange={setFilter} />
+      )}
+      {everything && everything.games === 0 && (
         <CoachBubble
           title="None of these games are yours."
           actions={
@@ -250,6 +319,9 @@ export function OverviewPage() {
           I match games to you by your Chess.com or Lichess username. Load yours
           on the Games page and review a game of yours to see your progress.
         </CoachBubble>
+      )}
+      {data && everything && everything.games > 0 && data.games === 0 && (
+        <p className="text-ink-muted">No games match this filter.</p>
       )}
       {(!data || data.games > 0) && (
         <div className="grid gap-8 lg:grid-cols-2 lg:items-start">

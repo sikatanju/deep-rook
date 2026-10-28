@@ -12,6 +12,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { useDrillProgress, useProbe } from '@/hooks/use-game-analysis';
 import { useMoveInput } from '@/hooks/use-move-input';
+import { useSound } from '@/hooks/use-sound';
 import { useSavedReviews } from '@/hooks/use-saved-reviews';
 import {
   drillQueue,
@@ -36,6 +37,7 @@ import type { ProbeInput, ProbeSnapshot } from '@/lib/analysis/probe';
 import { branchFens, playMove } from '@/lib/chess/branch';
 import { moveFromSan, type Move } from '@/lib/chess/play';
 import type { Ply } from '@/lib/chess/replay';
+import type { Sound } from '@/lib/sound';
 
 const SIDE = { w: 'White', b: 'Black' } as const;
 
@@ -43,6 +45,11 @@ const MISS_LINE: Record<'played' | 'other', string> = {
   played: 'That is the move you played.',
   other: "Not the engine's first choice.",
 };
+
+const CONTROLS = 'button, a, input, textarea, select';
+
+const verdictSound = (v: Verdict): Sound =>
+  v === 'best' || v === 'close' ? 'correct' : 'wrong';
 
 const date = new Intl.DateTimeFormat(undefined, {
   month: 'short',
@@ -163,10 +170,14 @@ function DrillCard({
       ? attempt.judged
       : searched(drill, attempt.input, probe));
 
+  const sound = useSound();
+
   const checked = phase === 'checking' ? judged?.verdict : undefined;
   useEffect(() => {
-    if (checked) dispatch({ type: 'checked', verdict: checked });
-  }, [checked, dispatch]);
+    if (!checked) return;
+    dispatch({ type: 'checked', verdict: checked });
+    sound(verdictSound(checked));
+  }, [checked, dispatch, sound]);
 
   function answer(move: Move) {
     const branch = playMove(null, record.replay, drill.index - 1, move);
@@ -177,6 +188,7 @@ function DrillCard({
       const loss = verdict === 'played' ? drill.loss : null;
       setAttempt({ ply, judged: { verdict, loss } });
       dispatch({ type: 'answer', verdict });
+      sound(verdictSound(verdict));
       return;
     }
     const fens = branchFens(record.replay, branch);
@@ -185,6 +197,21 @@ function DrillCard({
   }
 
   const input = useMoveInput(fen, answer, open);
+
+  // Enter moves on once the drill is settled, unless it is a control's own key.
+  const settled = !open && phase !== 'checking';
+  useEffect(() => {
+    if (!settled) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key !== 'Enter' || e.repeat) return;
+      if (e.metaKey || e.ctrlKey || e.altKey) return;
+      if (e.target instanceof Element && e.target.closest(CONTROLS)) return;
+      e.preventDefault();
+      dispatch({ type: 'next' });
+    }
+    window.addEventListener('keydown', onKey);
+    return () => window.removeEventListener('keydown', onKey);
+  }, [settled, dispatch]);
 
   const actions =
     open || phase === 'checking' ? (
@@ -205,6 +232,8 @@ function DrillCard({
         <Button
           size="sm"
           variant="primary"
+          aria-keyshortcuts="Enter"
+          title="Enter"
           onClick={() => dispatch({ type: 'next' })}
         >
           Next drill

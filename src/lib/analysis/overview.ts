@@ -3,11 +3,12 @@
 // aggregate. Only games where the player's side is known are aggregated; a
 // pasted PGN with no matching name is listed but never guessed at.
 
-import { moveClocks } from '@/lib/chess/clock';
+import { moveClocks, timeClassOf } from '@/lib/chess/clock';
 import { openingOf, type OpeningBook } from '@/lib/chess/openings';
 import { fenAt, openingName } from '@/lib/chess/replay';
 import { stageAt, STAGES, type Stage } from '@/lib/chess/stage';
 import type { Outcome } from '@/lib/chesscom/session';
+import type { TimeClass } from '@/lib/chesscom/types';
 
 import type { GameKey, StoredAnalysis } from './cache';
 import {
@@ -36,6 +37,8 @@ export type GameSummary = {
   /** From my side. null without a known side or a decisive or drawn result. */
   result: Outcome | null;
   opening: string | null;
+  /** From the PGN's TimeControl; null when it is missing or unreadable. */
+  timeClass: TimeClass | null;
   /** My estimated accuracy, as the game report computes it. */
   accuracy: number | null;
   /** My grades. */
@@ -117,6 +120,7 @@ export function summarize(
     me,
     result: me ? (RESULT_BY_TAG[headers.Result ?? '']?.[me] ?? null) : null,
     opening: (book && openingOf(replay, book)?.name) ?? openingName(headers),
+    timeClass: timeClassOf(headers.TimeControl),
     accuracy: mine ? mine.accuracy : null,
     grades: mine
       ? mine.counts
@@ -190,6 +194,20 @@ const rate = (tallies: readonly Tally[]): Rate => {
 
 const mean = (values: number[]) =>
   values.length ? values.reduce((a, b) => a + b, 0) / values.length : null;
+
+/** Which games the Overview counts. A game with no known side fails any `side`. */
+export type Filter = { speed: TimeClass | 'all'; side: 'w' | 'b' | 'all' };
+export const NO_FILTER: Filter = { speed: 'all', side: 'all' };
+
+export const filterGames = (
+  games: readonly GameSummary[],
+  { speed, side }: Filter,
+) =>
+  games.filter(
+    (g) =>
+      (speed === 'all' || g.timeClass === speed) &&
+      (side === 'all' || g.me === side),
+  );
 
 /** `last` bounds the accuracy trend only; the other figures cover every matched game. */
 export function overview(

@@ -1,4 +1,4 @@
-import { afterEach, describe, expect, test } from 'vitest';
+import { afterEach, describe, expect, test, vi } from 'vitest';
 
 import { loadSettings, parseSettings } from './store';
 
@@ -25,6 +25,12 @@ test('saved settings keep each valid field and default each bad one alone', () =
   );
 });
 
+test('sound is on by default and a non-boolean falls back to it', () => {
+  expect(parseSettings(null).sound).toBe(true);
+  expect(parseSettings('{"sound":false}').sound).toBe(false);
+  expect(parseSettings('{"sound":"no"}').sound).toBe(true);
+});
+
 test('palette is validated alone and defaults to Pop Quiz', () => {
   expect(parseSettings(null).palette).toBe('pop');
   expect(parseSettings('{"palette":"arcade"}').palette).toBe('arcade');
@@ -46,6 +52,28 @@ describe('loadSettings', () => {
   afterEach(() => {
     localStorage.clear();
     document.cookie = 'settings=; Path=/; Max-Age=0';
+    vi.unstubAllGlobals();
+  });
+
+  const osPrefersDark = () =>
+    vi.stubGlobal('matchMedia', (query: string) => ({
+      matches: query === '(prefers-color-scheme: dark)',
+    }));
+
+  test('a dark OS starts on Arcade Night until a palette is saved', () => {
+    osPrefersDark();
+    expect(loadSettings().palette).toBe('arcade');
+    localStorage.setItem('settings', '{"palette":"pop"}');
+    expect(loadSettings().palette).toBe('pop');
+    localStorage.clear();
+    document.cookie = `settings=${encodeURIComponent('{"palette":"mint"}')}; Path=/`;
+    expect(loadSettings().palette).toBe('mint');
+  });
+
+  test('a light OS, or none, starts on Pop Quiz', () => {
+    expect(loadSettings().palette).toBe('pop');
+    vi.stubGlobal('matchMedia', () => ({ matches: false }));
+    expect(loadSettings().palette).toBe('pop');
   });
 
   test('the old dark toggle becomes Arcade Night until a palette is saved', () => {

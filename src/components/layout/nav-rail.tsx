@@ -12,6 +12,8 @@ export type NavItem<Id extends string> = {
   icon: LucideIcon;
   /** On wide screens, sit at the bottom of the rail instead of with the rest. */
   pinned?: boolean;
+  /** A count shown on the link, such as drills due. Nothing at 0. */
+  badge?: number;
 };
 
 /**
@@ -63,13 +65,14 @@ export function NavRail<Id extends string>({
         aria-label="Main"
         className="border-line bg-surface fixed inset-x-0 bottom-0 z-10 flex justify-around border-t-3 p-1 md:static md:flex-1 md:flex-col md:justify-start md:gap-2 md:border-0 md:bg-transparent md:p-0"
       >
-        {items.map(({ id, label, icon: Icon, pinned }) => (
+        {items.map(({ id, label, icon: Icon, pinned, badge }) => (
           <a
             key={id}
             href={`#/${id}`}
             aria-current={id === active ? 'page' : undefined}
             title={collapsed ? label : undefined}
             className={cn(
+              'relative',
               pinned && 'md:mt-auto',
               pill,
               collapsed && 'md:justify-center md:px-0',
@@ -78,6 +81,20 @@ export function NavRail<Id extends string>({
           >
             <Icon aria-hidden className="size-5" />
             <span className={hideLabel || undefined}>{label}</span>
+            {!!badge && (
+              <>
+                <span
+                  aria-hidden
+                  className={cn(
+                    'border-line bg-primary text-sticker-ink rounded-pill absolute top-0 right-1 min-w-5 border-2 px-1 text-center font-mono text-[11px] leading-4 font-extrabold',
+                    !collapsed && 'md:static md:ml-auto',
+                  )}
+                >
+                  {badge}
+                </span>
+                <span className="sr-only">, {badge} due</span>
+              </>
+            )}
           </a>
         ))}
       </nav>

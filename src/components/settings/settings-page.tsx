@@ -160,6 +160,17 @@ export function SettingsPage() {
                 Show board coordinates
               </label>
               <label
+                htmlFor="sound"
+                className="inline-flex cursor-pointer items-center gap-2 font-bold"
+              >
+                <Checkbox
+                  id="sound"
+                  checked={settings.sound}
+                  onChange={(e) => setSettings({ sound: e.target.checked })}
+                />
+                Play sounds
+              </label>
+              <label
                 htmlFor="autoplay-speed"
                 className="flex w-full max-w-[340px] flex-col gap-2 font-bold"
               >
