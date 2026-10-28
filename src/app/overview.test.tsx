@@ -1,4 +1,4 @@
-import { render, screen, within } from '@testing-library/react';
+import { act, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { expect, test } from 'vitest';
 
@@ -236,4 +236,28 @@ test('Settings imports a backup file into the saved reviews', async () => {
     screen.getByText('Imported 1 review and 0 drill records.'),
   ).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Export backup' })).toBeEnabled();
+});
+
+test('the empty Review page reopens your latest saved game', async () => {
+  localStorage.setItem('lastUsername', 'Duke Karl / Count Isouard');
+  const user = userEvent.setup();
+  location.hash = '#/review';
+  render(<App store={await savedStore()} />);
+
+  await user.click(
+    await screen.findByRole('button', { name: 'Review my latest game' }),
+  );
+  expect(
+    await screen.findByRole('group', { name: /black at the bottom/ }),
+  ).toBeInTheDocument();
+});
+
+test('the empty Review page offers no shortcut when none of the saved games is yours', async () => {
+  location.hash = '#/review';
+  render(<App store={await savedStore()} />);
+  expect(await screen.findByText('No game loaded.')).toBeInTheDocument();
+  await act(async () => {}); // let the saved games load
+  expect(
+    screen.queryByRole('button', { name: 'Review my latest game' }),
+  ).toBeNull();
 });

@@ -16,8 +16,10 @@ import { PromotionPicker } from '@/components/board/promotion-picker';
 import { Highlight, PageHeader } from '@/components/layout/page-header';
 import { Panel } from '@/components/panel';
 import { Button } from '@/components/ui/button';
+import { readSavedUsernames } from '@/components/game-picker/username-form';
 import { useGameAnalysis, useProbe } from '@/hooks/use-game-analysis';
 import { useMoveInput } from '@/hooks/use-move-input';
+import { useSavedReviews } from '@/hooks/use-saved-reviews';
 import { useSound } from '@/hooks/use-sound';
 import {
   classifyMoves,
@@ -26,6 +28,7 @@ import {
 } from '@/lib/analysis/classify';
 import { searchInputAt } from '@/lib/analysis/inputs';
 import { badgeLabel } from '@/lib/analysis/levels';
+import { sideOf } from '@/lib/analysis/overview';
 import { evalSeries, gameReport, MOMENT_GRADES } from '@/lib/analysis/report';
 import {
   branchFen,
@@ -651,6 +654,30 @@ function Viewer({ loaded }: { loaded: Loaded }) {
   );
 }
 
+/** Opens the newest saved review of one of your games, on your side. Nothing if there is none. */
+function ReviewLatest() {
+  const { reviewReplay } = useStore();
+  const { records } = useSavedReviews();
+  const usernames = useMemo(() => readSavedUsernames(), []);
+  const latest = records?.find((r) => sideOf(r.replay.headers, usernames));
+  if (!latest) return null;
+  const { White, Black } = latest.replay.headers;
+  return (
+    <Button
+      onClick={() =>
+        reviewReplay(
+          latest.replay,
+          `${White ?? 'White'} vs ${Black ?? 'Black'}`,
+          sideOf(latest.replay.headers, usernames)!,
+          latest.level,
+        )
+      }
+    >
+      Review my latest game
+    </Button>
+  );
+}
+
 export function ReviewPage() {
   const { loaded } = useStore();
   if (!loaded) {
@@ -664,10 +691,11 @@ export function ReviewPage() {
           subtitle="Pick a game, choose a review mode, and press Review game."
           className="max-w-xl"
         >
-          <div>
+          <div className="flex flex-wrap gap-3">
             <Button variant="primary" onClick={() => navigate('games')}>
               Choose a game
             </Button>
+            <ReviewLatest />
           </div>
         </Panel>
       </>
