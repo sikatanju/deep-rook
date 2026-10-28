@@ -156,6 +156,7 @@ test('Settings counts the saved reviews and clears them after a second press', a
     level: 'balanced',
     index: 0,
   });
+  localStorage.setItem('drillStreak', '{"last":"2026-01-01","run":3}');
   location.hash = '#/settings';
   render(<App store={store} />);
 
@@ -170,6 +171,7 @@ test('Settings counts the saved reviews and clears them after a second press', a
   expect(await screen.findByText('0 saved reviews')).toBeInTheDocument();
   expect(await store.list()).toEqual([]);
   expect(localStorage.getItem('lastReview')).toBeNull();
+  expect(localStorage.getItem('drillStreak')).toBeNull();
   expect(
     screen.getByRole('button', { name: 'Clear saved reviews' }),
   ).toBeDisabled();

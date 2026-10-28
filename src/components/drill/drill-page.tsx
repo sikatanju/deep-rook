@@ -1,3 +1,4 @@
+import { FlameIcon } from 'lucide-react';
 import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
 
 import { navigate } from '@/app/router';
@@ -22,6 +23,12 @@ import {
   type Verdict,
 } from '@/lib/analysis/drill';
 import { plan, type DrillProgress } from '@/lib/analysis/drill-progress';
+import {
+  current,
+  loadStreak,
+  mark,
+  saveStreak,
+} from '@/lib/analysis/drill-streak';
 import {
   finished,
   start,
@@ -432,7 +439,24 @@ export function DrillPage() {
   const usernames = useMemo(() => readSavedUsernames(), []);
   const [round, setRound] = useState(0);
   const [practice, setPractice] = useState(false);
-  const { progress, onResult } = useProgressAt(round);
+  const { progress, onResult: record } = useProgressAt(round);
+  const [streak, setStreak] = useState(loadStreak);
+  // The day shown moves on at an answer, not at midnight on a page left open.
+  const [now, setNow] = useState(Date.now);
+  const onResult = useMemo(
+    () =>
+      record &&
+      ((drill: Drill, result: Result) => {
+        record(drill, result);
+        if (result === 'skipped') return;
+        const at = Date.now();
+        const next = mark(streak, at);
+        saveStreak(next);
+        setStreak(next);
+        setNow(at);
+      }),
+    [record, streak],
+  );
   const planned = useMemo(
     () =>
       records &&
@@ -445,6 +469,19 @@ export function DrillPage() {
     <PageHeader eyebrow="From your saved reviews">
       Drill your <Highlight>mistakes</Highlight>
     </PageHeader>
+  );
+  const alive = current(streak, now);
+  const streakNote = alive.run > 0 && (
+    <p
+      aria-live="polite"
+      className="border-line bg-surface-alt inline-flex w-fit items-center gap-2 rounded-sm border-3 px-3 py-1.5 font-bold"
+    >
+      <FlameIcon aria-hidden className="size-5" />
+      {alive.run} {alive.run === 1 ? 'day' : 'days'} in a row
+      <span className="text-ink-muted text-sm font-normal">
+        {alive.today ? 'Done for today.' : 'Answer a drill today to keep it.'}
+      </span>
+    </p>
   );
   const goToGames = (label: string) => (
     <Button size="sm" variant="primary" onClick={() => navigate('games')}>
@@ -513,6 +550,7 @@ export function DrillPage() {
     return (
       <>
         {header}
+        {streakNote}
         <CoachBubble
           title="All caught up."
           actions={
@@ -537,6 +575,7 @@ export function DrillPage() {
   return (
     <>
       {header}
+      {streakNote}
       <DrillSession
         key={`${round}:${queue.map((d) => d.id).join()}`}
         queue={queue}

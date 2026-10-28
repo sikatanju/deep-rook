@@ -7,6 +7,7 @@ import {
   memoryProgress,
   type ProgressStore,
 } from '@/lib/analysis/drill-progress';
+import { dayOf } from '@/lib/analysis/drill-streak';
 import { OPERA_SLIPS, stored } from '@/lib/analysis/fixtures';
 import { parseReplay } from '@/lib/chess/replay';
 
@@ -341,4 +342,45 @@ test('a promotion asks for the piece before the move is judged', async () => {
   await play(user, /^a7/, /^a8/);
   await user.click(screen.getByRole('button', { name: 'Queen' }));
   expect(screen.getByText('You found it.')).toBeInTheDocument();
+});
+
+test('answering a drill starts a daily streak, and a skip does not', async () => {
+  const user = await openDrill();
+  await screen.findByText('Drill 1 of 2');
+  expect(screen.queryByText(/in a row/)).toBeNull();
+
+  await user.click(screen.getByRole('button', { name: 'Skip' }));
+  expect(screen.queryByText(/in a row/)).toBeNull();
+  expect(localStorage.getItem('drillStreak')).toBeNull();
+
+  await user.click(screen.getByRole('button', { name: 'Show answer' }));
+  expect(screen.getByText('1 day in a row')).toBeInTheDocument();
+  expect(screen.getByText('Done for today.')).toBeInTheDocument();
+});
+
+test('a run that ended yesterday is kept and grows on the first answer today', async () => {
+  const day = (back: number) => {
+    const d = new Date();
+    d.setDate(d.getDate() - back);
+    return dayOf(d.getTime());
+  };
+  localStorage.setItem('drillStreak', JSON.stringify({ last: day(1), run: 4 }));
+  const user = await openDrill();
+  await screen.findByText('Drill 1 of 2');
+  expect(screen.getByText('4 days in a row')).toBeInTheDocument();
+  expect(
+    screen.getByText('Answer a drill today to keep it.'),
+  ).toBeInTheDocument();
+
+  await user.click(screen.getByRole('button', { name: 'Show answer' }));
+  expect(screen.getByText('5 days in a row')).toBeInTheDocument();
+
+  // Two days ago is a broken run: nothing shows, and the next answer restarts it.
+  user.view.unmount();
+  localStorage.setItem('drillStreak', JSON.stringify({ last: day(2), run: 9 }));
+  const again = await openDrill();
+  await screen.findByText('Drill 1 of 2');
+  expect(screen.queryByText(/in a row/)).toBeNull();
+  await again.click(screen.getByRole('button', { name: 'Show answer' }));
+  expect(screen.getByText('1 day in a row')).toBeInTheDocument();
 });

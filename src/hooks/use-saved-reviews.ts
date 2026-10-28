@@ -2,6 +2,7 @@ import { useCallback, useEffect, useState } from 'react';
 
 import { useAnalysisStore, useDrillProgress } from '@/hooks/use-game-analysis';
 import type { StoredAnalysis } from '@/lib/analysis/cache';
+import { clearStreak } from '@/lib/analysis/drill-streak';
 
 /**
  * The reviews saved in this browser, newest first, read again after every
@@ -34,6 +35,7 @@ export function useSavedReviews() {
 
   /** Drill progress goes too: it only means something next to its reviews. */
   const clear = useCallback(async () => {
+    clearStreak();
     await Promise.all([store?.clear(), progress?.clear()]);
   }, [store, progress]);
 
