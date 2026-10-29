@@ -2,6 +2,7 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { expect, test } from 'vitest';
 
+import { drag } from '@/components/board/drag.testing';
 import { memoryStore } from '@/lib/analysis/cache';
 import {
   memoryProgress,
@@ -383,4 +384,61 @@ test('a run that ended yesterday is kept and grows on the first answer today', a
   expect(screen.queryByText(/in a row/)).toBeNull();
   await again.click(screen.getByRole('button', { name: 'Show answer' }));
   expect(screen.getByText('1 day in a row')).toBeInTheDocument();
+});
+
+test('dragging the best piece to its square solves the drill', async () => {
+  await openDrill();
+  await screen.findByText('Drill 1 of 2');
+
+  drag('d6', 'e5', { flipped: true });
+  expect(await screen.findByText('You found it.')).toBeInTheDocument();
+  expect(screen.getByText('4… Bxf3')).toBeInTheDocument();
+});
+
+test('a drag lights the legal targets, and dropping elsewhere plays nothing', async () => {
+  await openDrill();
+  await screen.findByText('Drill 1 of 2');
+
+  drag('d6', 'a1', { flipped: true });
+  expect(screen.queryByText('You found it.')).toBeNull();
+  expect(screen.queryByText("Not the engine's first choice.")).toBeNull();
+  // The piece is home and still selected: its targets stay lit for a click.
+  expect(
+    document.querySelector('[data-square="e5"] [data-target]'),
+  ).not.toBeNull();
+  expect(
+    document.querySelector('[data-square="d6"] [data-piece="bP"]'),
+  ).not.toBeNull();
+
+  drag('d6', { x: -40, y: 300 }, { flipped: true });
+  expect(screen.queryByText('You found it.')).toBeNull();
+
+  // Click-to-move still finishes the move.
+  await userEvent.setup().click(square(/^e5/));
+  expect(screen.getByText('You found it.')).toBeInTheDocument();
+});
+
+test('a pawn dragged to the last rank asks for the piece, as a click does', async () => {
+  const replay = parseReplay(`[White "Me"]
+[Black "Rival"]
+[SetUp "1"]
+[FEN "7k/P7/8/8/8/8/8/K7 w - - 0 1"]
+
+1. Kb2 Kg7 *`);
+  const store = memoryStore();
+  await store.save(
+    stored({ replay, cps: [900, 100, 100], pvs: { 0: ['a7a8q'] } }),
+  );
+  localStorage.setItem('lastUsername', 'me');
+  location.hash = '#/drill';
+  render(<App store={store} />);
+  const user = userEvent.setup();
+
+  await screen.findByText('Drill 1 of 1');
+  drag('a7', 'a8');
+  const picker = screen.getByRole('group', { name: 'Promote to' });
+  expect(screen.queryByText('You found it.')).toBeNull();
+
+  await user.click(within(picker).getByRole('button', { name: 'Queen' }));
+  expect(await screen.findByText('You found it.')).toBeInTheDocument();
 });

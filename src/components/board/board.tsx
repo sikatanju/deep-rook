@@ -1,3 +1,5 @@
+import { useRef, useState } from 'react';
+
 import {
   BOARD_THEMES,
   pieceSrc,
@@ -103,12 +105,41 @@ function squareLabel(square: string, piece: string | null) {
   return `${square}, ${color} ${PIECE_NAMES[piece.toLowerCase()]}`;
 }
 
-/** Click-to-move input: the board names the square, the caller decides. */
+/**
+ * Move input: the board names the square, the caller decides. Clicking reports
+ * `onSquare`; dragging reports `onDragStart` once a piece is picked up and
+ * `onDrop` when it lands. Without the drag callbacks the board only clicks.
+ */
 export type BoardPlay = {
   selected: string | null;
   targets: readonly string[];
   onSquare: (square: string) => void;
+  /** A piece was picked up on `square`. False refuses the drag. */
+  onDragStart?: (square: string) => boolean;
+  /** The dragged piece was let go over `to`, or off the board (null). */
+  onDrop?: (from: string, to: string | null) => void;
 };
+
+/** Pointer travel, in px, before a press on a piece becomes a drag. */
+const DRAG_SLOP = 4;
+
+/** The square under a point, given the board's rect, or null off the board. */
+export function squareAt(
+  rect: { left: number; top: number; width: number; height: number },
+  flipped: boolean,
+  x: number,
+  y: number,
+): string | null {
+  if (!rect.width || !rect.height) return null;
+  const col = Math.floor(((x - rect.left) / rect.width) * 8);
+  const row = Math.floor(((y - rect.top) / rect.height) * 8);
+  if (col < 0 || col > 7 || row < 0 || row > 7) return null;
+  const file = flipped ? 7 - col : col;
+  const rank = flipped ? row + 1 : 8 - row;
+  return 'abcdefgh'[file]! + rank;
+}
+
+type Drag = { from: string; code: string; x: number; y: number; size: number };
 
 export function cells(fen: string): Cell[][] {
   return fen
@@ -216,6 +247,55 @@ export function Board({
     flipped ? [...row].reverse() : row,
   );
   const flight = moving ? flightOffset(moving, flipped) : null;
+
+  const gridRef = useRef<HTMLDivElement>(null);
+  // A press on a piece, until it either becomes a drag or ends as a click.
+  const press = useRef<{ from: string; x: number; y: number; id: number }>(
+    null,
+  );
+  const dragging = useRef(false);
+  const swallowClick = useRef(false);
+  const [drag, setDrag] = useState<Drag | null>(null);
+
+  function onPointerMove(e: React.PointerEvent) {
+    const p = press.current;
+    const grid = gridRef.current;
+    if (!play || !p || !grid || e.pointerId !== p.id) return;
+    if (!dragging.current) {
+      if (Math.hypot(e.clientX - p.x, e.clientY - p.y) < DRAG_SLOP) return;
+      if (!play.onDragStart?.(p.from)) {
+        press.current = null;
+        return;
+      }
+      dragging.current = true;
+      // Only now: capturing at pointerdown would retarget the click away from
+      // the square, and break click-to-move.
+      grid.setPointerCapture?.(e.pointerId);
+    }
+    const rect = grid.getBoundingClientRect();
+    setDrag({
+      from: p.from,
+      code: pieceCode(fen, p.from) ?? 'wP',
+      x: e.clientX - rect.left,
+      y: e.clientY - rect.top,
+      size: rect.width / 8,
+    });
+  }
+
+  function endPress(e: React.PointerEvent, cancelled: boolean) {
+    const p = press.current;
+    const grid = gridRef.current;
+    press.current = null;
+    if (!play || !p || !grid || !dragging.current) return;
+    dragging.current = false;
+    swallowClick.current = true;
+    setDrag(null);
+    const to = cancelled
+      ? null
+      : squareAt(grid.getBoundingClientRect(), flipped, e.clientX, e.clientY);
+    play.onDrop?.(p.from, to);
+  }
+
   return (
     // The frame is on this box, not the grid: the flight and arrow layers are
     // absolutely placed against its inside, so they stay aligned with the squares.
@@ -223,10 +303,20 @@ export function Board({
       <style>{MOVE_CSS}</style>
       <div
         // An img's children are presentational, which would hide the buttons.
+        ref={gridRef}
         role={play ? 'group' : 'img'}
         aria-label={`Chess board, ${flipped ? 'black' : 'white'} at the bottom`}
-        className="grid aspect-square w-full grid-cols-[repeat(8,minmax(0,1fr))] grid-rows-[repeat(8,minmax(0,1fr))]"
+        className={cn(
+          'grid aspect-square w-full grid-cols-[repeat(8,minmax(0,1fr))] grid-rows-[repeat(8,minmax(0,1fr))]',
+          // A touch that starts on the board drags a piece, not the page.
+          play?.onDragStart && 'touch-none select-none',
+        )}
         style={{ containerType: 'inline-size' }}
+        onPointerMove={play?.onDragStart ? onPointerMove : undefined}
+        onPointerUp={play?.onDragStart ? (e) => endPress(e, false) : undefined}
+        onPointerCancel={
+          play?.onDragStart ? (e) => endPress(e, true) : undefined
+        }
       >
         {ordered.flat().map(({ square, piece }, i) => {
           const file = square.charCodeAt(0) - 97;
@@ -245,7 +335,21 @@ export function Board({
             tabIndex: -1,
             'aria-label': squareLabel(square, piece),
             'aria-pressed': selected,
-            onClick: () => play.onSquare(square),
+            onClick: () => {
+              if (swallowClick.current) swallowClick.current = false;
+              else play.onSquare(square);
+            },
+            onPointerDown: (e: React.PointerEvent) => {
+              swallowClick.current = false;
+              if (!piece || !play.onDragStart) return;
+              if (e.pointerType === 'mouse' && e.button !== 0) return;
+              press.current = {
+                from: square,
+                x: e.clientX,
+                y: e.clientY,
+                id: e.pointerId,
+              };
+            },
           };
           return (
             <Square
@@ -283,7 +387,10 @@ export function Board({
                   type={piece.toLowerCase()}
                   white={piece === piece.toUpperCase()}
                   set={pieceSet}
-                  className="relative z-10 size-[88%] drop-shadow-[1px_2px_0_rgb(0_0_0/0.3)]"
+                  className={cn(
+                    'relative z-10 size-[88%] drop-shadow-[1px_2px_0_rgb(0_0_0/0.3)]',
+                    drag?.from === square && 'opacity-30',
+                  )}
                 />
               )}
               {coordinates && left && (
@@ -346,6 +453,31 @@ export function Board({
               white={moving.code[0] === 'w'}
               set={pieceSet}
               className="size-[88%] drop-shadow-[1px_2px_0_rgb(0_0_0/0.3)]"
+            />
+          </div>
+        </div>
+      )}
+      {play && drag && (
+        <div
+          data-drag-layer=""
+          aria-hidden
+          className="pointer-events-none absolute inset-0 z-40 overflow-hidden"
+        >
+          <div
+            data-dragging={drag.from}
+            data-piece={drag.code}
+            className="absolute flex items-center justify-center"
+            style={{
+              width: drag.size,
+              height: drag.size,
+              transform: `translate(${drag.x - drag.size / 2}px, ${drag.y - drag.size / 2}px)`,
+            }}
+          >
+            <Piece
+              type={drag.code[1]!.toLowerCase()}
+              white={drag.code[0] === 'w'}
+              set={pieceSet}
+              className="size-[100%] drop-shadow-[2px_4px_0_rgb(0_0_0/0.3)]"
             />
           </div>
         </div>

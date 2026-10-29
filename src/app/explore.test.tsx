@@ -2,6 +2,7 @@ import { render, screen, waitFor, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { expect, test, vi } from 'vitest';
 
+import { drag } from '@/components/board/drag.testing';
 import { memoryStore } from '@/lib/analysis/cache';
 import { OPERA_SLIPS, stored } from '@/lib/analysis/fixtures';
 import type { Job } from '@/lib/analysis/protocol';
@@ -223,4 +224,18 @@ test('"Try it" on a side move swaps it for the engine\'s choice', async () => {
   await user.click(tryIt);
   expect(piece('d5')).toBeNull();
   expect(coach()).toHaveTextContent(`Not part of the game. 1… ${san}.`);
+});
+
+test('dragging a piece plays a side line, and a drop off its targets does not', async () => {
+  const user = await openOperaGame();
+  await user.click(screen.getByRole('button', { name: 'Next move' }));
+
+  drag('c7', 'c3');
+  expect(piece('c7')).toBe('bP');
+  expect(coach()).not.toHaveTextContent('Not part of the game');
+
+  drag('c7', 'c5');
+  expect(piece('c5')).toBe('bP');
+  expect(piece('c7')).toBeNull();
+  expect(coach()).toHaveTextContent('Not part of the game. 1… c5.');
 });

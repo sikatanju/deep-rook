@@ -1,8 +1,14 @@
-import { render, screen, within } from '@testing-library/react';
+import { fireEvent, render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { expect, it, test, vi } from 'vitest';
 
-import { Board, flightOffset, movingPiece } from '@/components/board/board';
+import {
+  Board,
+  flightOffset,
+  movingPiece,
+  squareAt,
+} from '@/components/board/board';
+import { centreOf, drag } from '@/components/board/drag.testing';
 import { OPERA_GAME, parseReplay } from '@/lib/chess/replay';
 
 const START = 'rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR w KQkq - 0 1';
@@ -339,4 +345,134 @@ it('the flight offset lands on the destination square for every ply, both ways',
   expect(checks).toBe(replay.plies.length * 4);
   // One assertion, so a failure prints every broken ply at once.
   expect(mismatches).toEqual([]);
+});
+
+test('squareAt names the square under a point, white or black at the bottom', () => {
+  const rect = { left: 10, top: 20, width: 800, height: 800 };
+  expect(squareAt(rect, false, 10 + 50, 20 + 50)).toBe('a8');
+  expect(squareAt(rect, false, 10 + 750, 20 + 750)).toBe('h1');
+  expect(squareAt(rect, true, 10 + 50, 20 + 50)).toBe('h1');
+  expect(squareAt(rect, true, 10 + 750, 20 + 750)).toBe('a8');
+  expect(squareAt(rect, false, 5, 100)).toBeNull();
+  expect(squareAt(rect, false, 810, 100)).toBeNull();
+  expect(squareAt({ ...rect, width: 0 }, false, 10, 20)).toBeNull();
+});
+
+function draggable(
+  over: Partial<NonNullable<Parameters<typeof renderBoard>[0]>> = {},
+) {
+  const onDragStart = vi.fn(() => true);
+  const onDrop = vi.fn();
+  const onSquare = vi.fn();
+  const play = {
+    selected: null,
+    targets: [],
+    onSquare,
+    onDragStart,
+    onDrop,
+    ...over,
+  };
+  return { onDragStart, onDrop, onSquare, play };
+}
+
+test('dragging a piece shows it following the pointer and dims its square', () => {
+  const { onDragStart, play } = draggable();
+  const { container } = renderBoard(play);
+  const board = screen.getByRole('group', { name: /Chess board/ });
+  board.getBoundingClientRect = () =>
+    ({ left: 0, top: 0, width: 800, height: 800 }) as DOMRect;
+  const e2 = centreOf('e2');
+
+  fireEvent.pointerDown(board.querySelector('[data-square="e2"]')!, {
+    clientX: e2.x,
+    clientY: e2.y,
+    pointerId: 1,
+    pointerType: 'touch',
+  });
+  expect(container.querySelector('[data-dragging]')).toBeNull();
+  fireEvent.pointerMove(board, { clientX: 450, clientY: 300, pointerId: 1 });
+
+  expect(onDragStart).toHaveBeenCalledWith('e2');
+  const ghost = container.querySelector<HTMLElement>('[data-dragging="e2"]')!;
+  expect(ghost).toHaveAttribute('data-piece', 'wP');
+  // Centred on the pointer: 450 - 50, 300 - 50.
+  expect(ghost.style.transform).toBe('translate(400px, 250px)');
+  expect(
+    container.querySelector('[data-square="e2"] [data-piece]'),
+  ).toHaveClass('opacity-30');
+
+  fireEvent.pointerMove(board, { clientX: 460, clientY: 310, pointerId: 1 });
+  expect(ghost.style.transform).toBe('translate(410px, 260px)');
+  fireEvent.pointerUp(board, { clientX: 460, clientY: 310, pointerId: 1 });
+  expect(container.querySelector('[data-dragging]')).toBeNull();
+});
+
+test('a drop reports the square under the pointer, on a flipped board too', () => {
+  const upright = draggable();
+  const first = renderBoard(upright.play);
+  drag('e2', 'e4');
+  expect(upright.onDrop).toHaveBeenCalledWith('e2', 'e4');
+  expect(upright.onSquare).not.toHaveBeenCalled();
+  first.unmount();
+
+  const turned = draggable();
+  render(
+    <Board
+      fen={START}
+      flipped
+      theme="palette"
+      coordinates
+      play={turned.play}
+    />,
+  );
+  drag('e2', 'e4', { flipped: true, pointerType: 'touch' });
+  expect(turned.onDrop).toHaveBeenCalledWith('e2', 'e4');
+});
+
+test('a drop off the board reports no square, and a refused pick-up never drags', () => {
+  const off = draggable();
+  const first = renderBoard(off.play);
+  drag('g1', { x: 900, y: 400 });
+  expect(off.onDrop).toHaveBeenCalledWith('g1', null);
+  first.unmount();
+
+  const refused = draggable({ onDragStart: vi.fn(() => false) });
+  const { container } = renderBoard(refused.play);
+  drag('e7', 'e5');
+  expect(refused.onDrop).not.toHaveBeenCalled();
+  expect(container.querySelector('[data-dragging]')).toBeNull();
+});
+
+test('a press that barely moves is still a click, and a drag does not also click', async () => {
+  const { onDrop, onSquare, play } = draggable();
+  renderBoard(play);
+  const user = userEvent.setup();
+  await user.click(screen.getByRole('button', { name: 'g1, white knight' }));
+  expect(onSquare.mock.calls).toEqual([['g1']]);
+  expect(onDrop).not.toHaveBeenCalled();
+
+  drag('g1', 'h3');
+  expect(onDrop).toHaveBeenCalledWith('g1', 'h3');
+  // The click the browser sends after the drop is swallowed, not a selection.
+  fireEvent.click(screen.getByRole('button', { name: 'g1, white knight' }));
+  expect(onSquare).toHaveBeenCalledTimes(1);
+  // The next real press clicks again.
+  await user.click(screen.getByRole('button', { name: 'g1, white knight' }));
+  expect(onSquare).toHaveBeenCalledTimes(2);
+});
+
+test('only the primary mouse button picks a piece up', () => {
+  const { onDragStart, play } = draggable();
+  renderBoard(play);
+  const board = screen.getByRole('group', { name: /Chess board/ });
+  const e2 = centreOf('e2');
+  fireEvent.pointerDown(board.querySelector('[data-square="e2"]')!, {
+    clientX: e2.x,
+    clientY: e2.y,
+    pointerId: 1,
+    pointerType: 'mouse',
+    button: 2,
+  });
+  fireEvent.pointerMove(board, { clientX: 400, clientY: 300, pointerId: 1 });
+  expect(onDragStart).not.toHaveBeenCalled();
 });
