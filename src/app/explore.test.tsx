@@ -239,3 +239,79 @@ test('dragging a piece plays a side line, and a drop off its targets does not', 
   expect(piece('c7')).toBeNull();
   expect(coach()).toHaveTextContent('Not part of the game. 1… c5.');
 });
+
+const field = () => screen.getByLabelText('Type a move to try a line');
+
+test('a typed move plays a side line, graded as a clicked one is', async () => {
+  const user = await openOperaGame();
+  await user.click(screen.getByRole('button', { name: 'Next move' }));
+  await user.type(field(), 'c5{Enter}');
+
+  expect(piece('c5')).toBe('bP');
+  expect(piece('c7')).toBeNull();
+  expect(coach()).toHaveTextContent('Not part of the game. 1… c5.');
+  expect(field()).toHaveValue('');
+  await waitFor(() => expect(coach()).toHaveTextContent(/1… c5 is an? \w+/), {
+    timeout: 20_000,
+  });
+});
+
+test("typing the game's own next move advances the game", async () => {
+  const user = await openOperaGame();
+  await user.type(field(), 'e4{Enter}');
+  expect(within(moves()).getByRole('button', { name: 'e4' })).toHaveAttribute(
+    'aria-current',
+    'step',
+  );
+  expect(screen.queryByRole('button', { name: 'Back to the game' })).toBeNull();
+});
+
+test('illegal or ambiguous text says so and plays nothing', async () => {
+  const user = await openOperaGame();
+  await user.type(field(), 'Ke5{Enter}');
+  expect(screen.getByRole('alert')).toHaveTextContent(
+    'That is not a legal move here.',
+  );
+  expect(field()).toHaveAttribute('aria-invalid', 'true');
+  expect(piece('e1')).toBe('wK');
+  expect(screen.queryByRole('button', { name: 'Back to the game' })).toBeNull();
+
+  await user.clear(field());
+  expect(screen.queryByRole('alert')).toBeNull();
+});
+
+test('the review shortcuts stay quiet while typing a move', async () => {
+  const user = await openOperaGame();
+  const before = within(screen.getByRole('group', { name: /Chess board/ }))
+    .getAllByRole('button')[0]!
+    .getAttribute('aria-label');
+  await user.click(field());
+  await user.keyboard('f {ArrowRight}{End}');
+
+  expect(
+    within(screen.getByRole('group', { name: /Chess board/ }))
+      .getAllByRole('button')[0]!
+      .getAttribute('aria-label'),
+  ).toBe(before);
+  expect(piece('e4')).toBeNull();
+  expect(field()).toHaveValue('f ');
+});
+
+test('an ambiguous move is refused with the same message', async () => {
+  const user = userEvent.setup();
+  render(<App store={memoryStore()} />);
+  await user.click(screen.getByLabelText('PGN'));
+  await user.paste(`[SetUp "1"]
+[FEN "7k/8/8/8/8/8/8/1N2KN2 w - - 0 1"]
+
+1. Nbd2 Kg7 *`);
+  await user.click(screen.getByRole('button', { name: 'Load PGN' }));
+  await user.click(screen.getByRole('button', { name: 'Review game' }));
+
+  await user.type(field(), 'Nd2{Enter}');
+  expect(screen.getByRole('alert')).toHaveTextContent(
+    'That is not a legal move here.',
+  );
+  expect(piece('d2')).toBeNull();
+  expect(piece('b1')).toBe('wN');
+});

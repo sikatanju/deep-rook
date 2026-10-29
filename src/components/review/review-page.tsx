@@ -13,6 +13,7 @@ import { navigate } from '@/app/router';
 import { useStore, type Loaded } from '@/app/store';
 import { Board, movingPiece } from '@/components/board/board';
 import { PromotionPicker } from '@/components/board/promotion-picker';
+import { TypedMove } from '@/components/board/typed-move';
 import { Highlight, PageHeader } from '@/components/layout/page-header';
 import { Panel } from '@/components/panel';
 import { Button } from '@/components/ui/button';
@@ -609,6 +610,13 @@ function Viewer({ loaded }: { loaded: Loaded }) {
               <PromotionPicker onPick={input.promote} />
             </div>
           )}
+          <div className="mt-3">
+            <TypedMove
+              fen={fen}
+              label="Type a move to try a line"
+              onMove={input.submit}
+            />
+          </div>
         </div>
         <section
           aria-label="Moves"

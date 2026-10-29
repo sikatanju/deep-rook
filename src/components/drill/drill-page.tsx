@@ -5,12 +5,12 @@ import { navigate } from '@/app/router';
 import { useStore } from '@/app/store';
 import { Board } from '@/components/board/board';
 import { PromotionPicker } from '@/components/board/promotion-picker';
+import { TypedMove } from '@/components/board/typed-move';
 import { readSavedUsernames } from '@/components/game-picker/username-form';
 import { Highlight, PageHeader } from '@/components/layout/page-header';
 import { Panel } from '@/components/panel';
 import { CoachBubble } from '@/components/review/coach-bubble';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { useDrillProgress, useProbe } from '@/hooks/use-game-analysis';
 import { useMoveInput } from '@/hooks/use-move-input';
 import { useSound } from '@/hooks/use-sound';
@@ -43,7 +43,7 @@ import { searchInputAt } from '@/lib/analysis/inputs';
 import { sideOf } from '@/lib/analysis/overview';
 import type { ProbeInput, ProbeSnapshot } from '@/lib/analysis/probe';
 import { branchFens, playMove } from '@/lib/chess/branch';
-import { moveFromSan, type Move } from '@/lib/chess/play';
+import type { Move } from '@/lib/chess/play';
 import type { Ply } from '@/lib/chess/replay';
 import type { Sound } from '@/lib/sound';
 
@@ -85,55 +85,6 @@ function numberedLine(drill: Drill) {
       return text;
     })
     .join(' ');
-}
-
-function TypedMove({
-  fen,
-  onMove,
-}: {
-  fen: string;
-  onMove: (m: Move) => void;
-}) {
-  const [text, setText] = useState('');
-  const [error, setError] = useState(false);
-
-  function submit(e: { preventDefault: () => void }) {
-    e.preventDefault();
-    const move = moveFromSan(fen, text);
-    setError(!move);
-    if (!move) return;
-    setText('');
-    onMove(move);
-  }
-
-  return (
-    <form onSubmit={submit} className="flex flex-col gap-2">
-      <label htmlFor="drill-move" className="font-bold">
-        Type your move
-      </label>
-      <div className="flex gap-2">
-        <Input
-          id="drill-move"
-          value={text}
-          autoComplete="off"
-          spellCheck={false}
-          placeholder="e.g. Nf3"
-          aria-invalid={error || undefined}
-          aria-describedby={error ? 'drill-move-error' : undefined}
-          onChange={(e) => {
-            setText(e.target.value);
-            setError(false);
-          }}
-        />
-        <Button type="submit">Play</Button>
-      </div>
-      {error && (
-        <p id="drill-move-error" role="alert" className="text-ink font-bold">
-          That is not a legal move here.
-        </p>
-      )}
-    </form>
-  );
 }
 
 type Judged = { verdict: Verdict; loss: number | null };
@@ -322,7 +273,11 @@ function DrillCard({
         {coach}
         {open && (
           <Panel>
-            <TypedMove fen={fen} onMove={input.submit} />
+            <TypedMove
+              fen={fen}
+              label="Type your move"
+              onMove={input.submit}
+            />
           </Panel>
         )}
       </div>
