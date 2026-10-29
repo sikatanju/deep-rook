@@ -67,7 +67,5 @@ export function useMoveInput(
     promoting,
     promote: (piece: NonNullable<Move['promotion']>) =>
       promoting && finish({ ...promoting, promotion: piece }),
-    /** Plays a move typed in rather than clicked. */
-    submit: finish,
   };
 }

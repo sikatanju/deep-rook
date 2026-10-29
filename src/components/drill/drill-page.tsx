@@ -17,7 +17,6 @@ import { PageHeader } from '@/components/layout/page-header';
 import { Panel } from '@/components/panel';
 import { CoachBubble } from '@/components/review/coach-bubble';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { useOpeningBook } from '@/hooks/use-opening-book';
 import { useDrillProgress, useProbe } from '@/hooks/use-game-analysis';
 import { useMoveInput } from '@/hooks/use-move-input';
@@ -71,7 +70,7 @@ import { openingKey, sideOf, SPEEDS } from '@/lib/analysis/overview';
 import { searchInputAt } from '@/lib/analysis/inputs';
 import type { ProbeInput, ProbeSnapshot } from '@/lib/analysis/probe';
 import { branchFens, playMove } from '@/lib/chess/branch';
-import { moveFromSan, type Move } from '@/lib/chess/play';
+import type { Move } from '@/lib/chess/play';
 import type { Ply } from '@/lib/chess/replay';
 import { STAGES } from '@/lib/chess/stage';
 import type { TimeClass } from '@/lib/chesscom/types';
@@ -117,55 +116,6 @@ function numberedLine(drill: Drill) {
     .join(' ');
 }
 
-function TypedMove({
-  fen,
-  onMove,
-}: {
-  fen: string;
-  onMove: (m: Move) => void;
-}) {
-  const [text, setText] = useState('');
-  const [error, setError] = useState(false);
-
-  function submit(e: { preventDefault: () => void }) {
-    e.preventDefault();
-    const move = moveFromSan(fen, text);
-    setError(!move);
-    if (!move) return;
-    setText('');
-    onMove(move);
-  }
-
-  return (
-    <form onSubmit={submit} className="flex flex-col gap-2">
-      <label htmlFor="drill-move" className="font-bold">
-        Type your move
-      </label>
-      <div className="flex gap-2">
-        <Input
-          id="drill-move"
-          value={text}
-          autoComplete="off"
-          spellCheck={false}
-          placeholder="e.g. Nf3"
-          aria-invalid={error || undefined}
-          aria-describedby={error ? 'drill-move-error' : undefined}
-          onChange={(e) => {
-            setText(e.target.value);
-            setError(false);
-          }}
-        />
-        <Button type="submit">Play</Button>
-      </div>
-      {error && (
-        <p id="drill-move-error" role="alert" className="text-ink font-bold">
-          That is not a legal move here.
-        </p>
-      )}
-    </form>
-  );
-}
-
 type Judged = { verdict: Verdict; loss: number | null };
 
 /** A move tried on a drill: judged from the saved lines, or waiting on a search of the position it leads to. */
@@ -190,11 +140,14 @@ function DrillCard({
   drill,
   phase,
   hints,
+  controls,
   dispatch,
 }: {
   drill: Drill;
   phase: Session['phase'];
   hints: number;
+  /** The size and filter pickers, beside the coach until the first answer. */
+  controls: ReactNode;
   dispatch: (action: Action) => void;
 }) {
   const { settings, reviewReplay } = useStore();
@@ -367,11 +320,7 @@ function DrillCard({
       </div>
       <div className="flex flex-col gap-6">
         {coach}
-        {open && (
-          <Panel>
-            <TypedMove fen={fen} onMove={input.submit} />
-          </Panel>
-        )}
+        {controls}
       </div>
     </div>
   );
@@ -445,7 +394,7 @@ function DrillFilters({
     </Button>
   );
   return (
-    <div className="flex flex-wrap items-center gap-x-8 gap-y-3">
+    <div className="flex flex-col gap-3">
       <div role="group" aria-label="Grade" className="flex flex-wrap gap-2">
         {chip(filter.grade === 'all', 'Any grade', { grade: 'all' })}
         {DRILL_GRADES.map((g) =>
@@ -475,14 +424,14 @@ function DrillFilters({
           }),
         )}
       </div>
-      <label className="flex items-center gap-2 font-bold">
+      <label className="flex flex-col gap-1 font-bold">
         Opening
         <select
           value={filter.opening ?? ''}
           onChange={(e) =>
             onChange({ ...filter, opening: e.target.value || null })
           }
-          className="border-line bg-surface-alt text-ink max-w-64 rounded-sm border-2 px-2 py-1.5 font-bold"
+          className="border-line bg-surface-alt text-ink w-full rounded-sm border-2 px-2 py-1.5 font-bold"
         >
           <option value="">Any opening</option>
           {openings.map((name) => (
@@ -571,7 +520,6 @@ function DrillSession({
     !session.results.length;
   return (
     <>
-      {unstarted && controls}
       <p className="font-mono font-bold tabular-nums">
         Drill {session.at + 1} of {total}
       </p>
@@ -580,6 +528,7 @@ function DrillSession({
         drill={drill}
         phase={session.phase}
         hints={session.hints}
+        controls={unstarted && controls}
         dispatch={dispatch}
       />
     </>
