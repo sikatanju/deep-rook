@@ -51,9 +51,8 @@ function SiteSwitch({
         <label
           key={site}
           className={cn(
-            'border-line bg-surface text-ink has-[:focus-visible]:outline-focus cursor-pointer rounded-sm border-3 px-3 py-1.5 font-bold shadow-sm has-[:focus-visible]:outline-[3px] has-[:focus-visible]:outline-offset-2',
-            value === site &&
-              'bg-primary text-sticker-ink -translate-x-0.5 -translate-y-0.5 shadow-md',
+            'border-line bg-surface text-ink has-[:focus-visible]:outline-focus cursor-pointer rounded-sm border-2 px-3 py-1.5 font-bold has-[:focus-visible]:outline-[3px] has-[:focus-visible]:outline-offset-2',
+            value === site && 'bg-primary text-sticker-ink',
           )}
         >
           <input
@@ -235,7 +234,6 @@ export function GamePicker({
 
   return (
     <Panel
-      tag="Online"
       title="Find a game"
       subtitle={`Enter a ${SITE_NAMES[site]} username to list their recent games.`}
     >

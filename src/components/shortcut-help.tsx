@@ -37,7 +37,7 @@ export function ShortcutHelp({
               Keyboard shortcuts
             </Dialog.Title>
             <Dialog.Close asChild>
-              <Button size="icon-xs" aria-label="Close">
+              <Button size="icon-sm" aria-label="Close">
                 <XIcon aria-hidden />
               </Button>
             </Dialog.Close>

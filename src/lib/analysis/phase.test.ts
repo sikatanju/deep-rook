@@ -50,7 +50,13 @@ test('nextMistake finds the next inaccuracy, mistake, miss or blunder after the 
 });
 
 test('nextMistake stops on inaccuracies too, and previousMistake walks back', () => {
-  const grades = ['best', 'inaccuracy', 'good', 'blunder', 'excellent'] as const;
+  const grades = [
+    'best',
+    'inaccuracy',
+    'good',
+    'blunder',
+    'excellent',
+  ] as const;
   expect(nextMistake(grades, 0)).toBe(2);
   expect(nextMistake(grades, 2)).toBe(4);
   expect(nextMistake(grades, 4)).toBeNull();
@@ -62,7 +68,7 @@ test('nextMistake stops on inaccuracies too, and previousMistake walks back', ()
   expect(previousMistake([], 3)).toBeNull();
 });
 
-test('nextMistake and previousMistake count only the chosen side\'s moves', () => {
+test("nextMistake and previousMistake count only the chosen side's moves", () => {
   // Plies alternate White, Black, White, Black, White.
   const plies = ['w', 'b', 'w', 'b', 'w'].map((color) => ({
     color: color as 'w' | 'b',

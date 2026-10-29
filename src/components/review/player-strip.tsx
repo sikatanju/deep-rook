@@ -60,7 +60,7 @@ export function PlayerStrip({
       {clock !== undefined && (
         <span
           className={cn(
-            'border-line rounded-sm border-2 px-2 py-1 font-mono text-sm font-bold tabular-nums shadow-sm',
+            'border-line rounded-sm border-2 px-2 py-1 font-mono text-sm font-bold tabular-nums',
             toMove ? 'bg-primary text-sticker-ink' : 'bg-surface-alt',
           )}
         >

@@ -13,7 +13,7 @@ import { useStore } from '@/app/store';
 import { Board } from '@/components/board/board';
 import { PromotionPicker } from '@/components/board/promotion-picker';
 import { TypedMove } from '@/components/board/typed-move';
-import { Highlight, PageHeader } from '@/components/layout/page-header';
+import { PageHeader } from '@/components/layout/page-header';
 import { Panel } from '@/components/panel';
 import { CoachBubble } from '@/components/review/coach-bubble';
 import { Button } from '@/components/ui/button';
@@ -335,7 +335,7 @@ function SizePicker({
       {SIZES.map((size) => (
         <label
           key={size}
-          className="border-line bg-surface text-ink has-[:checked]:bg-primary has-[:checked]:text-sticker-ink has-[:focus-visible]:outline-focus cursor-pointer rounded-sm border-3 px-3 py-1.5 text-[13px] font-extrabold uppercase has-[:focus-visible]:outline-[3px] has-[:focus-visible]:outline-offset-2"
+          className="border-line bg-surface text-ink has-[:checked]:bg-primary has-[:checked]:text-sticker-ink has-[:focus-visible]:outline-focus cursor-pointer rounded-sm border-2 px-3 py-1.5 text-[13px] font-bold has-[:focus-visible]:outline-[3px] has-[:focus-visible]:outline-offset-2"
         >
           <input
             type="radio"
@@ -419,7 +419,7 @@ function DrillFilters({
           onChange={(e) =>
             onChange({ ...filter, opening: e.target.value || null })
           }
-          className="border-line bg-surface-alt text-ink max-w-64 rounded-sm border-3 px-2 py-1.5 font-bold"
+          className="border-line bg-surface-alt text-ink max-w-64 rounded-sm border-2 px-2 py-1.5 font-bold"
         >
           <option value="">Any opening</option>
           {openings.map((name) => (
@@ -472,7 +472,6 @@ function DrillSession({
     const capped = total < available;
     return (
       <Panel
-        tag="Done"
         title={capped ? 'That is your session.' : 'That is every drill.'}
         className="max-w-xl"
       >
@@ -625,18 +624,15 @@ export function DrillPage() {
       ? filterDrills(everything, filter, book).length
       : null;
   const header = (
-    <PageHeader eyebrow="From your saved reviews">
-      Drill your{' '}
-      <Highlight>
-        {held === null ? 'mistakes' : drillLabel(filter, held)}
-      </Highlight>
+    <PageHeader>
+      Drill your {held === null ? 'mistakes' : drillLabel(filter, held)}
     </PageHeader>
   );
   const alive = current(streak, now);
   const streakNote = alive.run > 0 && (
     <p
       aria-live="polite"
-      className="border-line bg-surface-alt inline-flex w-fit items-center gap-2 rounded-sm border-3 px-3 py-1.5 font-bold"
+      className="border-line bg-surface-alt inline-flex w-fit items-center gap-2 rounded-sm border-2 px-3 py-1.5 font-bold"
     >
       <FlameIcon aria-hidden className="size-5" />
       {alive.run} {alive.run === 1 ? 'day' : 'days'} in a row

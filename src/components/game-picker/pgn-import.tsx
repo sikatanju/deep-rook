@@ -56,7 +56,6 @@ export function PgnImport() {
 
   return (
     <Panel
-      tag="Offline"
       title="Paste a PGN"
       subtitle="Works offline. Any game from any site."
     >
@@ -67,7 +66,7 @@ export function PgnImport() {
         rows={5}
         spellCheck={false}
         placeholder={'1. e4 e5 2. Nf3 Nc6 3. Bb5 a6 ...'}
-        className="border-line bg-surface-alt text-ink placeholder:text-ink-muted min-h-[104px] w-full resize-y rounded-sm border-3 p-3 font-mono text-[13px] shadow-[inset_3px_3px_0_0_rgb(0_0_0/0.08)]"
+        className="border-line bg-surface-alt text-ink placeholder:text-ink-muted min-h-[104px] w-full resize-y rounded-sm border-2 p-3 font-mono text-[13px] shadow-[inset_3px_3px_0_0_rgb(0_0_0/0.08)]"
       />
       <fieldset className="m-0 flex min-w-0 flex-wrap items-center gap-3 border-0 p-0">
         <legend className="text-ink mb-2 font-bold">

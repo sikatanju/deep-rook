@@ -66,11 +66,7 @@ export function MoveList({
           // Theory is most of an opening, so a Book chip stays out of the
           // move's accessible name: "e4", not "e4 Book".
           <span aria-hidden={grade === 'book' || undefined}>
-            <GradeSticker
-              grade={grade}
-              iconOnly
-              className="scale-90 shadow-none"
-            />
+            <GradeSticker grade={grade} iconOnly className="scale-90" />
           </span>
         )}
       </button>

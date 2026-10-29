@@ -47,9 +47,9 @@ export function GameRow({
       aria-pressed={selected}
       onClick={onSelect}
       className={cn(
-        'border-line text-ink grid w-full cursor-pointer grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 rounded-sm border-3 px-3 py-2.5 text-left transition-[translate,box-shadow] duration-[80ms] ease-in-out hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-md active:translate-x-0 active:translate-y-0 active:shadow-none sm:grid-cols-[72px_minmax(0,1fr)_auto_auto_auto]',
+        'border-line text-ink grid w-full cursor-pointer grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 rounded-sm border-2 px-3 py-2.5 text-left transition-[translate,box-shadow] duration-[80ms] ease-in-out hover:-translate-x-0.5 hover:-translate-y-0.5 active:translate-x-0 active:translate-y-0 sm:grid-cols-[72px_minmax(0,1fr)_auto_auto_auto]',
         selected
-          ? 'bg-primary text-sticker-ink shadow-md'
+          ? 'bg-primary text-sticker-ink'
           : 'bg-surface hover:bg-surface-alt',
       )}
     >

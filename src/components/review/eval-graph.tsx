@@ -90,7 +90,7 @@ export function EvalGraph({
   const tip = hover !== null ? labels?.[hover] : undefined;
 
   return (
-    <div className="border-line bg-eval-black relative border-3 shadow-md">
+    <div className="border-line bg-eval-black relative border-2">
       <svg
         viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
         preserveAspectRatio="none"
@@ -214,7 +214,7 @@ export function EvalGraph({
       )}
       {tip && hover !== null && (
         <span
-          className="border-line bg-surface text-ink pointer-events-none absolute top-1.5 -translate-x-1/2 rounded-sm border-2 px-2 font-mono text-xs font-bold whitespace-nowrap shadow-sm"
+          className="border-line bg-surface text-ink pointer-events-none absolute top-1.5 -translate-x-1/2 rounded-sm border-2 px-2 font-mono text-xs font-bold whitespace-nowrap"
           style={{ left: `${count > 1 ? (hover / (count - 1)) * 100 : 0}%` }}
         >
           {tip}

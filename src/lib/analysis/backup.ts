@@ -74,9 +74,7 @@ export async function importBackup(
     progress?.restore(drills),
   ]);
   const saved = file.settings as
-    | { boardSize?: unknown; extraNames?: unknown }
-    | null
-    | undefined;
+    { boardSize?: unknown; extraNames?: unknown } | null | undefined;
   const boardSize = parseBoardSize(saved?.boardSize);
   const extraNames = parseExtraNames(saved?.extraNames);
   const patch: BackupSettingsPatch = {};

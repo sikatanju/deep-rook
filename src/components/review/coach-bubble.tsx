@@ -89,7 +89,9 @@ export function CoachBubble({
 }) {
   const word =
     grade &&
-    (grade === 'book' ? 'book move' : CLASSIFICATIONS[grade].label.toLowerCase());
+    (grade === 'book'
+      ? 'book move'
+      : CLASSIFICATIONS[grade].label.toLowerCase());
   const eval_ = score && (
     <span className="border-line bg-surface-alt ml-auto flex-none rounded-sm border-2 px-1.5 font-mono text-sm font-bold">
       {score}
@@ -99,14 +101,14 @@ export function CoachBubble({
     <section
       aria-label="Coach"
       className={cn(
-        'border-line bg-surface overflow-hidden rounded-md border-3 shadow-lg',
+        'border-line bg-surface overflow-hidden rounded-md border-2',
         className,
       )}
     >
-      <header className="border-line bg-surface-alt flex min-h-12 items-center gap-3 border-b-3 px-3 py-2">
+      <header className="border-line bg-surface-alt flex min-h-12 items-center gap-3 border-b-2 px-3 py-2">
         <span
           aria-hidden
-          className="border-line bg-pop-3 text-sticker-ink grid size-8 flex-none place-items-center rounded-sm border-2 text-xl leading-none shadow-sm"
+          className="border-line bg-pop-3 text-sticker-ink grid size-8 flex-none place-items-center rounded-sm border-2 text-xl leading-none"
         >
           ♜
         </span>
@@ -121,9 +123,7 @@ export function CoachBubble({
         ) : grade ? (
           <GradeSticker grade={grade} />
         ) : (
-          <p className="text-ink-muted text-xs leading-4 font-extrabold tracking-[0.08em] uppercase">
-            Coach
-          </p>
+          <p className="text-ink-muted text-xs leading-4 font-bold">Coach</p>
         )}
         {eval_}
       </header>
@@ -149,7 +149,7 @@ export function CoachBubble({
                 icon={
                   <span
                     aria-hidden
-                    className="border-line bg-surface-alt grid h-6 min-w-[26px] scale-90 place-items-center rounded-sm border-2 px-[3px] font-mono text-xs font-bold shadow-sm"
+                    className="border-line bg-surface-alt grid h-6 min-w-[26px] scale-90 place-items-center rounded-sm border-2 px-[3px] font-mono text-xs font-bold"
                   >
                     2
                   </span>

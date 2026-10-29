@@ -15,7 +15,7 @@ import { useStore, type Loaded } from '@/app/store';
 import { Board, movingPiece } from '@/components/board/board';
 import { PromotionPicker } from '@/components/board/promotion-picker';
 import { TypedMove } from '@/components/board/typed-move';
-import { Highlight, PageHeader } from '@/components/layout/page-header';
+import { PageHeader } from '@/components/layout/page-header';
 import { Panel } from '@/components/panel';
 import { Button } from '@/components/ui/button';
 import { useGameAnalysis, useProbe } from '@/hooks/use-game-analysis';
@@ -723,7 +723,7 @@ function Viewer({ loaded }: { loaded: Loaded }) {
               aria-valuemax={MAX_BOARD_SIZE}
               aria-valuenow={Math.round(size ?? MIN_BOARD_SIZE)}
               title="Drag to resize, double-click to reset"
-              className="border-line bg-accent absolute -right-3 -bottom-3 z-20 size-6 cursor-nwse-resize touch-none rounded-sm border-3 shadow-sm"
+              className="border-line bg-accent absolute -right-3 -bottom-3 z-20 size-6 cursor-nwse-resize touch-none rounded-sm border-2"
               onDoubleClick={() => {
                 setSize(null);
                 setSettings({ boardSize: null });
@@ -869,7 +869,7 @@ function Viewer({ loaded }: { loaded: Loaded }) {
           // At xl the sheet takes whatever height the board leaves beside it: its
           // list is absolute, so it adds none of its own and the step buttons
           // end level with the board's bottom edge.
-          className="border-line bg-surface relative flex h-72 w-full max-w-2xl min-w-0 flex-col justify-self-center overflow-hidden rounded-md border-3 shadow-md xl:col-start-2 xl:row-start-2 xl:h-auto xl:max-w-none xl:self-stretch"
+          className="border-line bg-surface relative flex h-72 w-full max-w-2xl min-w-0 flex-col justify-self-center overflow-hidden rounded-md border-2 xl:col-start-2 xl:row-start-2 xl:h-auto xl:max-w-none xl:self-stretch"
         >
           <div className="min-h-0 flex-1 overflow-y-auto xl:absolute xl:inset-0">
             <MoveList
@@ -884,7 +884,6 @@ function Viewer({ loaded }: { loaded: Loaded }) {
 
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_400px] lg:items-start">
         <Panel
-          tag="Eval"
           title="How it went"
           subtitle="Click anywhere on the graph to jump to that move."
         >
@@ -961,9 +960,7 @@ export function ReviewPage() {
   if (!loaded) {
     return (
       <>
-        <PageHeader eyebrow="Nothing here yet">
-          Review a <Highlight>game</Highlight>
-        </PageHeader>
+        <PageHeader>Review a game</PageHeader>
         <Panel
           title="No game loaded."
           subtitle="Pick a game, choose a review mode, and press Review game."

@@ -178,9 +178,7 @@ export function createAnalyzer({
     if (!store) return;
     const { entries } = target;
     if (
-      !entries.every(
-        (e) => e.failed || (e.line && satisfies(e.settled, level)),
-      )
+      !entries.every((e) => e.failed || (e.line && satisfies(e.settled, level)))
     )
       return;
     // A later search can fail after a line already settled. Keep that line.

@@ -24,7 +24,7 @@ export function EngineLine({
   const labels = numberedSan(fen, sans);
   return (
     <div role="group" aria-label="Engine line">
-      <p className="text-ink-muted mb-1 text-xs leading-4 font-extrabold tracking-[0.08em] uppercase">
+      <p className="text-ink-muted mb-1 text-xs leading-4 font-bold">
         Engine line
         {score && <span className="font-mono normal-case"> {score}</span>}
       </p>

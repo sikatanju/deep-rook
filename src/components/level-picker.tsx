@@ -41,7 +41,7 @@ export function LevelPicker({
             key={level}
             title={ANALYSIS_LEVELS[level].blurb}
             className={cn(
-              'border-line bg-surface text-ink has-[:checked]:bg-primary has-[:checked]:text-sticker-ink has-[:focus-visible]:outline-focus relative flex cursor-pointer flex-col gap-2 rounded-sm border-3 text-left shadow-sm transition-[translate,box-shadow,rotate] duration-[80ms] ease-in-out hover:-translate-x-0.5 hover:-translate-y-0.5 hover:shadow-md has-[:checked]:-translate-x-[3px] has-[:checked]:-translate-y-[3px] has-[:checked]:-rotate-1 has-[:checked]:shadow-lg has-[:focus-visible]:outline-[3px] has-[:focus-visible]:outline-offset-2',
+              'border-line bg-surface text-ink has-[:checked]:bg-primary has-[:checked]:text-sticker-ink has-[:focus-visible]:outline-focus hover:bg-surface-alt has-[:checked]:hover:bg-primary relative flex cursor-pointer flex-col gap-2 rounded-sm border-2 text-left has-[:focus-visible]:outline-[3px] has-[:focus-visible]:outline-offset-2',
               compact ? 'p-2.5' : 'p-4',
             )}
           >

@@ -51,7 +51,7 @@ export function EvalBar({
       aria-valuemax={100}
       aria-valuenow={Math.round(win)}
       className={cn(
-        'border-line bg-eval-black relative overflow-hidden border-3 shadow-md',
+        'border-line bg-eval-black relative overflow-hidden border-2',
         horizontal ? 'h-7 w-full' : 'w-7 flex-none',
         className,
       )}

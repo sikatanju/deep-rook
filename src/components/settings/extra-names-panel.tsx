@@ -21,7 +21,6 @@ export function ExtraNamesPanel() {
 
   return (
     <Panel
-      tag="You"
       title="Extra names"
       subtitle="Games under your Chess.com or Lichess username are yours already. Add the names you play under elsewhere, such as over the board, an alt account or another site, so those games count as yours too. Case and spaces around a name do not matter."
     >
@@ -53,7 +52,7 @@ export function ExtraNamesPanel() {
             >
               {name}
               <Button
-                size="xs"
+                size="sm"
                 variant="ghost"
                 aria-label={`Remove ${name}`}
                 onClick={() =>

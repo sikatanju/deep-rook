@@ -45,7 +45,7 @@ export function GradeSticker({
       aria-label={iconOnly ? text : undefined}
       title={iconOnly ? text : undefined}
       className={cn(
-        'border-line text-sticker-ink inline-flex items-center gap-1 rounded-sm border-2 shadow-sm',
+        'border-line text-sticker-ink inline-flex items-center gap-1 rounded-sm border-2',
         FILL[grade],
         iconOnly ? 'p-0' : 'py-0.5 pr-2 pl-1',
         className,
@@ -61,11 +61,7 @@ export function GradeSticker({
       >
         {symbol}
       </span>
-      {!iconOnly && (
-        <span className="text-xs leading-4 font-extrabold tracking-[0.08em] uppercase">
-          {text}
-        </span>
-      )}
+      {!iconOnly && <span className="text-xs leading-4 font-bold">{text}</span>}
     </span>
   );
 }

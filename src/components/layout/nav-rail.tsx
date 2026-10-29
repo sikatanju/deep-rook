@@ -36,11 +36,11 @@ export function NavRail<Id extends string>({
   // Names stay in the DOM when collapsed, so links keep their accessible name.
   const hideLabel = collapsed && 'md:sr-only';
   const pill =
-    'md:rounded-pill text-ink hover:border-line hover:bg-surface-alt flex flex-1 flex-col items-center gap-0.5 rounded-sm border-3 border-transparent px-3 py-2 text-xs font-bold md:flex-none md:flex-row md:gap-3 md:py-2.5 md:text-[15px]';
+    'md:rounded-pill text-ink hover:border-line hover:bg-surface-alt flex flex-1 flex-col items-center gap-0.5 rounded-sm border-2 border-transparent px-3 py-2 text-xs font-bold md:flex-none md:flex-row md:gap-3 md:py-2.5 md:text-[15px]';
   return (
     <aside
       className={cn(
-        'border-line bg-surface flex items-center justify-between border-b-3 p-4 md:sticky md:top-0 md:h-svh md:flex-col md:items-stretch md:justify-start md:gap-2 md:border-r-3 md:border-b-0 md:py-6',
+        'border-line bg-surface flex items-center justify-between border-b-2 p-4 md:sticky md:top-0 md:h-svh md:flex-col md:items-stretch md:justify-start md:gap-2 md:border-r-2 md:border-b-0 md:py-6',
         collapsed ? 'md:px-3' : 'md:px-4',
       )}
     >
@@ -55,7 +55,7 @@ export function NavRail<Id extends string>({
         {/* The rook glyph on a tilted tile is a placeholder mark, not a drawn logo. */}
         <span
           aria-hidden
-          className="border-line bg-primary text-sticker-ink grid size-9 -rotate-6 place-items-center rounded-sm border-3 text-[22px] shadow-sm"
+          className="border-line bg-primary text-sticker-ink grid size-9 place-items-center rounded-sm border-2 text-[22px]"
         >
           ♜
         </span>
@@ -63,7 +63,7 @@ export function NavRail<Id extends string>({
       </a>
       <nav
         aria-label="Main"
-        className="border-line bg-surface fixed inset-x-0 bottom-0 z-10 flex justify-around border-t-3 p-1 md:static md:flex-1 md:flex-col md:justify-start md:gap-2 md:border-0 md:bg-transparent md:p-0"
+        className="border-line bg-surface fixed inset-x-0 bottom-0 z-10 flex justify-around border-t-2 p-1 md:static md:flex-1 md:flex-col md:justify-start md:gap-2 md:border-0 md:bg-transparent md:p-0"
       >
         {items.map(({ id, label, icon: Icon, pinned, badge }) => (
           <a
@@ -76,7 +76,7 @@ export function NavRail<Id extends string>({
               pinned && 'md:mt-auto',
               pill,
               collapsed && 'md:justify-center md:px-0',
-              'aria-[current=page]:border-line aria-[current=page]:bg-accent aria-[current=page]:text-sticker-ink aria-[current=page]:shadow-sm md:aria-[current=page]:shadow-md',
+              'aria-[current=page]:border-line aria-[current=page]:bg-surface-alt aria-[current=page]:text-ink',
             )}
           >
             <Icon aria-hidden className="size-5" />
