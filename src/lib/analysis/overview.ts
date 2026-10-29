@@ -170,7 +170,13 @@ export type Overview = {
   /** Games the aggregates are built from: those where my side is known. */
   games: number;
   /** Accuracy of my latest games, oldest first. */
-  trend: { key: GameKey; analyzedAt: number; accuracy: number }[];
+  trend: {
+    key: GameKey;
+    analyzedAt: number;
+    accuracy: number;
+    /** My rating in that game; null when the PGN gives none, never zero. */
+    rating: number | null;
+  }[];
   gradeTotals: Record<Classification, number>;
   stages: Record<Stage, Rate>;
   /** My moves by time pressure, over the games with clock readings. */
@@ -185,6 +191,13 @@ export type Overview = {
 export const TREND_LIMIT = 20;
 const OPENINGS_SHOWN = 5;
 const RECENT_SHOWN = 10;
+
+/** My side's Elo header as a number. A missing, "?" or zero rating is null. */
+export function ratingOf(game: Pick<GameSummary, 'me' | 'white' | 'black'>) {
+  const text = game.me && (game.me === 'w' ? game.white : game.black).rating;
+  const rating = text && /^\d+$/.test(text) ? Number(text) : 0;
+  return rating > 0 ? rating : null;
+}
 
 const rate = (tallies: readonly Tally[]): Rate => {
   const mistakes = tallies.reduce((n, t) => n + t.mistakes, 0);
@@ -235,6 +248,7 @@ export function overview(
       key: g.key,
       analyzedAt: g.analyzedAt,
       accuracy: g.accuracy!,
+      rating: ratingOf(g),
     }));
 
   const gradeTotals = Object.fromEntries(

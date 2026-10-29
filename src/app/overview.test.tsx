@@ -4,7 +4,7 @@ import { expect, test } from 'vitest';
 
 import { saveLastReview } from '@/app/last-review';
 import { exportBackup } from '@/lib/analysis/backup';
-import { memoryStore } from '@/lib/analysis/cache';
+import { memoryStore, type GameKey } from '@/lib/analysis/cache';
 import { stored } from '@/lib/analysis/fixtures';
 import { OPERA_GAME, parseReplay } from '@/lib/chess/replay';
 
@@ -215,6 +215,43 @@ test('the filter narrows the Overview by speed and side', async () => {
   expect(
     await screen.findByRole('img', { name: /^Accuracy over your last 1 game/ }),
   ).toBeInTheDocument();
+});
+
+test('the trend draws the player’s rating over the bars, with a gap for a game without one', async () => {
+  localStorage.setItem('lastUsername', 'paul morphy');
+  const store = memoryStore();
+  const game = (round: string, elo: string | null) =>
+    parseReplay(
+      OPERA_GAME.replace(
+        /\[WhiteElo "\d+"\]\n/,
+        elo ? `[WhiteElo "${elo}"]\n` : '',
+      ).replace('[Result', `[Round "${round}"]\n[Result`),
+    );
+  const rounds = [
+    ['1', '2600'],
+    ['2', null],
+    ['3', '2650'],
+  ] as const;
+  // The key is the game's positions, so same-moves games need keys of their own.
+  for (const [i, [round, elo]] of rounds.entries())
+    await store.save({
+      ...stored({ replay: game(round, elo), cps, analyzedAt: i + 1 }),
+      key: `rated-${i}` as GameKey,
+    });
+  openOverview(store);
+
+  const chart = await screen.findByRole('img', {
+    name: /^Accuracy over your last 3 games.*your rating, latest 2650/,
+  });
+  expect(
+    [...chart.querySelectorAll('[data-rating]')].map((d) =>
+      d.getAttribute('data-rating'),
+    ),
+  ).toEqual(['2600', '2650']);
+  expect(chart.querySelector('path[d*="L"]')).toBeNull();
+  expect(chart.closest('div.flex')!.querySelector('p')).toHaveTextContent(
+    'The line is your rating, latest 2650, from 2600 to 2650.',
+  );
 });
 
 test('Settings imports a backup file into the saved reviews', async () => {
