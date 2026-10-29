@@ -41,10 +41,13 @@ import {
   DRILL_GRADES,
   DRILL_STAGES,
   drillHash,
+  drillLabel,
   filterDrills,
+  isFiltered,
   NO_DRILL_FILTER,
   openingOfDrill,
   readDrillFilter,
+  speedOfDrill,
   type DrillFilter,
 } from '@/lib/analysis/drill-filter';
 import {
@@ -63,13 +66,14 @@ import {
   type Result,
   type Session,
 } from '@/lib/analysis/drill-session';
+import { openingKey, sideOf, SPEEDS } from '@/lib/analysis/overview';
 import { searchInputAt } from '@/lib/analysis/inputs';
-import { sideOf } from '@/lib/analysis/overview';
 import type { ProbeInput, ProbeSnapshot } from '@/lib/analysis/probe';
 import { branchFens, playMove } from '@/lib/chess/branch';
 import { moveFromSan, type Move } from '@/lib/chess/play';
 import type { Ply } from '@/lib/chess/replay';
 import { STAGES } from '@/lib/chess/stage';
+import type { TimeClass } from '@/lib/chesscom/types';
 import type { Sound } from '@/lib/sound';
 
 const SIDE = { w: 'White', b: 'Black' } as const;
@@ -400,11 +404,14 @@ const GRADE_NAMES = { mistake: 'Mistake', miss: 'Miss', blunder: 'Blunder' };
 function DrillFilters({
   filter,
   openings,
+  speeds,
   onChange,
 }: {
   filter: DrillFilter;
   /** Every opening a drill comes from, sorted. */
   openings: readonly string[];
+  /** Every speed a drill's game was played at. */
+  speeds: readonly TimeClass[];
   onChange: (filter: DrillFilter) => void;
 }) {
   const chip = (active: boolean, name: string, patch: Partial<DrillFilter>) => (
@@ -430,6 +437,23 @@ function DrillFilters({
         {chip(filter.stage === 'all', 'Any stage', { stage: 'all' })}
         {DRILL_STAGES.map((st) =>
           chip(filter.stage === st, STAGES[st].label, { stage: st }),
+        )}
+      </div>
+      <div role="group" aria-label="Side" className="flex flex-wrap gap-2">
+        {chip(filter.side === 'all', 'Either side', { side: 'all' })}
+        {chip(filter.side === 'w', 'White', { side: 'w' })}
+        {chip(filter.side === 'b', 'Black', { side: 'b' })}
+      </div>
+      <div
+        role="group"
+        aria-label="Time control"
+        className="flex flex-wrap gap-2"
+      >
+        {chip(filter.speed === 'all', 'Any speed', { speed: 'all' })}
+        {speeds.map((sp) =>
+          chip(filter.speed === sp, sp[0]!.toUpperCase() + sp.slice(1), {
+            speed: sp,
+          }),
         )}
       </div>
       <label className="flex items-center gap-2 font-bold">
@@ -608,18 +632,39 @@ export function DrillPage() {
       plan(drillQueue(records, usernames), progress.byId, progress.now),
     [records, usernames, progress],
   );
-  const openings = useMemo(() => {
-    const names = new Set(filter.opening === null ? [] : [filter.opening]);
-    for (const drill of [...(planned?.due ?? []), ...(planned?.later ?? [])]) {
+  // What the lists offer: every opening and speed among the drills, due or resting.
+  const everything = useMemo(
+    () => [...(planned?.due ?? []), ...(planned?.later ?? [])],
+    [planned],
+  );
+  const { openings, speeds } = useMemo(() => {
+    // One entry per opening as the Overview groups them; the one asked for wins.
+    const byKey = new Map<string, string>();
+    if (filter.opening !== null)
+      byKey.set(openingKey(filter.opening), filter.opening);
+    for (const drill of everything) {
       const name = openingOfDrill(drill, book ?? null);
-      if (name) names.add(name);
+      if (name && !byKey.has(openingKey(name)))
+        byKey.set(openingKey(name), name);
     }
-    return [...names].sort();
-  }, [planned, book, filter.opening]);
+    const played = new Set(everything.map(speedOfDrill));
+    return {
+      openings: [...byKey.values()].sort(),
+      speeds: SPEEDS.filter((sp) => played.has(sp)),
+    };
+  }, [everything, book, filter.opening]);
 
+  // A filtered page says what it holds: "Drill your 6 Caro-Kann Defense mistakes".
+  const held =
+    planned && book !== undefined && isFiltered(filter)
+      ? filterDrills(everything, filter, book).length
+      : null;
   const header = (
     <PageHeader eyebrow="From your saved reviews">
-      Drill your <Highlight>mistakes</Highlight>
+      Drill your{' '}
+      <Highlight>
+        {held === null ? 'mistakes' : drillLabel(filter, held)}
+      </Highlight>
     </PageHeader>
   );
   const alive = current(streak, now);
@@ -732,7 +777,12 @@ export function DrillPage() {
   const setFilter = (next: DrillFilter) =>
     location.replace(`#${drillHash(next)}`);
   const filters = (
-    <DrillFilters filter={filter} openings={openings} onChange={setFilter} />
+    <DrillFilters
+      filter={filter}
+      openings={openings}
+      speeds={speeds}
+      onChange={setFilter}
+    />
   );
 
   if (waiting.length === 0)

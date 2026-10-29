@@ -263,3 +263,90 @@ test('the empty Review page offers no shortcut when none of the saved games is y
     screen.queryByRole('button', { name: 'Review my latest game' }),
   ).toBeNull();
 });
+
+async function blitzStore() {
+  const store = memoryStore();
+  const replay = parseReplay(
+    OPERA_GAME.replace('[Result', '[TimeControl "300+3"]\n[Result'),
+  );
+  await store.save(stored({ replay, cps }));
+  return store;
+}
+
+test('stage bars and opening rows link to the drills they hold', async () => {
+  localStorage.setItem('lastUsername', 'paul morphy');
+  openOverview(await savedStore());
+
+  const opening = await screen.findByRole('link', {
+    name: '1 drill for opening mistakes',
+  });
+  expect(opening).toHaveAttribute('href', '#/drill?stage=opening');
+  expect(
+    screen.getByRole('link', { name: '1 drill for middlegame mistakes' }),
+  ).toHaveAttribute('href', '#/drill?stage=middlegame');
+  // No drill came in the endgame: it says so instead of linking to nothing.
+  const endgame = document.querySelector('[data-row="endgame"]')!;
+  expect(endgame).toHaveTextContent('No drills');
+  expect(within(endgame as HTMLElement).queryByRole('link')).toBeNull();
+
+  const row = screen.getByRole('rowheader', {
+    name: 'Philidor Defense',
+  }).parentElement!;
+  expect(within(row).getByRole('link')).toHaveAttribute(
+    'href',
+    '#/drill?opening=Philidor+Defense',
+  );
+  expect(within(row).getByRole('link')).toHaveAccessibleName(
+    '2 drills for Philidor Defense',
+  );
+});
+
+test('the links carry the Overview side and speed, and count under them', async () => {
+  localStorage.setItem('lastUsername', 'paul morphy');
+  const user = userEvent.setup();
+  openOverview(await blitzStore());
+  await screen.findByRole('link', { name: '1 drill for opening mistakes' });
+
+  await user.click(screen.getByRole('button', { name: 'Blitz' }));
+  await user.click(screen.getByRole('button', { name: 'White' }));
+  expect(
+    screen.getByRole('link', { name: '1 drill for opening mistakes' }),
+  ).toHaveAttribute('href', '#/drill?stage=opening&side=w&speed=blitz');
+
+  // Black has no drills in this game.
+  await user.click(screen.getByRole('button', { name: 'Black' }));
+  expect(screen.getByText('No games match this filter.')).toBeInTheDocument();
+});
+
+test('following a link opens the Drill page on that filter', async () => {
+  localStorage.setItem('lastUsername', 'paul morphy');
+  const user = userEvent.setup();
+  openOverview(await savedStore());
+
+  await user.click(
+    await screen.findByRole('link', { name: '2 drills for Philidor Defense' }),
+  );
+  expect(
+    await screen.findByRole('heading', {
+      name: 'Drill your 2 Philidor Defense mistakes',
+    }),
+  ).toBeInTheDocument();
+  expect(screen.getByText('Drill 1 of 2')).toBeInTheDocument();
+  expect(screen.getByRole('combobox', { name: 'Opening' })).toHaveValue(
+    'Philidor Defense',
+  );
+});
+
+test('the links can be reached and used with the keyboard', async () => {
+  localStorage.setItem('lastUsername', 'paul morphy');
+  const user = userEvent.setup();
+  openOverview(await savedStore());
+
+  const link = await screen.findByRole('link', {
+    name: '1 drill for middlegame mistakes',
+  });
+  link.focus();
+  expect(link).toHaveFocus();
+  await user.keyboard('{Enter}');
+  expect(location.hash).toBe('#/drill?stage=middlegame');
+});

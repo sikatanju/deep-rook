@@ -142,7 +142,7 @@ export type Rate = Tally & {
  * Chess.com slugs drop the colons, apostrophes, hyphens and accents that
  * Lichess names keep, so one opening matches on its letters and digits only.
  */
-function openingKey(name: string): string {
+export function openingKey(name: string): string {
   return name
     .normalize('NFD')
     .replace(/\p{M}|'|’/gu, '')
@@ -194,6 +194,14 @@ const rate = (tallies: readonly Tally[]): Rate => {
 
 const mean = (values: number[]) =>
   values.length ? values.reduce((a, b) => a + b, 0) / values.length : null;
+
+export const SPEEDS = [
+  'bullet',
+  'blitz',
+  'rapid',
+  'classical',
+  'daily',
+] as const satisfies readonly TimeClass[];
 
 /** Which games the Overview counts. A game with no known side fails any `side`. */
 export type Filter = { speed: TimeClass | 'all'; side: 'w' | 'b' | 'all' };

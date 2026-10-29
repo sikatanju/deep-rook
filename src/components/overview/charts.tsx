@@ -1,3 +1,5 @@
+import type { ReactNode } from 'react';
+
 import { GradeSticker } from '@/components/review/grade-sticker';
 import { CLASSIFICATIONS, type Classification } from '@/lib/analysis/classify';
 import type { Overview, Pressure, Rate } from '@/lib/analysis/overview';
@@ -119,12 +121,18 @@ export function GradeMix({ totals }: { totals: Overview['gradeTotals'] }) {
 export function RateBars({
   rows,
 }: {
-  rows: readonly { id: string; label: string; rate: Rate }[];
+  rows: readonly {
+    id: string;
+    label: string;
+    rate: Rate;
+    /** Shown beside the figure, such as a link to what the row counts. */
+    action?: ReactNode;
+  }[];
 }) {
   const worst = Math.max(1, ...rows.map((r) => r.rate.per100 ?? 0));
   return (
     <ul className="flex flex-col gap-3">
-      {rows.map(({ id, label, rate: { per100, mistakes, plies } }) => (
+      {rows.map(({ id, label, rate: { per100, mistakes, plies }, action }) => (
         <li key={id} data-row={id} className="flex flex-col gap-1">
           <div className="flex items-baseline justify-between gap-3">
             <span className="font-extrabold">{label}</span>
@@ -141,6 +149,7 @@ export function RateBars({
               )}
             </span>
           </div>
+          {action}
           <div className="bg-surface-alt h-5 rounded-sm">
             {per100 !== null && per100 > 0 && (
               <div
@@ -155,13 +164,21 @@ export function RateBars({
   );
 }
 
-export function StageBars({ stages }: { stages: Overview['stages'] }) {
+export function StageBars({
+  stages,
+  action,
+}: {
+  stages: Overview['stages'];
+  /** What to show under each stage's figure. */
+  action?: (stage: Stage) => ReactNode;
+}) {
   return (
     <RateBars
       rows={STAGE_IDS.map((id) => ({
         id,
         label: STAGES[id].label,
         rate: stages[id],
+        action: action?.(id),
       }))}
     />
   );

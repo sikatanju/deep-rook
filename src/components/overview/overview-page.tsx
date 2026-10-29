@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react';
+import { useMemo, useState, type ReactNode } from 'react';
 
 import { navigate } from '@/app/router';
 import { useStore } from '@/app/store';
@@ -11,12 +11,21 @@ import { Button } from '@/components/ui/button';
 import { useOpeningBook } from '@/hooks/use-opening-book';
 import { useSavedReviews } from '@/hooks/use-saved-reviews';
 import type { StoredAnalysis } from '@/lib/analysis/cache';
+import { drillQueue } from '@/lib/analysis/drill';
+import {
+  drillHash,
+  filterDrills,
+  NO_DRILL_FILTER,
+  type DrillFilter,
+} from '@/lib/analysis/drill-filter';
 import { ANALYSIS_LEVELS } from '@/lib/analysis/levels';
+import { STAGES } from '@/lib/chess/stage';
 import type { TimeClass } from '@/lib/chesscom/types';
 import {
   filterGames,
   NO_FILTER,
   overview,
+  SPEEDS,
   TREND_LIMIT,
   summarize,
   type Filter,
@@ -72,7 +81,40 @@ function Pending() {
   );
 }
 
-function OpeningsTable({ openings }: { openings: OpeningStat[] }) {
+const LINK =
+  'font-bold underline underline-offset-4 hover:no-underline focus-visible:outline-focus rounded-sm focus-visible:outline-[3px] focus-visible:outline-offset-2';
+
+/** Opens the Drill page on `filter`; a row with no drills says so instead. */
+function DrillLink({
+  count,
+  filter,
+  what,
+}: {
+  count: number;
+  filter: DrillFilter;
+  /** What the row is about, for a screen reader. */
+  what: string;
+}) {
+  if (count === 0) return <span className="text-ink-muted">No drills</span>;
+  const text = `${count} ${count === 1 ? 'drill' : 'drills'}`;
+  return (
+    <a
+      href={`#${drillHash(filter)}`}
+      aria-label={`${text} for ${what}`}
+      className={LINK}
+    >
+      {text}
+    </a>
+  );
+}
+
+function OpeningsTable({
+  openings,
+  drillLink,
+}: {
+  openings: OpeningStat[];
+  drillLink: (name: string) => ReactNode;
+}) {
   if (openings.length === 0)
     return <p className="text-ink-muted">No openings named yet.</p>;
   const head = 'px-2 py-1.5 text-xs font-extrabold tracking-[0.08em] uppercase';
@@ -93,6 +135,9 @@ function OpeningsTable({ openings }: { openings: OpeningStat[] }) {
             <th scope="col" className={`${head} text-right`}>
               Accuracy
             </th>
+            <th scope="col" className={`${head} text-right`}>
+              Drill
+            </th>
           </tr>
         </thead>
         <tbody>
@@ -110,6 +155,7 @@ function OpeningsTable({ openings }: { openings: OpeningStat[] }) {
               <td className="px-2 py-2 text-right font-mono font-bold tabular-nums">
                 {o.accuracy?.toFixed(1) ?? '–'}
               </td>
+              <td className="px-2 py-2 text-right">{drillLink(o.name)}</td>
             </tr>
           ))}
         </tbody>
@@ -179,7 +225,6 @@ function RecentGames({
   );
 }
 
-const SPEEDS = ['bullet', 'blitz', 'rapid', 'classical', 'daily'] as const;
 const SIDES = [
   { id: 'all', name: 'Either side' },
   { id: 'w', name: 'White' },
@@ -248,10 +293,32 @@ export function OverviewPage() {
     () => summaries && overview(filterGames(summaries, filter)),
     [summaries, filter],
   );
+  const drills = useMemo(
+    () => records && drillQueue(records, usernames),
+    [records, usernames],
+  );
+  // A link carries the Overview's side and speed, and counts the drills under them.
+  const drillLink = (patch: Partial<DrillFilter>, what: string) => {
+    const merged: DrillFilter = {
+      ...NO_DRILL_FILTER,
+      side: filter.side,
+      speed: filter.speed,
+      ...patch,
+    };
+    return (
+      <DrillLink
+        count={filterDrills(drills || [], merged, book ?? null).length}
+        filter={merged}
+        what={what}
+      />
+    );
+  };
   const speeds = useMemo(
     () =>
-      SPEEDS.filter((s) =>
-        summaries && summaries.some((g) => g.me !== null && g.timeClass === s),
+      SPEEDS.filter(
+        (s) =>
+          summaries &&
+          summaries.some((g) => g.me !== null && g.timeClass === s),
       ),
     [summaries],
   );
@@ -340,7 +407,19 @@ export function OverviewPage() {
             title="Where mistakes happen"
             subtitle={`Mistakes, misses and blunders per 100 of your moves in ${matchedGames(data)}.`}
           >
-            {data ? <StageBars stages={data.stages} /> : <Pending />}
+            {data ? (
+              <StageBars
+                stages={data.stages}
+                action={(stage) =>
+                  drillLink(
+                    { stage },
+                    `${STAGES[stage].label.toLowerCase()} mistakes`,
+                  )
+                }
+              />
+            ) : (
+              <Pending />
+            )}
           </Panel>
           <Panel
             tag="Clock"
@@ -355,7 +434,14 @@ export function OverviewPage() {
             title="Openings that cost you"
             subtitle="Lowest average accuracy first."
           >
-            {data ? <OpeningsTable openings={data.openings} /> : <Pending />}
+            {data ? (
+              <OpeningsTable
+                openings={data.openings}
+                drillLink={(name) => drillLink({ opening: name }, name)}
+              />
+            ) : (
+              <Pending />
+            )}
           </Panel>
         </div>
       )}
