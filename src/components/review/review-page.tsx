@@ -21,7 +21,7 @@ import { Button } from '@/components/ui/button';
 import { readSavedUsernames } from '@/components/game-picker/username-form';
 import { useGameAnalysis, useProbe } from '@/hooks/use-game-analysis';
 import { useMoveInput } from '@/hooks/use-move-input';
-import { useOpening } from '@/hooks/use-opening-book';
+import { useOpening, useOpeningBook } from '@/hooks/use-opening-book';
 import { useSavedReviews } from '@/hooks/use-saved-reviews';
 import { useShortcuts } from '@/hooks/use-shortcuts';
 import { useSound } from '@/hooks/use-sound';
@@ -100,6 +100,7 @@ const COACH_LINE: Record<Classification, string> = {
   miss: 'A tactic was sitting right there.',
   mistake: 'That hands over the initiative.',
   blunder: 'Oof. That hangs the game.',
+  book: 'Straight from the opening book.',
 };
 
 /** "16. Qb8+" for White's move, "16… Nxb8" for Black's. */
@@ -203,10 +204,17 @@ function Viewer({ loaded }: { loaded: Loaded }) {
   const analysis = useGameAnalysis(loaded, index);
   const here = analysis?.positions[index];
   const gameLine = here && here.status !== 'failed' ? here.line : null;
+  const book = useOpeningBook();
   const grades = useMemo(
-    () => (analysis ? classifyMoves(replay, analysis.positions) : []),
-    [replay, analysis],
+    () =>
+      analysis ? classifyMoves(replay, analysis.positions, book ?? null) : [],
+    [replay, analysis, book],
   );
+  // How many of the game's first moves are theory, for the graph's band.
+  const theory = useMemo(() => {
+    const out = grades.findIndex((g) => g !== 'book');
+    return out === -1 ? grades.length : out;
+  }, [grades]);
   // The moves a walk through the mistakes counts: the reviewed player's when
   // the game is one of theirs, else both sides'.
   const mine = useMemo(() => {
@@ -637,6 +645,7 @@ function Viewer({ loaded }: { loaded: Loaded }) {
         const spent = clocks[i]?.spent;
         return [
           moveLabel(p),
+          i < theory ? 'Book' : null,
           at?.status === 'done' ? formatScore(at.line.score) : null,
           spent === undefined ? null : formatSpent(spent),
         ]
@@ -644,7 +653,7 @@ function Viewer({ loaded }: { loaded: Loaded }) {
           .join('  ');
       }),
     ],
-    [replay, analysis, clocks],
+    [replay, analysis, clocks, theory],
   );
 
   const stepButton = (
@@ -886,6 +895,7 @@ function Viewer({ loaded }: { loaded: Loaded }) {
                 grade: m.grade,
               }))}
               labels={labels}
+              book={theory}
               // `go`, not `goTo`: a drag is user navigation and must stop
               // autoplay, or the two fight over the index.
               onScrub={go}

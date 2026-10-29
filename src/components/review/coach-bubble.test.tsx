@@ -87,3 +87,17 @@ test('an icon-only sticker still names its grade', () => {
     'blunder',
   );
 });
+
+test('a theory move reads as a book move', () => {
+  render(
+    <CoachBubble
+      grade="book"
+      move="1. e4"
+      eval="+0.3"
+      title="Straight from the opening book."
+    />,
+  );
+  expect(screen.getByRole('region', { name: 'Coach' })).toHaveTextContent(
+    '1. e4 is a book move',
+  );
+});

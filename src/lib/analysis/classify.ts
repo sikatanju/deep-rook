@@ -5,6 +5,7 @@
 
 import { Chess } from 'chess.js';
 
+import { bookPlies, type OpeningBook } from '@/lib/chess/openings';
 import { fenAt, materialOf, type Ply, type Replay } from '@/lib/chess/replay';
 import { winPercent, type Line, type Variation } from '@/lib/chess/score';
 
@@ -34,9 +35,19 @@ export const CLASSIFICATIONS = {
   mistake: { label: 'Mistake', symbol: '?', color: 'var(--grade-mistake)' },
   miss: { label: 'Miss', symbol: '✕', color: 'var(--grade-miss)' },
   blunder: { label: 'Blunder', symbol: '??', color: 'var(--grade-blunder)' },
+  // Not the engine's judgement: opening theory, which classifyMoves lays over
+  // the engine's grades and every count and accuracy leaves out.
+  book: { label: 'Book', symbol: '♙', color: 'var(--grade-book)' },
 } as const;
 
 export type Classification = keyof typeof CLASSIFICATIONS;
+
+/** The grades the engine gives: everything but Book. */
+export type ScoredGrade = Exclude<Classification, 'book'>;
+
+export const SCORED_GRADES = (
+  Object.keys(CLASSIFICATIONS) as Classification[]
+).filter((grade): grade is ScoredGrade => grade !== 'book');
 
 /** Upper bounds of win-chance loss, in percentage points. */
 const BY_LOSS: [number, Classification][] = [
@@ -65,11 +76,16 @@ const ONLY_MOVE_GAP = 15;
  * - brilliant: near-best, gives up 2+ points of material to the engine's
  *   reply, and leaves the mover not worse.
  * - miss: an inaccuracy or mistake right after the opponent's mistake.
+ * - book: with the opening table, the game's leading moves that stay in it.
+ *   They are Book whether or not the engine has settled them, and the engine
+ *   never judges them. Without the table there are none.
  */
 export function classifyMoves(
   replay: Replay,
   positions: readonly PositionAnalysis[],
+  book: OpeningBook | null = null,
 ): (Classification | null)[] {
+  const theory = book ? bookPlies(replay, book) : 0;
   const lines = positions.map((p) => (p.status === 'done' ? p.line : null));
   const moves = replay.plies.map((ply, p) => {
     const before = lines[p];
@@ -95,6 +111,7 @@ export function classifyMoves(
   });
 
   return moves.map((m, p) => {
+    if (p < theory) return 'book';
     if (!m) return null;
     const punishes = (moves[p - 1]?.loss ?? 0) >= 10;
     if (m.loss < 2 && m.winAfter >= 50 && isSacrifice(m)) return 'brilliant';

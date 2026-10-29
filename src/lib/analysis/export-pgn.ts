@@ -5,6 +5,7 @@
 
 import { Chess } from 'chess.js';
 
+import type { OpeningBook } from '@/lib/chess/openings';
 import { clockText, fenAt, sanLine, type Replay } from '@/lib/chess/replay';
 import type { Score } from '@/lib/chess/score';
 
@@ -21,7 +22,7 @@ import { gameReport } from './report';
 /**
  * What a grade adds to its move. `nag` is the numeric annotation glyph, and
  * `best` names the engine's move when it differs. Grades left out (best,
- * excellent, good) are only an eval.
+ * excellent, good) are only an eval, and so is Book.
  */
 const MARKS: Partial<Record<Classification, { nag?: number; best?: true }>> = {
   brilliant: { nag: 3 },
@@ -80,11 +81,16 @@ function leadComment(
  * The game with an `[%eval]` after every settled position, the clocks it
  * came with, a numeric glyph and a sentence on notable grades, and the
  * engine's move where the player's was worse. Evals are White's view in
- * pawns, as Lichess writes them.
+ * pawns, as Lichess writes them. Moves in the opening `book` get neither a
+ * glyph nor a sentence.
  */
-export function annotatedPgn(replay: Replay, analysis: GameAnalysis): string {
+export function annotatedPgn(
+  replay: Replay,
+  analysis: GameAnalysis,
+  book: OpeningBook | null = null,
+): string {
   const { positions } = analysis;
-  const grades = classifyMoves(replay, positions);
+  const grades = classifyMoves(replay, positions, book);
   const report = gameReport(replay, positions, grades);
   const result = RESULTS.find((r) => r === replay.headers.Result) ?? '*';
 

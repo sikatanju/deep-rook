@@ -11,13 +11,14 @@ import {
 // The engine is replaced by a finished analysis with hand-picked evals, so the
 // grades (and so the mistakes to walk) are known.
 //
-// White's evals by position: level until 2.Nf3 (ply 2) throws away 150, then
+// White's evals by position: level until 4.dxe5 (ply 6) throws away 150, then
 // 4...Bxf3 (ply 7) hands it back with interest, then 11.Bxb5+ (ply 20) loses it
-// all again. Plies 2 and 20 are White's slips, ply 7 is Black's.
+// all again. Plies 6 and 20 are White's slips, ply 7 is Black's. The game's
+// first five plies are opening theory, which the walk never stops on.
 const record = stored({
   cps: [
-    ...Array(3).fill(0),
-    ...Array(5).fill(-150),
+    ...Array(7).fill(0),
+    ...Array(1).fill(-150),
     ...Array(13).fill(250),
     ...Array(13).fill(-150),
   ],
@@ -60,7 +61,7 @@ test('Next mistake and N walk the slips of both sides, and Shift+N walks back', 
   expect(nextButton()).toHaveTextContent('Next mistake');
 
   await user.click(nextButton());
-  expect(onScreen()).toContain('Nf3');
+  expect(onScreen()).toContain('dxe5');
   await user.keyboard('n');
   expect(onScreen()).toContain('Bxf3');
   await user.keyboard('n');
@@ -69,10 +70,10 @@ test('Next mistake and N walk the slips of both sides, and Shift+N walks back', 
   await user.keyboard('N');
   expect(onScreen()).toContain('Bxf3');
   await user.keyboard('N');
-  expect(onScreen()).toContain('Nf3');
+  expect(onScreen()).toContain('dxe5');
   // Nothing before the first: the key leaves the board where it is.
   await user.keyboard('N');
-  expect(onScreen()).toContain('Nf3');
+  expect(onScreen()).toContain('dxe5');
 });
 
 test('with no later mistake the button is disabled and says so', async () => {
@@ -90,7 +91,7 @@ test('on your own game only your moves count', async () => {
   const user = await openOperaGame();
 
   await user.keyboard('n');
-  expect(onScreen()).toContain('Nf3');
+  expect(onScreen()).toContain('dxe5');
   // Black's blunder on ply 7 is skipped.
   await user.keyboard('n');
   expect(onScreen()).toContain('Bxb5+');

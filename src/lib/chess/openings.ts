@@ -3,6 +3,8 @@
 // however the game reached it, and whatever site the game came from. The table
 // is about 70 kB gzipped, so it loads on first use.
 
+import { Chess } from 'chess.js';
+
 import { fenAt, type Replay } from './replay';
 
 export type Opening = { eco: string; name: string };
@@ -13,6 +15,8 @@ export type OpeningBook = {
   /** "ECO name" by placement, side, castling and en passant square. */
   positions: Readonly<Record<string, string>>;
 };
+
+const STANDARD_START = new Chess().fen();
 
 const positionKey = (fen: string) => fen.split(' ').slice(0, 4).join(' ');
 
@@ -25,6 +29,19 @@ export function openingOf(replay: Replay, book: OpeningBook): Opening | null {
     return { eco: entry.slice(0, space), name: entry.slice(space + 1) };
   }
   return null;
+}
+
+/**
+ * How many of the game's first plies are theory: the leading run whose
+ * position after the ply is in the table, ending at the first move that
+ * leaves it. A game set up from another position has none.
+ */
+export function bookPlies(replay: Replay, book: OpeningBook): number {
+  if (replay.start !== STANDARD_START) return 0;
+  const limit = Math.min(replay.plies.length, book.maxPlies);
+  let n = 0;
+  while (n < limit && book.positions[positionKey(fenAt(replay, n + 1))]) n++;
+  return n;
 }
 
 let loading: Promise<OpeningBook> | undefined;

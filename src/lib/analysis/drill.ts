@@ -2,6 +2,7 @@
 // shared shape; a Drill is a Puzzle from a saved review (drillsOf), and retryAt
 // builds one from the live review. Each carries a best move legal in its position.
 
+import { type OpeningBook } from '@/lib/chess/openings';
 import { uciOf, type Move } from '@/lib/chess/play';
 import { fenAt, sanLine, type Ply, type Replay } from '@/lib/chess/replay';
 import { winPercent, type Line, type Score } from '@/lib/chess/score';
@@ -79,15 +80,17 @@ function puzzleAt(
   };
 }
 
+/** With the opening `book`, moves still in theory are Book and never drills. */
 export function drillsOf(
   record: StoredAnalysis,
   usernames: readonly string[],
+  book: OpeningBook | null = null,
 ): Drill[] {
   const { replay, lines } = record;
   const me = sideOf(replay.headers, usernames);
   if (!me) return [];
   const positions = positionsFromStored(lines);
-  const grades = classifyMoves(replay, positions);
+  const grades = classifyMoves(replay, positions, book);
   const them = me === 'w' ? 'Black' : 'White';
   const opponent = replay.headers[them] ?? them;
 
@@ -134,9 +137,10 @@ export function drillReason(drill: Puzzle): string | null {
 export function drillQueue(
   records: readonly StoredAnalysis[],
   usernames: readonly string[],
+  book: OpeningBook | null = null,
 ): Drill[] {
   return records
-    .flatMap((record) => drillsOf(record, usernames))
+    .flatMap((record) => drillsOf(record, usernames, book))
     .sort(
       (a, b) =>
         b.loss - a.loss ||

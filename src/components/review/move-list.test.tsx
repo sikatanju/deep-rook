@@ -33,3 +33,20 @@ test('a game set up with Black to move starts in the Black column at its own mov
     ['21.', 'exd5', 'Qxd5'],
   ]);
 });
+
+test('a Book move gets a chip that stays out of the move’s name', () => {
+  const { plies } = parseReplay(OPERA_GAME);
+  render(
+    <MoveList
+      plies={plies}
+      grades={['book', 'book', 'blunder']}
+      index={0}
+      onSelect={() => {}}
+    />,
+  );
+  expect(document.querySelectorAll('[data-grade="book"]')).toHaveLength(2);
+  expect(screen.getByRole('button', { name: 'e4' })).toBeInTheDocument();
+  expect(screen.getByRole('button', { name: /^Nf3/ })).toHaveAccessibleName(
+    'Nf3Blunder',
+  );
+});

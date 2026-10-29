@@ -1,5 +1,6 @@
 import { expect, test } from 'vitest';
 
+import { loadOpeningBook } from '@/lib/chess/openings';
 import { parseReplay } from '@/lib/chess/replay';
 
 import { annotatedPgn, pgnFilename } from './export-pgn';
@@ -151,4 +152,24 @@ test('names the file after the players', () => {
   ).toBe('paul-morphy-vs-duke-karl-count.pgn');
   expect(pgnFilename({ White: '?', Black: 'Bob' })).toBe('game.pgn');
   expect(pgnFilename({})).toBe('game.pgn');
+});
+
+test('a move in the opening book gets no glyph and no sentence, only its eval', async () => {
+  // 2.Nf3 would be a blunder to the engine, but it is theory.
+  const record = stored({
+    ...OPERA_SLIPS,
+    cps: OPERA_SLIPS.cps.map((cp, i) => (i === 3 ? -400 : cp)),
+  });
+  const analysis = analysisOf(record);
+  const book = await loadOpeningBook();
+
+  const plain = annotatedPgn(record.replay, analysis).replace(/\n/g, ' ');
+  expect(plain).toContain('2. Nf3 $4 {[%eval -4.00] Blunder.');
+
+  const pgn = annotatedPgn(record.replay, analysis, book).replace(/\n/g, ' ');
+  expect(pgn).toContain('2. Nf3 {[%eval -4.00]}');
+  expect(pgn).not.toContain('Book');
+  expect(pgn).not.toContain('2. Nf3 $');
+  // The first move out of the book is still annotated.
+  expect(pgn).toContain('4... Bxf3 $4 {');
 });

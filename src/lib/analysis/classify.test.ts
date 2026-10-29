@@ -1,5 +1,6 @@
 import { describe, expect, test } from 'vitest';
 
+import { loadOpeningBook } from '@/lib/chess/openings';
 import { OPERA_GAME, parseReplay } from '@/lib/chess/replay';
 import type { Score, Variation } from '@/lib/chess/score';
 
@@ -7,6 +8,7 @@ import { classifyMoves, gradeSideMove } from './classify';
 import type { PositionAnalysis } from './game-analysis';
 
 const replay = parseReplay(OPERA_GAME);
+const book = await loadOpeningBook();
 const cp = (n: number): Score => ({ kind: 'cp', cp: n });
 const mate = (moves: number): Score => ({ kind: 'mate', winner: 'w', moves });
 
@@ -160,5 +162,55 @@ describe('gradeSideMove', () => {
     expect(grades).not.toContain('great');
     expect(grades).not.toContain('brilliant');
     expect(grades).not.toContain('miss');
+  });
+});
+
+describe('Book', () => {
+  const positions = (lines: Record<number, [Score, string[]]>) =>
+    Array.from(
+      { length: replay.plies.length + 1 },
+      (_, i): PositionAnalysis => {
+        const line = lines[i];
+        return line
+          ? { status: 'done', line: { score: line[0], pv: line[1], depth: 10 } }
+          : { status: 'queued', line: null };
+      },
+    );
+
+  test('the moves in the table are Book, whether or not the engine has settled them', () => {
+    const grades = classifyMoves(replay, positions({}), book);
+    expect(grades.slice(0, 6)).toEqual([
+      'book',
+      'book',
+      'book',
+      'book',
+      'book',
+      null,
+    ]);
+  });
+
+  test('the engine never judges a Book move, and judges the first move out as usual', () => {
+    // 2.Nf3 would be a blunder to the engine; the next move out is graded.
+    const grades = classifyMoves(
+      replay,
+      positions({
+        2: [cp(0), ['g1f3']],
+        3: [cp(-400), ['d7d6']],
+        5: [cp(-400), ['c8g4']],
+        6: [cp(-400), ['d4e5']],
+      }),
+      book,
+    );
+    expect(grades[2]).toBe('book');
+    expect(grades[5]).toBe('best');
+  });
+
+  test('without the table, or from a custom start, no move is Book', () => {
+    expect(classifyMoves(replay, positions({})).includes('book')).toBe(false);
+    const custom = parseReplay(`[SetUp "1"]
+[FEN "rnbqkbnr/pppppppp/8/8/4P3/8/PPPP1PPP/RNBQKBNR b KQkq - 0 1"]
+
+1... e5 2. Nf3 Nc6 *`);
+    expect(classifyMoves(custom, [], book)).toEqual([null, null, null]);
   });
 });

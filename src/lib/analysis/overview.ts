@@ -11,11 +11,7 @@ import type { Outcome } from '@/lib/chesscom/session';
 import type { TimeClass } from '@/lib/chesscom/types';
 
 import type { GameKey, StoredAnalysis } from './cache';
-import {
-  classifyMoves,
-  CLASSIFICATIONS,
-  type Classification,
-} from './classify';
+import { classifyMoves, SCORED_GRADES, type ScoredGrade } from './classify';
 import { positionsFromStored } from './game-analysis';
 import type { AnalysisLevel } from './levels';
 import { gameReport, MOMENT_GRADES } from './report';
@@ -42,7 +38,7 @@ export type GameSummary = {
   /** My estimated accuracy, as the game report computes it. */
   accuracy: number | null;
   /** My grades. */
-  grades: Record<Classification, number>;
+  grades: Record<ScoredGrade, number>;
   /** My graded plies by the stage they were played in, and how many were mistakes. */
   stages: Record<Stage, Tally>;
   /** My graded plies by time pressure; null when none of them has a clock reading. */
@@ -56,7 +52,6 @@ const RESULT_BY_TAG: Record<string, Record<'w' | 'b', Outcome>> = {
 };
 
 const STAGE_IDS = Object.keys(STAGES) as Stage[];
-const GRADES = Object.keys(CLASSIFICATIONS) as Classification[];
 
 /**
  * The side one of `usernames` played, in any case. Null when neither side
@@ -74,7 +69,10 @@ export function sideOf(
   return white === black ? null : white ? 'w' : 'b';
 }
 
-/** With a `book`, the opening is named by position; the PGN headers are the fallback. */
+/**
+ * With a `book`, the opening is named by position (the PGN headers are the
+ * fallback) and the moves still in theory are Book, which no figure counts.
+ */
 export function summarize(
   record: StoredAnalysis,
   usernames: readonly string[],
@@ -83,7 +81,7 @@ export function summarize(
   const { replay } = record;
   const { headers } = replay;
   const positions = positionsFromStored(record.lines);
-  const grades = classifyMoves(replay, positions);
+  const grades = classifyMoves(replay, positions, book);
   const report = gameReport(replay, positions, grades);
   const me = sideOf(headers, usernames);
 
@@ -98,7 +96,7 @@ export function summarize(
   };
   replay.plies.forEach((ply, p) => {
     const grade = grades[p];
-    if (ply.color !== me || !grade) return;
+    if (ply.color !== me || !grade || grade === 'book') return;
     const mistake = MOMENT_GRADES.has(grade);
     count(stages[stageAt(fenAt(replay, p), p)], mistake);
     const at = clocks[p];
@@ -124,10 +122,9 @@ export function summarize(
     accuracy: mine ? mine.accuracy : null,
     grades: mine
       ? mine.counts
-      : (Object.fromEntries(GRADES.map((grade) => [grade, 0])) as Record<
-          Classification,
-          number
-        >),
+      : (Object.fromEntries(
+          SCORED_GRADES.map((grade) => [grade, 0]),
+        ) as Record<ScoredGrade, number>),
     stages,
     clock,
   };
@@ -171,7 +168,7 @@ export type Overview = {
   games: number;
   /** Accuracy of my latest games, oldest first. */
   trend: { key: GameKey; analyzedAt: number; accuracy: number }[];
-  gradeTotals: Record<Classification, number>;
+  gradeTotals: Record<ScoredGrade, number>;
   stages: Record<Stage, Rate>;
   /** My moves by time pressure, over the games with clock readings. */
   clock: { games: number } & Record<Pressure, Rate>;
@@ -230,11 +227,11 @@ export function overview(
     }));
 
   const gradeTotals = Object.fromEntries(
-    GRADES.map((grade) => [
+    SCORED_GRADES.map((grade) => [
       grade,
       mine.reduce((n, g) => n + g.grades[grade], 0),
     ]),
-  ) as Record<Classification, number>;
+  ) as Record<ScoredGrade, number>;
 
   const stages = Object.fromEntries(
     STAGE_IDS.map((stage) => [stage, rate(mine.map((g) => g.stages[stage]))]),

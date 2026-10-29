@@ -189,3 +189,27 @@ test('moves scrub only while a drag is live', () => {
     rect.mockRestore();
   }
 });
+
+test('the book plies are shaded in the Book colour, from the start', () => {
+  const { container } = render(
+    <EvalGraph
+      series={[50, 50, 55, 60, 70]}
+      index={0}
+      book={2}
+      onScrub={vi.fn()}
+    />,
+  );
+  const band = container.querySelector('rect[data-book="2"]');
+  expect(band).toHaveAttribute('fill', CLASSIFICATIONS.book.color);
+  // x(2) of five points is the middle of the graph.
+  expect(band!.getAttribute('width')).toMatch(/^500(\.0+)?$/);
+  expect(screen.getByText('Book')).toBeInTheDocument();
+});
+
+test('no band without book plies', () => {
+  const { container } = render(
+    <EvalGraph series={[50, 50, 55]} index={0} onScrub={vi.fn()} />,
+  );
+  expect(container.querySelector('rect[data-book]')).toBeNull();
+  expect(screen.queryByText('Book')).toBeNull();
+});

@@ -13,6 +13,7 @@ const CHIPPED = new Set<Classification>([
   'mistake',
   'miss',
   'blunder',
+  'book',
 ]);
 
 export function MoveList({
@@ -62,11 +63,15 @@ export function MoveList({
       >
         {move.san}
         {grade && CHIPPED.has(grade) && (
-          <GradeSticker
-            grade={grade}
-            iconOnly
-            className="scale-90 shadow-none"
-          />
+          // Theory is most of an opening, so a Book chip stays out of the
+          // move's accessible name: "e4", not "e4 Book".
+          <span aria-hidden={grade === 'book' || undefined}>
+            <GradeSticker
+              grade={grade}
+              iconOnly
+              className="scale-90 shadow-none"
+            />
+          </span>
         )}
       </button>
     );

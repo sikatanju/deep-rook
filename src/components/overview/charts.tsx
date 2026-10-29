@@ -1,9 +1,8 @@
 import { GradeSticker } from '@/components/review/grade-sticker';
-import { CLASSIFICATIONS, type Classification } from '@/lib/analysis/classify';
+import { CLASSIFICATIONS, SCORED_GRADES } from '@/lib/analysis/classify';
 import type { Overview, Pressure, Rate } from '@/lib/analysis/overview';
 import { STAGES, type Stage } from '@/lib/chess/stage';
 
-const GRADES = Object.keys(CLASSIFICATIONS) as Classification[];
 const STAGE_IDS = Object.keys(STAGES) as Stage[];
 
 const WIDTH = 1000;
@@ -79,10 +78,10 @@ export function AccuracyTrend({ games }: { games: Overview['trend'] }) {
 
 /** Every grade as a share of all your moves, in the grades' own colors. */
 export function GradeMix({ totals }: { totals: Overview['gradeTotals'] }) {
-  const all = GRADES.reduce((n, g) => n + totals[g], 0);
+  const all = SCORED_GRADES.reduce((n, g) => n + totals[g], 0);
   return (
     <ul className="flex flex-col gap-1.5">
-      {GRADES.map((grade) => {
+      {SCORED_GRADES.map((grade) => {
         const share = all ? (totals[grade] / all) * 100 : 0;
         return (
           <li

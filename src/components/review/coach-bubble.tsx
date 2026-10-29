@@ -87,7 +87,9 @@ export function CoachBubble({
   children?: ReactNode;
   className?: string;
 }) {
-  const word = grade && CLASSIFICATIONS[grade].label.toLowerCase();
+  const word =
+    grade &&
+    (grade === 'book' ? 'book move' : CLASSIFICATIONS[grade].label.toLowerCase());
   const eval_ = score && (
     <span className="border-line bg-surface-alt ml-auto flex-none rounded-sm border-2 px-1.5 font-mono text-sm font-bold">
       {score}

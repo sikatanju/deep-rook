@@ -7,7 +7,7 @@ import { render, screen, within } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { expect, test, vi } from 'vitest';
 
-import type { Classification } from '@/lib/analysis/classify';
+import type { ScoredGrade } from '@/lib/analysis/classify';
 import type {
   GameReport,
   KeyMoment,
@@ -16,7 +16,7 @@ import type {
 
 import { ReportCard } from './report-card';
 
-const GRADES: readonly Classification[] = [
+const GRADES: readonly ScoredGrade[] = [
   'brilliant',
   'great',
   'best',
@@ -29,7 +29,7 @@ const GRADES: readonly Classification[] = [
 ];
 
 /** All nine grades at zero: the stable shape streaming fills in, never grows. */
-function zeroCounts(): Record<Classification, number> {
+function zeroCounts(): Record<ScoredGrade, number> {
   return {
     brilliant: 0,
     great: 0,

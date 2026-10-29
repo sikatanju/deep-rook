@@ -13,6 +13,7 @@ const FILL: Record<Classification, string> = {
   mistake: 'bg-grade-mistake',
   miss: 'bg-grade-miss',
   blunder: 'bg-grade-blunder',
+  book: 'bg-grade-book',
 };
 
 /**

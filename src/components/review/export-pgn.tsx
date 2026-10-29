@@ -1,6 +1,7 @@
 import { DownloadIcon } from 'lucide-react';
 
 import { Button } from '@/components/ui/button';
+import { useOpeningBook } from '@/hooks/use-opening-book';
 import { annotatedPgn, pgnFilename } from '@/lib/analysis/export-pgn';
 import type { GameAnalysis } from '@/lib/analysis/game-analysis';
 import type { Replay } from '@/lib/chess/replay';
@@ -17,6 +18,7 @@ export function ExportPgn({
   replay: Replay;
   analysis: GameAnalysis | null;
 }) {
+  const book = useOpeningBook();
   const ready =
     analysis !== null &&
     analysis.positions.every((position) => position.status === 'done');
@@ -24,7 +26,7 @@ export function ExportPgn({
   function onDownload() {
     if (!analysis) return;
     const url = URL.createObjectURL(
-      new Blob([annotatedPgn(replay, analysis)], {
+      new Blob([annotatedPgn(replay, analysis, book ?? null)], {
         type: 'application/x-chess-pgn',
       }),
     );

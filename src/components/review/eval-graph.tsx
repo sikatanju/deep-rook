@@ -42,6 +42,7 @@ export function EvalGraph({
   index,
   marks,
   labels,
+  book = 0,
   onScrub,
 }: {
   /** White's win% per position, aligned with viewer index; null = unsettled. */
@@ -52,6 +53,8 @@ export function EvalGraph({
   marks?: readonly { index: number; grade: Classification }[];
   /** One per position, shown in the hover tooltip: "16. Qb8+  M1". */
   labels?: readonly string[];
+  /** How many of the game's first moves are opening theory: shaded in the Book colour. */
+  book?: number;
   onScrub: (index: number) => void;
 }) {
   const count = series.length;
@@ -129,6 +132,18 @@ export function EvalGraph({
           strokeDasharray="4 4"
           vectorEffect="non-scaling-stroke"
         />
+        {/* The opening's theory moves, from the start to the last Book position. */}
+        {book > 0 && count > 1 && (
+          <rect
+            data-book={book}
+            x={0}
+            y={0}
+            width={fixed(x(Math.min(book, count - 1)))}
+            height={HEIGHT}
+            fill={CLASSIFICATIONS.book.color}
+            fillOpacity={0.3}
+          />
+        )}
         {/* White's share: the area under each settled run. */}
         {runs.map((points, k) => (
           <polygon
@@ -189,6 +204,14 @@ export function EvalGraph({
           vectorEffect="non-scaling-stroke"
         />
       </svg>
+      {book > 0 && (
+        <span
+          aria-hidden
+          className="border-line bg-grade-book text-sticker-ink pointer-events-none absolute top-1 left-1 rounded-sm border-2 px-1 text-[10px] leading-4 font-extrabold tracking-[0.08em] uppercase"
+        >
+          Book
+        </span>
+      )}
       {tip && hover !== null && (
         <span
           className="border-line bg-surface text-ink pointer-events-none absolute top-1.5 -translate-x-1/2 rounded-sm border-2 px-2 font-mono text-xs font-bold whitespace-nowrap shadow-sm"

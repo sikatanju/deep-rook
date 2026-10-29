@@ -43,6 +43,7 @@
   --grade-mistake: #ffa94d;
   --grade-miss: #ff8ac4;
   --grade-blunder: #ff5c5c;
+  --grade-book: #c9a46a;
   --shadow-ink: #111111;
 }
 
@@ -77,6 +78,7 @@
   --grade-mistake: #ffa94d;
   --grade-miss: #ff8ac4;
   --grade-blunder: #ff5c5c;
+  --grade-book: #c9a46a;
   --shadow-ink: #0f1f17;
 }
 
@@ -111,6 +113,7 @@
   --grade-mistake: #ffa94d;
   --grade-miss: #ff8ac4;
   --grade-blunder: #ff5c5c;
+  --grade-book: #c9a46a;
   --shadow-ink: #0b1533;
 }
 
@@ -145,6 +148,7 @@
   --grade-mistake: #ffa94d;
   --grade-miss: #ff8ac4;
   --grade-blunder: #ff5c5c;
+  --grade-book: #c9a46a;
   --shadow-ink: #2a160b;
 }
 
@@ -179,6 +183,7 @@
   --grade-mistake: #ffa94d;
   --grade-miss: #ff8ac4;
   --grade-blunder: #ff5c5c;
+  --grade-book: #c9a46a;
   --shadow-ink: #1e0f2e;
 }
 
@@ -213,6 +218,7 @@
   --grade-mistake: #ffa94d;
   --grade-miss: #ff8ac4;
   --grade-blunder: #ff5c5c;
+  --grade-book: #c9a46a;
   --shadow-ink: #111111;
 }
 
@@ -247,6 +253,7 @@
   --grade-mistake: #ffa94d;
   --grade-miss: #ff8ac4;
   --grade-blunder: #ff5c5c;
+  --grade-book: #c9a46a;
   --shadow-ink: #0a0a0a;
 }
 
@@ -281,6 +288,7 @@
   --grade-mistake: #ffa94d;
   --grade-miss: #ff8ac4;
   --grade-blunder: #ff5c5c;
+  --grade-book: #c9a46a;
   --shadow-ink: #ff4fd8;
   color-scheme: dark;
 }
@@ -316,6 +324,7 @@
   --grade-mistake: #ffa94d;
   --grade-miss: #ff8ac4;
   --grade-blunder: #ff5c5c;
+  --grade-book: #c9a46a;
   --shadow-ink: #ff6a4a;
   color-scheme: dark;
 }
@@ -351,6 +360,7 @@
   --grade-mistake: #ffa94d;
   --grade-miss: #ff8ac4;
   --grade-blunder: #ff5c5c;
+  --grade-book: #c9a46a;
   --shadow-ink: #5eecff;
   color-scheme: dark;
 }
@@ -386,6 +396,7 @@
   --grade-mistake: #ffa94d;
   --grade-miss: #ff8ac4;
   --grade-blunder: #ff5c5c;
+  --grade-book: #c9a46a;
   --shadow-ink: #ff8a5b;
   color-scheme: dark;
 }
@@ -447,6 +458,7 @@
   --color-grade-mistake: var(--grade-mistake);
   --color-grade-miss: var(--grade-miss);
   --color-grade-blunder: var(--grade-blunder);
+  --color-grade-book: var(--grade-book);
 
   --color-background: var(--background);
   --color-foreground: var(--foreground);

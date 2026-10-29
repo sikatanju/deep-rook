@@ -2,6 +2,7 @@ import { useEffect, useState } from 'react';
 
 import { readSavedUsernames } from '@/components/game-picker/username-form';
 import { useDrillProgress } from '@/hooks/use-game-analysis';
+import { useOpeningBook } from '@/hooks/use-opening-book';
 import { useSavedReviews } from '@/hooks/use-saved-reviews';
 import { drillQueue } from '@/lib/analysis/drill';
 import { plan } from '@/lib/analysis/drill-progress';
@@ -14,6 +15,7 @@ import { plan } from '@/lib/analysis/drill-progress';
 export function useDueDrills(route: string) {
   const { records } = useSavedReviews();
   const progress = useDrillProgress();
+  const book = useOpeningBook();
   const [due, setDue] = useState(0);
 
   useEffect(() => {
@@ -22,14 +24,14 @@ export function useDueDrills(route: string) {
     (progress?.list() ?? Promise.resolve([])).then((list) => {
       if (!current) return;
       const byId = new Map(list.map((p) => [p.id, p]));
-      const queue = drillQueue(records, readSavedUsernames());
+      const queue = drillQueue(records, readSavedUsernames(), book ?? null);
       setDue(plan(queue, byId, Date.now()).due.length);
     });
     return () => {
       current = false;
     };
     // `route` only triggers the re-read.
-  }, [records, progress, route]);
+  }, [records, progress, book, route]);
 
   return due;
 }

@@ -13,6 +13,7 @@ import { CoachBubble } from '@/components/review/coach-bubble';
 import { Button } from '@/components/ui/button';
 import { useDrillProgress, useProbe } from '@/hooks/use-game-analysis';
 import { useMoveInput } from '@/hooks/use-move-input';
+import { useOpeningBook } from '@/hooks/use-opening-book';
 import { useShortcuts } from '@/hooks/use-shortcuts';
 import { useSound } from '@/hooks/use-sound';
 import { useSavedReviews } from '@/hooks/use-saved-reviews';
@@ -375,6 +376,8 @@ function useProgressAt(round: number) {
 
 export function DrillPage() {
   const { records } = useSavedReviews();
+  // Book moves are never drills; until the table loads, none are Book.
+  const book = useOpeningBook();
   const usernames = useMemo(() => readSavedUsernames(), []);
   const [round, setRound] = useState(0);
   const [practice, setPractice] = useState(false);
@@ -400,8 +403,12 @@ export function DrillPage() {
     () =>
       records &&
       progress &&
-      plan(drillQueue(records, usernames), progress.byId, progress.now),
-    [records, usernames, progress],
+      plan(
+        drillQueue(records, usernames, book ?? null),
+        progress.byId,
+        progress.now,
+      ),
+    [records, usernames, progress, book],
   );
 
   const header = (

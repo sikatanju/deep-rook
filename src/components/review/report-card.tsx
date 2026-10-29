@@ -1,7 +1,7 @@
 import { ChevronDownIcon } from 'lucide-react';
 
 import { GradeSticker } from '@/components/review/grade-sticker';
-import { CLASSIFICATIONS, type Classification } from '@/lib/analysis/classify';
+import { SCORED_GRADES, type ScoredGrade } from '@/lib/analysis/classify';
 import type { GameReport, PlayerReport } from '@/lib/analysis/report';
 import type { Opening } from '@/lib/chess/openings';
 import { cn } from '@/lib/utils';
@@ -11,14 +11,9 @@ const UNGRADED: PlayerReport = {
   accuracy: null,
   gradedPlies: 0,
   counts: Object.fromEntries(
-    (Object.keys(CLASSIFICATIONS) as Classification[]).map((grade) => [
-      grade,
-      0,
-    ]),
-  ) as Record<Classification, number>,
+    SCORED_GRADES.map((grade) => [grade, 0]),
+  ) as Record<ScoredGrade, number>,
 };
-
-const GRADES = Object.keys(CLASSIFICATIONS) as Classification[];
 
 type Who = { name?: string; rating?: string };
 
@@ -88,7 +83,7 @@ export function ReportCard({
 
   const count = (
     color: 'w' | 'b',
-    grade: Classification,
+    grade: ScoredGrade,
     half: PlayerReport,
   ) => {
     const n = half.counts[grade] ?? 0;
@@ -140,7 +135,7 @@ export function ReportCard({
       </div>
 
       <div className="border-line grid grid-cols-[1fr_auto_1fr] items-center border-b-3 py-1">
-        {GRADES.map((grade) => (
+        {SCORED_GRADES.map((grade) => (
           <div key={grade} className="contents">
             {count('w', grade, white)}
             <GradeSticker grade={grade} className="my-0.5 shadow-none" />

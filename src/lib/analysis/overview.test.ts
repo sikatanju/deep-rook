@@ -42,6 +42,21 @@ describe('summarize', () => {
     });
   });
 
+  test('Book moves count in no grade, accuracy or stage figure', async () => {
+    const book = await loadOpeningBook();
+    // White's 2.Nf3 is a blunder to the engine and theory to the table.
+    const slip = stored({ cps: [0, 0, 0, -400, ...Array(30).fill(-400)] });
+    const plain = summarize(slip, ['Paul Morphy']);
+    const booked = summarize(slip, ['Paul Morphy'], book);
+    expect(plain.grades.blunder).toBe(1);
+    expect(booked.grades.blunder).toBe(0);
+    expect(booked.accuracy!).toBeGreaterThan(plain.accuracy!);
+    const plies = (s: typeof plain) =>
+      Object.values(s.stages).reduce((n, t) => n + t.plies, 0);
+    expect(plies(plain) - plies(booked)).toBe(3);
+    expect(Object.keys(booked.grades)).not.toContain('book');
+  });
+
   test('tells which side is mine whatever the case of the name', () => {
     expect(summarize(record, ['paul MORPHY']).me).toBe('w');
     expect(summarize(record, ['duke karl / count isouard'])).toMatchObject({

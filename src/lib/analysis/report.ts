@@ -6,7 +6,7 @@
 import type { Replay } from '@/lib/chess/replay';
 import { winPercent } from '@/lib/chess/score';
 
-import type { Classification } from './classify';
+import type { Classification, ScoredGrade } from './classify';
 import type { GameAnalysis, PositionAnalysis } from './game-analysis';
 
 /**
@@ -37,8 +37,8 @@ export type PlayerReport = {
   accuracy: number | null;
   /** How many plies of this color contributed (denominator of the mean). */
   gradedPlies: number;
-  /** All nine grades, zeros included — a complete record, stable shape. */
-  counts: Record<Classification, number>;
+  /** All nine scored grades, zeros included — a complete record, stable shape. Book moves are not counted. */
+  counts: Record<ScoredGrade, number>;
 };
 
 /** A moment worth jumping to. Indices are viewer position indices. */
@@ -51,7 +51,7 @@ export type KeyMoment = {
   color: 'w' | 'b';
   /** The SAN played. */
   san: string;
-  grade: Classification;
+  grade: ScoredGrade;
   /** Win-chance points the mover lost (>= 0). Ranking key. */
   loss: number;
 };
@@ -76,10 +76,10 @@ export type GameReport = {
 type Tally = {
   sum: number;
   graded: number;
-  counts: Record<Classification, number>;
+  counts: Record<ScoredGrade, number>;
 };
 
-/** All nine grades at zero, so the bag's shape never depends on the game. */
+/** All nine scored grades at zero, so the bag's shape never depends on the game. */
 function newTally(): Tally {
   return {
     sum: 0,
@@ -114,7 +114,8 @@ export const MOMENT_GRADES = new Set<Classification>([
 ]);
 
 /**
- * Every graded ply as a moment, in game order. `grades` must be
+ * Every graded ply as a moment, in game order; Book plies are not graded and
+ * make none. `grades` must be
  * classifyMoves(replay, positions) from the SAME snapshot; a ply is skipped
  * defensively unless the grade and both its bracketing series values are
  * non-null. The loss uses classify's sign rule: max(0, mover win% before −
@@ -129,7 +130,7 @@ function gradedMoments(
   const moments: KeyMoment[] = [];
   for (let p = 0; p < grades.length && p < replay.plies.length; p++) {
     const grade = grades[p];
-    if (!grade) continue;
+    if (!grade || grade === 'book') continue;
     // Out-of-range indexes read as undefined; collapsing them into null keeps
     // one "no settled point here" path (the same trick as the graph's point()).
     const before = series[p] ?? null;

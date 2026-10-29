@@ -1,5 +1,7 @@
 import { describe, expect, test } from 'vitest';
 
+import { loadOpeningBook } from '@/lib/chess/openings';
+
 import { classifyMoves } from './classify';
 import { positionsFromStored } from './game-analysis';
 import { fenAt } from '@/lib/chess/replay';
@@ -189,5 +191,21 @@ describe('retryAt', () => {
       i === 7 ? { status: 'searching' as const, line: record.lines[i]! } : p,
     );
     expect(at(8, searching)).toBeNull();
+  });
+});
+
+describe('Book moves', () => {
+  // White's 2.Nf3 and the engine's gripe with it: a blunder, but theory.
+  const record = stored({
+    cps: OPERA_SLIPS.cps.map((cp, i) => (i === 3 ? -400 : cp)),
+    pvs: { 2: ['d2d4'] },
+  });
+
+  test('are never drills, though the engine called them mistakes', async () => {
+    const book = await loadOpeningBook();
+    expect(drillsOf(record, ['Paul Morphy']).map((d) => d.index)).toEqual([3]);
+    expect(drillsOf(record, ['Paul Morphy'], book)).toEqual([]);
+    expect(drillQueue([record], ['Paul Morphy'], book)).toEqual([]);
+    expect(drillQueue([record], ['Paul Morphy'])).toHaveLength(1);
   });
 });

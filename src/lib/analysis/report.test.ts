@@ -8,14 +8,11 @@
 
 import { expect, test } from 'vitest';
 
+import { loadOpeningBook } from '@/lib/chess/openings';
 import { OPERA_GAME, parseReplay } from '@/lib/chess/replay';
 import type { Score } from '@/lib/chess/score';
 
-import {
-  CLASSIFICATIONS,
-  classifyMoves,
-  type Classification,
-} from './classify';
+import { classifyMoves, SCORED_GRADES, type Classification } from './classify';
 import type { PositionAnalysis } from './game-analysis';
 import { evalSeries, gameReport, mistakesOf } from './report';
 
@@ -116,7 +113,7 @@ test('counts bag per mover color, zeros included', () => {
   expect(r.black.counts.best).toBe(1);
   expect(r.black.counts.brilliant).toBe(0);
   // All nine grades are always present, zero or not.
-  for (const grade of Object.keys(CLASSIFICATIONS) as Classification[]) {
+  for (const grade of SCORED_GRADES) {
     expect(r.white.counts[grade]).toBeTypeOf('number');
     expect(r.black.counts[grade]).toBeTypeOf('number');
   }
@@ -266,9 +263,56 @@ test('an empty stream builds an all-zero report without throwing', () => {
   expect(r.white.accuracy).toBeNull();
   expect(r.black.accuracy).toBeNull();
   expect(r.keyMoments).toEqual([]);
-  for (const grade of Object.keys(CLASSIFICATIONS) as Classification[]) {
+  for (const grade of SCORED_GRADES) {
     expect(r.white.counts[grade]).toBe(0);
     expect(r.black.counts[grade]).toBe(0);
   }
   expect(r.settled).toBe(0);
+});
+
+test('Book moves count toward no accuracy, grade or key moment', async () => {
+  const book = await loadOpeningBook();
+  // White's 2.Nf3 (ply 2, position 3) drops a level game to -4: a blunder
+  // for the engine, yet it is theory.
+  const pos = positions({
+    0: [cp(0), ['a2a3']],
+    1: [cp(0), ['a2a3']],
+    2: [cp(0), ['d2d4']],
+    3: [cp(-400), ['a2a3']],
+  });
+  const plain = gameReport(replay, pos, classifyMoves(replay, pos));
+  expect(plain.white.counts.blunder).toBe(1);
+  expect(plain.keyMoments).toHaveLength(1);
+
+  const grades = classifyMoves(replay, pos, book);
+  expect(grades.slice(0, 5)).toEqual(Array(5).fill('book'));
+  const r = gameReport(replay, pos, grades);
+  expect(r.white.counts.blunder).toBe(0);
+  expect(r.keyMoments).toEqual([]);
+  expect(mistakesOf(replay, pos, grades)).toEqual([]);
+  expect(r.white.gradedPlies).toBe(0);
+  expect(r.white.accuracy).toBeNull();
+  expect(r.black.gradedPlies).toBe(0);
+  expect(Object.keys(r.white.counts)).not.toContain('book');
+});
+
+test('accuracy averages only the moves after the book', async () => {
+  const book = await loadOpeningBook();
+  // White's 2.Nf3 loses 31 points but is theory; 4.dxe5 is the first graded
+  // move of White's, and it loses nothing.
+  const pos = positions({
+    0: [cp(0), ['a2a3']],
+    1: [cp(0), ['a2a3']],
+    2: [cp(0), ['d2d4']],
+    3: [cp(-400), ['a2a3']],
+    6: [cp(0), ['a2a3']],
+    7: [cp(0), ['a2a3']],
+  });
+  const plain = gameReport(replay, pos, classifyMoves(replay, pos));
+  expect(plain.white.gradedPlies).toBe(3);
+  expect(plain.white.accuracy!).toBeLessThan(80);
+
+  const r = gameReport(replay, pos, classifyMoves(replay, pos, book));
+  expect(r.white.gradedPlies).toBe(1);
+  expect(r.white.accuracy!).toBeCloseTo(100, 3);
 });
