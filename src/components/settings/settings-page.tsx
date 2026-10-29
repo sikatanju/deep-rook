@@ -6,6 +6,7 @@ import { Highlight, PageHeader } from '@/components/layout/page-header';
 import { LevelPicker } from '@/components/level-picker';
 import { Panel } from '@/components/panel';
 import { EvalBar } from '@/components/review/eval-bar';
+import { ExtraNamesPanel } from '@/components/settings/extra-names-panel';
 import { BoardThemePicker } from '@/components/settings/board-theme-picker';
 import { PieceSetPicker } from '@/components/settings/piece-set-picker';
 import { Button } from '@/components/ui/button';
@@ -21,6 +22,7 @@ import { useSavedReviews } from '@/hooks/use-saved-reviews';
 import { exportBackup, importBackup } from '@/lib/analysis/backup';
 import { isActive } from '@/lib/analysis/batch';
 import { fenAt, OPERA_GAME, parseReplay } from '@/lib/chess/replay';
+import { mergeExtraNames } from '@/lib/extra-names';
 import { PALETTES } from '@/lib/palettes';
 
 // 22... Nbd7 in the Opera Game: a position with a last move, a grade and a next
@@ -90,6 +92,7 @@ function SavedReviews() {
             onClick={async () => {
               const text = await exportBackup(reviews, drills, {
                 boardSize: settings.boardSize,
+                extraNames: settings.extraNames,
               });
               const link = document.createElement('a');
               link.href = URL.createObjectURL(
@@ -121,7 +124,16 @@ function SavedReviews() {
                   await file.text(),
                   reviews,
                   drills,
-                  setSettings,
+                  ({ boardSize, extraNames }) =>
+                    setSettings({
+                      ...(boardSize !== undefined && { boardSize }),
+                      ...(extraNames && {
+                        extraNames: mergeExtraNames(
+                          settings.extraNames,
+                          extraNames,
+                        ),
+                      }),
+                    }),
                 );
                 setNote(
                   `Imported ${done.reviews} ${done.reviews === 1 ? 'review' : 'reviews'} and ${done.drills} drill ${done.drills === 1 ? 'record' : 'records'}.`,
@@ -163,6 +175,8 @@ export function SettingsPage() {
               onChange={(analysisLevel) => setSettings({ analysisLevel })}
             />
           </Panel>
+
+          <ExtraNamesPanel />
 
           <SavedReviews />
 

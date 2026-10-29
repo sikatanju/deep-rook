@@ -2,12 +2,12 @@ import { useMemo, useState } from 'react';
 
 import { navigate } from '@/app/router';
 import { useStore } from '@/app/store';
-import { readSavedUsernames } from '@/components/game-picker/username-form';
 import { ResultStamp } from '@/components/game-picker/result-stamp';
 import { Highlight, PageHeader } from '@/components/layout/page-header';
 import { Panel } from '@/components/panel';
 import { CoachBubble } from '@/components/review/coach-bubble';
 import { Button } from '@/components/ui/button';
+import { useMyNames } from '@/hooks/use-my-names';
 import { useOpeningBook } from '@/hooks/use-opening-book';
 import { useSavedReviews } from '@/hooks/use-saved-reviews';
 import type { StoredAnalysis } from '@/lib/analysis/cache';
@@ -227,7 +227,7 @@ function Filters({
 export function OverviewPage() {
   const { reviewReplay } = useStore();
   const { records } = useSavedReviews();
-  const usernames = useMemo(() => readSavedUsernames(), []);
+  const usernames = useMyNames();
   const book = useOpeningBook();
   // Waits for the opening table, so the openings never regroup under the reader.
   const summaries = useMemo(
@@ -316,8 +316,10 @@ export function OverviewPage() {
             </Button>
           }
         >
-          I match games to you by your Chess.com or Lichess username. Load yours
-          on the Games page and review a game of yours to see your progress.
+          I match games to you by your Chess.com or Lichess username, or by an
+          extra name added in Settings. Load yours on the Games page, or add the
+          name you play under in Settings, and review a game of yours to see
+          your progress.
         </CoachBubble>
       )}
       {data && everything && everything.games > 0 && data.games === 0 && (

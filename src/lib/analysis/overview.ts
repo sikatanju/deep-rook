@@ -54,7 +54,9 @@ const RESULT_BY_TAG: Record<string, Record<'w' | 'b', Outcome>> = {
 const STAGE_IDS = Object.keys(STAGES) as Stage[];
 
 /**
- * The side one of `usernames` played, in any case. Null when neither side
+ * The side one of `usernames` played, ignoring case and surrounding spaces:
+ * the one "which side am I?" resolver, fed the saved site usernames plus the
+ * extra names from settings (see `useMyNames`). Null when neither side
  * matches, and when both do: a game between two of my own accounts has no
  * single "me".
  */
@@ -64,8 +66,8 @@ export function sideOf(
 ): 'w' | 'b' | null {
   const names = new Set(usernames.map((u) => u.trim().toLowerCase()));
   names.delete('');
-  const white = names.has(headers.White?.toLowerCase() ?? '');
-  const black = names.has(headers.Black?.toLowerCase() ?? '');
+  const white = names.has(headers.White?.trim().toLowerCase() ?? '');
+  const black = names.has(headers.Black?.trim().toLowerCase() ?? '');
   return white === black ? null : white ? 'w' : 'b';
 }
 

@@ -8,6 +8,7 @@ import {
   TREND_LIMIT,
   filterGames,
   overview,
+  sideOf,
   summarize,
   type GameSummary,
 } from './overview';
@@ -388,4 +389,19 @@ test('filterGames keeps the speed and the side asked for, and a game with no sid
   ]);
   expect(filterGames(all, { speed: 'all', side: 'w' })).toEqual([blitzWhite]);
   expect(filterGames(all, { speed: 'rapid', side: 'b' })).toEqual([rapidBlack]);
+});
+
+describe('sideOf', () => {
+  const headers = { White: 'Paul Morphy', Black: ' Duke Karl ' };
+
+  test('matches either side by any of the names, ignoring case and spaces', () => {
+    expect(sideOf(headers, ['  paul MORPHY '])).toBe('w');
+    expect(sideOf(headers, ['someone', 'duke karl'])).toBe('b');
+  });
+
+  test('is null when no name matches, or when both sides do', () => {
+    expect(sideOf(headers, [])).toBeNull();
+    expect(sideOf(headers, ['', '   ', 'nobody'])).toBeNull();
+    expect(sideOf(headers, ['Paul Morphy', 'Duke Karl'])).toBeNull();
+  });
 });

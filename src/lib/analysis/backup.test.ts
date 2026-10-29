@@ -68,3 +68,18 @@ test('a backup carries the board size, and an older one leaves it alone', async 
     await importBackup(JSON.stringify(file), null, null, (s) => seen.push(s));
   expect(seen).toHaveLength(1);
 });
+
+test('a backup carries the extra names, and an older one leaves them alone', async () => {
+  const text = await exportBackup(null, null, { extraNames: ['Paul', 'Ann'] });
+  const seen: unknown[] = [];
+  await importBackup(text, null, null, (s) => seen.push(s));
+  expect(seen).toEqual([{ extraNames: ['Paul', 'Ann'] }]);
+
+  // None saved, a backup from before the setting, or junk: nothing to apply.
+  const none = JSON.parse(await exportBackup(null, null));
+  const old = { ...none, settings: undefined };
+  const bad = { ...none, settings: { extraNames: 'Paul' } };
+  for (const file of [none, old, bad])
+    await importBackup(JSON.stringify(file), null, null, (s) => seen.push(s));
+  expect(seen).toHaveLength(1);
+});

@@ -18,9 +18,9 @@ import { TypedMove } from '@/components/board/typed-move';
 import { Highlight, PageHeader } from '@/components/layout/page-header';
 import { Panel } from '@/components/panel';
 import { Button } from '@/components/ui/button';
-import { readSavedUsernames } from '@/components/game-picker/username-form';
 import { useGameAnalysis, useProbe } from '@/hooks/use-game-analysis';
 import { useMoveInput } from '@/hooks/use-move-input';
+import { useMyNames } from '@/hooks/use-my-names';
 import { useOpening, useOpeningBook } from '@/hooks/use-opening-book';
 import { useSavedReviews } from '@/hooks/use-saved-reviews';
 import { useShortcuts } from '@/hooks/use-shortcuts';
@@ -217,10 +217,11 @@ function Viewer({ loaded }: { loaded: Loaded }) {
   }, [grades]);
   // The moves a walk through the mistakes counts: the reviewed player's when
   // the game is one of theirs, else both sides'.
+  const names = useMyNames();
   const mine = useMemo(() => {
-    const side = sideOf(replay.headers, readSavedUsernames());
+    const side = sideOf(replay.headers, names);
     return side ? { side, plies: replay.plies } : undefined;
-  }, [replay]);
+  }, [replay, names]);
   const nextWrong = nextMistake(grades, index, mine);
   const previousWrong = previousMistake(grades, index, mine);
 
@@ -929,7 +930,7 @@ function Viewer({ loaded }: { loaded: Loaded }) {
 function ReviewLatest() {
   const { reviewReplay } = useStore();
   const { records } = useSavedReviews();
-  const usernames = useMemo(() => readSavedUsernames(), []);
+  const usernames = useMyNames();
   const latest = records?.find((r) => sideOf(r.replay.headers, usernames));
   if (!latest) return null;
   const { White, Black } = latest.replay.headers;

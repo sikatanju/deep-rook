@@ -6,13 +6,13 @@ import { useStore } from '@/app/store';
 import { Board } from '@/components/board/board';
 import { PromotionPicker } from '@/components/board/promotion-picker';
 import { TypedMove } from '@/components/board/typed-move';
-import { readSavedUsernames } from '@/components/game-picker/username-form';
 import { Highlight, PageHeader } from '@/components/layout/page-header';
 import { Panel } from '@/components/panel';
 import { CoachBubble } from '@/components/review/coach-bubble';
 import { Button } from '@/components/ui/button';
 import { useDrillProgress, useProbe } from '@/hooks/use-game-analysis';
 import { useMoveInput } from '@/hooks/use-move-input';
+import { useMyNames } from '@/hooks/use-my-names';
 import { useOpeningBook } from '@/hooks/use-opening-book';
 import { useShortcuts } from '@/hooks/use-shortcuts';
 import { useSound } from '@/hooks/use-sound';
@@ -378,7 +378,7 @@ export function DrillPage() {
   const { records } = useSavedReviews();
   // Book moves are never drills; until the table loads, none are Book.
   const book = useOpeningBook();
-  const usernames = useMemo(() => readSavedUsernames(), []);
+  const usernames = useMyNames();
   const [round, setRound] = useState(0);
   const [practice, setPractice] = useState(false);
   const { progress, onResult: record } = useProgressAt(round);
@@ -470,8 +470,10 @@ export function DrillPage() {
           title="None of these games are yours."
           actions={goToGames('Go to Games')}
         >
-          I match games to you by your Chess.com or Lichess username. Load yours
-          on the Games page and review a game of yours to drill its mistakes.
+          I match games to you by your Chess.com or Lichess username, or by an
+          extra name added in Settings. Load yours on the Games page, or add the
+          name you play under in Settings, and review a game of yours to drill
+          its mistakes.
         </CoachBubble>
       </>
     );

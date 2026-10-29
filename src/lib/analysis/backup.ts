@@ -1,9 +1,10 @@
 // A backup file: the saved reviews and the drill progress, as one JSON text, so
 // they can move to another browser or survive cleared site data. Settings stay
-// out, bar the review board's size: it is the one that cannot be re-picked from
-// a list.
+// out, bar the review board's size (it cannot be re-picked from a list) and the
+// extra names (they decide which games are the player's own).
 
 import { parseBoardSize } from '../board-size';
+import { parseExtraNames } from '../extra-names';
 import { parseStored, type AnalysisStore } from './cache';
 import { parseProgress, type ProgressStore } from './drill-progress';
 
@@ -11,12 +12,18 @@ const APP = 'deeprook';
 const BACKUP_VERSION = 1;
 
 /** The settings a backup carries. */
-export type BackupSettings = { boardSize: number | null };
+export type BackupSettings = {
+  boardSize: number | null;
+  extraNames: string[];
+};
+
+/** The parts of the settings a backup has; `onSettings` gets only those. */
+export type BackupSettingsPatch = Partial<BackupSettings>;
 
 export async function exportBackup(
   store: AnalysisStore | null,
   progress: ProgressStore | null,
-  settings: BackupSettings = { boardSize: null },
+  settings: BackupSettingsPatch = {},
 ): Promise<string> {
   const [reviews, drills] = await Promise.all([
     store?.list() ?? [],
@@ -27,7 +34,10 @@ export async function exportBackup(
     version: BACKUP_VERSION,
     reviews,
     drills,
-    settings: { boardSize: settings.boardSize },
+    settings: {
+      boardSize: settings.boardSize ?? null,
+      extraNames: settings.extraNames ?? [],
+    },
   });
 }
 
@@ -35,14 +45,15 @@ export async function exportBackup(
  * Puts a backup's reviews and drills back, next to what is already here. A
  * review never replaces a deeper one and a drill keeps its later answer. Throws
  * if the text is not a backup; records inside it that are not valid are skipped.
- * `onSettings` gets the backup's saved board size, when it has a valid one (an
- * older backup has none, and then the size here stays as it is).
+ * `onSettings` gets the backup's saved board size and extra names, whichever it
+ * has in valid form (an older backup has neither, and then those here stay as
+ * they are).
  */
 export async function importBackup(
   text: string,
   store: AnalysisStore | null,
   progress: ProgressStore | null,
-  onSettings?: (settings: BackupSettings) => void,
+  onSettings?: (settings: BackupSettingsPatch) => void,
 ): Promise<{ reviews: number; drills: number }> {
   let raw: unknown;
   try {
@@ -62,9 +73,15 @@ export async function importBackup(
     store && Promise.all(reviews.map((r) => store.save(r))),
     progress?.restore(drills),
   ]);
-  const boardSize = parseBoardSize(
-    (file.settings as { boardSize?: unknown } | null | undefined)?.boardSize,
-  );
-  if (boardSize !== null) onSettings?.({ boardSize });
+  const saved = file.settings as
+    | { boardSize?: unknown; extraNames?: unknown }
+    | null
+    | undefined;
+  const boardSize = parseBoardSize(saved?.boardSize);
+  const extraNames = parseExtraNames(saved?.extraNames);
+  const patch: BackupSettingsPatch = {};
+  if (boardSize !== null) patch.boardSize = boardSize;
+  if (extraNames.length > 0) patch.extraNames = extraNames;
+  if (Object.keys(patch).length > 0) onSettings?.(patch);
   return { reviews: reviews.length, drills: drills.length };
 }

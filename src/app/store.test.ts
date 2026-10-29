@@ -25,6 +25,14 @@ test('saved settings keep each valid field and default each bad one alone', () =
   );
 });
 
+test('extra names are kept as a trimmed list and default to none', () => {
+  expect(parseSettings(null).extraNames).toEqual([]);
+  expect(
+    parseSettings('{"extraNames":[" Paul ","paul",4,"Ann"]}').extraNames,
+  ).toEqual(['Paul', 'Ann']);
+  expect(parseSettings('{"extraNames":"Paul"}').extraNames).toEqual([]);
+});
+
 test('sound is on by default and a non-boolean falls back to it', () => {
   expect(parseSettings(null).sound).toBe(true);
   expect(parseSettings('{"sound":false}').sound).toBe(false);

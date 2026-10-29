@@ -24,6 +24,7 @@ import {
   type AnalysisLevel,
 } from '@/lib/analysis/levels';
 import { parseBoardSize } from '@/lib/board-size';
+import { parseExtraNames } from '@/lib/extra-names';
 import type { Game, Site } from '@/lib/chesscom/types';
 import { parseReplay, type Replay } from '@/lib/chess/replay';
 import { DEFAULT_PALETTE, isPaletteId, type PaletteId } from '@/lib/palettes';
@@ -59,6 +60,8 @@ export type Settings = {
   analysisLevel: AnalysisLevel;
   /** The review board's width in px; null is the responsive default. */
   boardSize: number | null;
+  /** Other names the player plays under; they count as mine like a saved username. */
+  extraNames: string[];
 };
 
 const DEFAULT_SETTINGS: Settings = {
@@ -70,6 +73,7 @@ const DEFAULT_SETTINGS: Settings = {
   autoplayMs: 900,
   analysisLevel: DEFAULT_LEVEL,
   boardSize: null,
+  extraNames: [],
 };
 
 const SETTINGS_KEY = 'settings';
@@ -121,6 +125,7 @@ export function parseSettings(raw: string | null): Settings {
     autoplayMs,
     analysisLevel,
     boardSize,
+    extraNames,
   } = data;
   return {
     palette: isPaletteId(palette) ? palette : d.palette,
@@ -142,6 +147,7 @@ export function parseSettings(raw: string | null): Settings {
       ? analysisLevel
       : d.analysisLevel,
     boardSize: parseBoardSize(boardSize),
+    extraNames: parseExtraNames(extraNames),
   };
 }
 
