@@ -87,6 +87,7 @@ import { ExportPgn } from './export-pgn';
 import { MoveList } from './move-list';
 import { MoveTimes } from './move-times';
 import { PlayerStrip } from './player-strip';
+import { AnalysisProgress } from './analysis-progress';
 import { ReportCard } from './report-card';
 
 /** The coach's one-liner per grade: cheeky, never mean, under 45 characters. */
@@ -904,23 +905,26 @@ function Viewer({ loaded }: { loaded: Loaded }) {
           )}
           <MoveTimes plies={plies} clocks={clocks} index={index} />
         </Panel>
-        <ReportCard
-          report={report}
-          onJump={go}
-          opening={opening}
-          level={badgeLabel(
-            loaded.level,
-            here?.status === 'done' ? here.line : null,
-          )}
-          white={{
-            name: headers.White,
-            rating: headers.WhiteElo,
-          }}
-          black={{
-            name: headers.Black,
-            rating: headers.BlackElo,
-          }}
-        />
+        <div className="flex flex-col gap-4">
+          {analysis && <AnalysisProgress analysis={analysis} />}
+          <ReportCard
+            report={report}
+            onJump={go}
+            opening={opening}
+            level={badgeLabel(
+              loaded.level,
+              here?.status === 'done' ? here.line : null,
+            )}
+            white={{
+              name: headers.White,
+              rating: headers.WhiteElo,
+            }}
+            black={{
+              name: headers.Black,
+              rating: headers.BlackElo,
+            }}
+          />
+        </div>
       </div>
     </>
   );
