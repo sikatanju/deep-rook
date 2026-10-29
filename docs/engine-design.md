@@ -330,7 +330,7 @@ The orchestrator accepted every deviation below against this design.
 
 ## Open questions and risks
 
-- Should analysis pause while the tab is hidden or the device is on battery? It currently runs until the game is complete.
+- Background power use is handled, with one limit. Analysis pauses while the tab is hidden, and where the browser reports a battery (Chromium only) it pauses when the device is discharging below 20%, with a note and a "Continue anyway" button. The pause is between positions: a search already running finishes, so on Deep a hidden tab can still spend up to 20 s before it goes quiet. Both the review on screen and a batch follow the same rule (`src/lib/analysis/pause.ts`). Safari and Firefox report no battery, so they pause for a hidden tab only.
 - Are the level numbers right on low-end devices? They are calibrated on a fast desktop (1.7M nodes per second). On a phone at a third of that speed, Deep hits its 20 s time cap and stops being deterministic. Should Deep's node cap drop, or is that acceptable?
 
 ## Next implementation step

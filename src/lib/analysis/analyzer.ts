@@ -44,6 +44,11 @@ export type Analyzer = {
    * are terminated since they would overshoot it.
    */
   setLevel(level: AnalysisLevel): void;
+  /**
+   * While paused, no new position starts. A search already running finishes
+   * and keeps its result, so nothing is lost and nothing is searched twice.
+   */
+  setPaused(paused: boolean): void;
   subscribe(listener: () => void): () => void;
   /** Stable between flushes. null before the first view(). */
   getSnapshot(): GameAnalysis | null;
@@ -128,6 +133,7 @@ export function createAnalyzer({
   let started = false;
   let loadCrashes = 0;
   let disposed = false;
+  let paused = false;
   const unavailable = () => !spawn || loadCrashes >= MAX_LOAD_CRASHES;
   let flushTimer: ReturnType<typeof setTimeout> | undefined;
   let dwellTimer: ReturnType<typeof setTimeout> | undefined;
@@ -150,6 +156,7 @@ export function createAnalyzer({
   function replan() {
     if (!game || game.loading || unavailable()) return;
     persist(game);
+    if (paused) return;
     const commands = plan({
       level,
       focus: game.focus,
@@ -332,6 +339,11 @@ export function createAnalyzer({
       level = next;
       slots.forEach((s) => s.job && rank(s.job.level) > rank(next) && stop(s));
       markDirty();
+      replan();
+    },
+    setPaused(next) {
+      if (next === paused) return;
+      paused = next;
       replan();
     },
     subscribe(listener) {

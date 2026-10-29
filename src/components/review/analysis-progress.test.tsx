@@ -1,10 +1,22 @@
 import { act, render, screen } from '@testing-library/react';
+import type { ComponentProps } from 'react';
 import { afterEach, beforeEach, expect, test, vi } from 'vitest';
 
 import type { PositionAnalysis } from '@/lib/analysis/game-analysis';
 import { cpLine } from '@/lib/analysis/fixtures';
 
+import { AnalysisProvider } from '@/hooks/use-game-analysis';
+
 import { AnalysisProgress } from './analysis-progress';
+
+/** The bar as the app mounts it, under the provider that tells it about pauses. */
+function Bar(props: ComponentProps<typeof AnalysisProgress>) {
+  return (
+    <AnalysisProvider level="fast" spawn={null} store={null} progress={null}>
+      <AnalysisProgress {...props} />
+    </AnalysisProvider>
+  );
+}
 
 const done: PositionAnalysis = { status: 'done', line: cpLine(0) };
 const blank: PositionAnalysis = { status: 'queued', line: null };
@@ -26,10 +38,13 @@ beforeEach(() => {
   vi.useFakeTimers();
   vi.setSystemTime(0);
 });
-afterEach(() => vi.useRealTimers());
+afterEach(() => {
+  vi.useRealTimers();
+  Reflect.deleteProperty(navigator, 'getBattery');
+});
 
 test('a progress bar shows the positions done out of the total', () => {
-  render(<AnalysisProgress analysis={doc(12, 68)} />);
+  render(<Bar analysis={doc(12, 68)} />);
   const bar = screen.getByRole('progressbar');
   expect(bar).toHaveAttribute('aria-valuenow', '18');
   expect(bar).toHaveAttribute(
@@ -40,28 +55,28 @@ test('a progress bar shows the positions done out of the total', () => {
 });
 
 test('the estimate waits for a few positions, then is labelled approximate', () => {
-  const { rerender } = render(<AnalysisProgress analysis={doc(1, 60)} />);
+  const { rerender } = render(<Bar analysis={doc(1, 60)} />);
   act(() => vi.advanceTimersByTime(1000));
   expect(screen.queryByText(/left/)).toBeNull();
-  rerender(<AnalysisProgress analysis={doc(11, 60)} />);
+  rerender(<Bar analysis={doc(11, 60)} />);
   act(() => vi.advanceTimersByTime(4000));
   // 10 positions in 4 s leaves 49 at 0.4 s each.
   expect(screen.getByText(/Approx\. 20 s left/)).toBeInTheDocument();
 });
 
 test('it announces politely, a few times, and says so when it is done', () => {
-  const { rerender } = render(<AnalysisProgress analysis={doc(10, 40)} />);
+  const { rerender } = render(<Bar analysis={doc(10, 40)} />);
   const status = screen.getByRole('status');
   expect(status).toHaveTextContent('Analysis 25% done.');
-  rerender(<AnalysisProgress analysis={doc(11, 40)} />);
+  rerender(<Bar analysis={doc(11, 40)} />);
   expect(screen.getByRole('status')).toHaveTextContent('Analysis 25% done.');
-  rerender(<AnalysisProgress analysis={doc(40, 40)} />);
+  rerender(<Bar analysis={doc(40, 40)} />);
   expect(screen.queryByRole('progressbar')).toBeNull();
   expect(screen.getByRole('status')).toHaveTextContent('Analysis complete.');
 });
 
 test('a finished analysis shows nothing and announces nothing', () => {
-  render(<AnalysisProgress analysis={doc(40, 40)} />);
+  render(<Bar analysis={doc(40, 40)} />);
   expect(screen.queryByRole('progressbar')).toBeNull();
   expect(screen.getByRole('status')).toBeEmptyDOMElement();
 });
@@ -69,7 +84,7 @@ test('a finished analysis shows nothing and announces nothing', () => {
 test('both passes fill one bar: the first look is the first half', () => {
   const lined: PositionAnalysis = { status: 'queued', line: cpLine(0) };
   const { rerender } = render(
-    <AnalysisProgress
+    <Bar
       analysis={{
         level: 'balanced',
         unavailable: false,
@@ -83,7 +98,7 @@ test('both passes fill one bar: the first look is the first half', () => {
   );
   expect(screen.getByText('First look')).toBeInTheDocument();
   rerender(
-    <AnalysisProgress
+    <Bar
       analysis={{
         level: 'balanced',
         unavailable: false,
@@ -99,6 +114,35 @@ test('both passes fill one bar: the first look is the first half', () => {
 });
 
 test('with no engine there is no bar to wait on', () => {
-  render(<AnalysisProgress analysis={doc(0, 10, 'fast', true)} />);
+  render(<Bar analysis={doc(0, 10, 'fast', true)} />);
   expect(screen.queryByRole('progressbar')).toBeNull();
+});
+
+function lowBattery() {
+  const battery = Object.assign(new EventTarget(), {
+    charging: false,
+    level: 0.1,
+  });
+  Object.defineProperty(navigator, 'getBattery', {
+    configurable: true,
+    value: () => Promise.resolve(battery),
+  });
+  return battery;
+}
+
+test('a low battery says analysis is paused and "Continue anyway" lets it go on', async () => {
+  lowBattery();
+  render(<Bar analysis={doc(3, 20)} />);
+  await act(async () => {});
+  expect(screen.getByText(/paused while your battery is low/)).toBeVisible();
+
+  act(() => screen.getByRole('button', { name: 'Continue anyway' }).click());
+  expect(screen.queryByText(/paused while your battery is low/)).toBeNull();
+});
+
+test('the note is not shown when the battery is fine', async () => {
+  render(<Bar analysis={doc(3, 20)} />);
+  await act(async () => {});
+  expect(screen.queryByText(/battery/)).toBeNull();
+  expect(screen.queryByRole('button', { name: 'Continue anyway' })).toBeNull();
 });

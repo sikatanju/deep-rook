@@ -3,6 +3,7 @@ import { useState } from 'react';
 import { navigate } from '@/app/router';
 import { useStore } from '@/app/store';
 import { LevelPicker } from '@/components/level-picker';
+import { PauseNote } from '@/components/review/pause-note';
 import { Panel } from '@/components/panel';
 import { Button } from '@/components/ui/button';
 import { useBatch } from '@/hooks/use-game-analysis';
@@ -113,6 +114,7 @@ function Progress({ snapshot }: { snapshot: ActiveBatch }) {
           ? 'Paused while the engine finishes the review you opened.'
           : `${current.done} of ${current.positions} positions settled, at ${ANALYSIS_LEVELS[snapshot.level].label}.`}
       </p>
+      <PauseNote />
     </div>
   );
 }

@@ -482,3 +482,36 @@ describe('saved analyses', () => {
     }
   });
 });
+
+describe('pausing', () => {
+  test('a running search finishes and keeps its line, no new one starts, and resuming repeats none', () => {
+    const { lanes, spawn } = scripted();
+    const analyzer = createAnalyzer({ level: 'fast', spawn, lanes: 1 });
+    analyzer.view(game, 0);
+    const first = lanes[0]!.jobs[0]!;
+
+    analyzer.setPaused(true);
+    lanes[0]!.send(done(first, 7));
+    vi.advanceTimersByTime(FLUSH_MS);
+    expect(lanes[0]!.jobs).toHaveLength(1);
+    expect(lanes[0]!.terminated).toBe(false);
+    expect(analyzer.getSnapshot()!.positions[0]).toMatchObject({
+      status: 'done',
+    });
+
+    analyzer.setPaused(false);
+    expect(lanes[0]!.jobs).toHaveLength(2);
+    expect(lanes[0]!.jobs[1]!.fen).not.toBe(first.fen);
+  });
+
+  test('a game viewed while paused starts nothing until resumed', () => {
+    const { lanes, spawn } = scripted();
+    const analyzer = createAnalyzer({ level: 'fast', spawn, lanes: 2 });
+    analyzer.setPaused(true);
+    analyzer.view(game, 3);
+    expect(lanes).toHaveLength(0);
+
+    analyzer.setPaused(false);
+    expect(lanes[0]!.jobs[0]!.fen).toBe(game.replay.plies[2]!.fen);
+  });
+});
