@@ -40,9 +40,9 @@ function CountSwitch({
         <label
           key={count}
           className={cn(
-            'border-line bg-surface text-ink has-[:focus-visible]:outline-focus cursor-pointer rounded-sm border-3 px-3 py-1 font-mono font-bold shadow-sm has-[:focus-visible]:outline-[3px] has-[:focus-visible]:outline-offset-2',
+            'border-line bg-surface text-ink has-[:focus-visible]:outline-focus cursor-pointer rounded-sm border-2 px-3 py-1 font-mono font-bold has-[:focus-visible]:outline-[3px] has-[:focus-visible]:outline-offset-2',
             value === count &&
-              'bg-primary text-sticker-ink -translate-x-0.5 -translate-y-0.5 shadow-md',
+              'bg-primary text-sticker-ink -translate-x-0.5 -translate-y-0.5',
           )}
         >
           <input
@@ -162,7 +162,6 @@ export function BatchPanel({
 
   return (
     <Panel
-      tag="Batch"
       title="Review in bulk"
       subtitle="Analyze your latest games one after another and save each one, so the Overview and the drills have more to work with."
     >

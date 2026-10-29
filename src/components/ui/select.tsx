@@ -41,7 +41,7 @@ function SelectTrigger({
       data-slot="select-trigger"
       data-size={size}
       className={cn(
-        "border-line bg-surface text-ink aria-invalid:border-destructive data-placeholder:text-ink-muted flex w-fit cursor-pointer items-center justify-between gap-2 rounded-sm border-3 py-2 pr-2 pl-3 font-bold whitespace-nowrap shadow-sm select-none disabled:cursor-not-allowed disabled:opacity-55 data-[size=default]:min-h-10 data-[size=sm]:min-h-8 data-[size=sm]:py-1 *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-1.5 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+        "border-line bg-surface text-ink aria-invalid:border-destructive data-placeholder:text-ink-muted flex w-fit cursor-pointer items-center justify-between gap-2 rounded-sm border-2 py-2 pr-2 pl-3 font-bold whitespace-nowrap select-none disabled:cursor-not-allowed disabled:opacity-55 data-[size=default]:min-h-10 data-[size=sm]:min-h-8 data-[size=sm]:py-1 *:data-[slot=select-value]:line-clamp-1 *:data-[slot=select-value]:flex *:data-[slot=select-value]:items-center *:data-[slot=select-value]:gap-1.5 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
         className,
       )}
       {...props}
@@ -67,7 +67,7 @@ function SelectContent({
         data-slot="select-content"
         data-align-trigger={position === 'item-aligned'}
         className={cn(
-          'bg-surface text-ink border-line data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 relative z-50 max-h-(--radix-select-content-available-height) min-w-36 origin-(--radix-select-content-transform-origin) overflow-x-hidden overflow-y-auto rounded-sm border-3 shadow-md duration-100 data-[align-trigger=true]:animate-none',
+          'bg-surface text-ink border-line data-[side=bottom]:slide-in-from-top-2 data-[side=left]:slide-in-from-right-2 data-[side=right]:slide-in-from-left-2 data-[side=top]:slide-in-from-bottom-2 data-open:animate-in data-open:fade-in-0 data-open:zoom-in-95 data-closed:animate-out data-closed:fade-out-0 data-closed:zoom-out-95 relative z-50 max-h-(--radix-select-content-available-height) min-w-36 origin-(--radix-select-content-transform-origin) overflow-x-hidden overflow-y-auto rounded-sm border-2 duration-100 data-[align-trigger=true]:animate-none',
           position === 'popper' &&
             'data-[side=bottom]:translate-y-1 data-[side=left]:-translate-x-1 data-[side=right]:translate-x-1 data-[side=top]:-translate-y-1',
           className,
@@ -99,10 +99,7 @@ function SelectLabel({
   return (
     <SelectPrimitive.Label
       data-slot="select-label"
-      className={cn(
-        'text-ink-muted px-2 py-1 text-xs font-extrabold tracking-[0.08em] uppercase',
-        className,
-      )}
+      className={cn('text-ink-muted px-2 py-1 text-xs font-bold', className)}
       {...props}
     />
   );

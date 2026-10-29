@@ -222,7 +222,7 @@ export function Board({
   return (
     // The frame is on this box, not the grid: the flight and arrow layers are
     // absolutely placed against its inside, so they stay aligned with the squares.
-    <div className="border-line bg-line relative border-4 shadow-lg">
+    <div className="border-line bg-line relative border-2">
       <style>{MOVE_CSS}</style>
       <div
         // An img's children are presentational, which would hide the buttons.

@@ -73,7 +73,7 @@ function BrokenLink({
   return (
     <div
       role="alert"
-      className="border-line bg-surface flex flex-wrap items-center gap-3 rounded-md border-3 p-4 shadow-md"
+      className="border-line bg-surface flex flex-wrap items-center gap-3 rounded-md border-2 p-4"
     >
       <TriangleAlertIcon aria-hidden className="text-loss size-6 shrink-0" />
       <div className="min-w-0 flex-1">

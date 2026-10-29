@@ -52,7 +52,7 @@ export function GameList({
           .reverse();
         return (
           <section key={day.key}>
-            <h3 className="text-ink-muted text-xs leading-4 font-extrabold tracking-[0.08em] uppercase">
+            <h3 className="text-ink-muted text-xs leading-4 font-bold">
               {dayFormat.format(day.date)} · {day.games.length}{' '}
               {day.games.length === 1 ? 'game' : 'games'}
             </h3>

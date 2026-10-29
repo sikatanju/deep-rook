@@ -2,7 +2,7 @@ import { useMemo, useRef, useState } from 'react';
 
 import { useStore } from '@/app/store';
 import { Board } from '@/components/board/board';
-import { Highlight, PageHeader } from '@/components/layout/page-header';
+import { PageHeader } from '@/components/layout/page-header';
 import { LevelPicker } from '@/components/level-picker';
 import { Panel } from '@/components/panel';
 import { EvalBar } from '@/components/review/eval-bar';
@@ -27,7 +27,7 @@ import { PALETTES } from '@/lib/palettes';
 // move to point at, so every setting below shows up in the preview.
 const PREVIEW_PLY = 22;
 
-const label = 'text-xs leading-4 font-extrabold tracking-[0.08em] uppercase';
+const label = 'text-xs leading-4 font-bold';
 
 /** Two presses, so a stray click cannot wipe the saved reviews. */
 function SavedReviews() {
@@ -45,7 +45,6 @@ function SavedReviews() {
   const nothing = (records === null || count === 0) && !loaded && !running;
   return (
     <Panel
-      tag="Saved here"
       title="Saved reviews"
       subtitle="Finished reviews are kept in this browser, so reopening a game skips the engine and the Overview can show your progress. Clearing them also clears your drill history and the game a refresh would reopen. Palette, board, and pieces stay."
     >
@@ -144,13 +143,10 @@ export function SettingsPage() {
   const replay = useMemo(() => parseReplay(OPERA_GAME), []);
   return (
     <>
-      <PageHeader eyebrow="Saved in this browser">
-        Make it <Highlight>yours</Highlight>
-      </PageHeader>
+      <PageHeader>Make it yours</PageHeader>
       <div className="grid gap-8 lg:grid-cols-[minmax(0,1fr)_auto] lg:items-start">
         <div className="flex flex-col gap-8">
           <Panel
-            tag="Engine"
             title="Review mode"
             subtitle="The mode preselected when you start a review. The engine runs on your device, and deeper modes are stronger and take longer."
           >
@@ -163,7 +159,7 @@ export function SettingsPage() {
 
           <SavedReviews />
 
-          <Panel tag="Look" title="Palette & board">
+          <Panel title="Palette & board">
             <div className="flex flex-col gap-3">
               <p className={label}>Palette</p>
               <div

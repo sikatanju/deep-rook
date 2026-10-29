@@ -68,7 +68,7 @@ export function ReportCard({
         data-accuracy={color}
         aria-label={`${word} accuracy estimate`}
         className={cn(
-          'border-line my-2 inline-block rounded-sm border-3 px-3 py-2 font-mono text-[40px] leading-none font-bold tracking-[-0.04em] tabular-nums shadow-md',
+          'border-line my-2 inline-block rounded-sm border-2 px-3 py-2 font-mono text-[40px] leading-none font-bold tracking-[-0.04em] tabular-nums',
           color === 'w'
             ? 'bg-eval-white text-sticker-ink'
             : 'bg-eval-black text-white',
@@ -76,7 +76,7 @@ export function ReportCard({
       >
         {half.accuracy?.toFixed(1) ?? '…'}
       </span>
-      <p className="text-ink-muted text-xs leading-4 font-extrabold tracking-[0.08em] uppercase">
+      <p className="text-ink-muted text-xs leading-4 font-bold">
         Accuracy (est.)
       </p>
     </div>
@@ -107,36 +107,32 @@ export function ReportCard({
   return (
     <section
       aria-label="Game report"
-      className="border-line bg-surface overflow-hidden rounded-md border-4 shadow-xl"
+      className="border-line bg-surface overflow-hidden rounded-md border-2"
     >
-      <header className="border-line bg-accent text-sticker-ink flex items-center justify-between gap-3 border-b-3 px-4 py-3">
+      <header className="border-line bg-accent text-sticker-ink border--2 flex items-center justify-between gap-3 px-4 py-3">
         <h3 className="font-display text-xl leading-6 font-extrabold">
           Game report
         </h3>
-        {level && (
-          <span className="text-xs leading-4 font-extrabold tracking-[0.08em] uppercase">
-            {level}
-          </span>
-        )}
+        {level && <span className="text-xs leading-4 font-bold">{level}</span>}
       </header>
 
-      <div className="border-line [&>*+*]:border-line grid grid-cols-2 border-b-3 [&>*+*]:border-l-3">
+      <div className="border-line [&>*+*]:border-line border--2 [&>*+*]:border--2 grid grid-cols-2">
         {player('w', 'White', whoWhite, white)}
         {player('b', 'Black', whoBlack, black)}
       </div>
 
-      <div className="border-line grid grid-cols-[1fr_auto_1fr] items-center border-b-3 py-1">
+      <div className="border-line border--2 grid grid-cols-[1fr_auto_1fr] items-center py-1">
         {GRADES.map((grade) => (
           <div key={grade} className="contents">
             {count('w', grade, white)}
-            <GradeSticker grade={grade} className="my-0.5 shadow-none" />
+            <GradeSticker grade={grade} className="my-0.5" />
             {count('b', grade, black)}
           </div>
         ))}
       </div>
 
       <details className="group px-4 py-3">
-        <summary className="flex cursor-pointer items-center gap-1.5 rounded-sm text-xs leading-4 font-extrabold tracking-[0.08em] uppercase [&::-webkit-details-marker]:hidden">
+        <summary className="flex cursor-pointer items-center gap-1.5 rounded-sm text-xs leading-4 font-bold [&::-webkit-details-marker]:hidden">
           <span>Key moments</span>
           <span className="text-ink-muted font-mono tabular-nums">
             {report ? moments.length : '…'}

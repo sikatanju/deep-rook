@@ -23,7 +23,6 @@ export function ReviewSetup({
   const open = saved !== null && satisfies(saved, level);
   return (
     <Panel
-      tag="Staged"
       title={staged.source}
       subtitle={`${staged.replay.plies.length} moves${saved ? `, reviewed at ${ANALYSIS_LEVELS[saved].label}` : ''}`}
       className="sticky bottom-20 z-10 md:bottom-4 lg:top-8 lg:bottom-auto"

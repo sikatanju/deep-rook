@@ -77,8 +77,8 @@ export function AnalysisProgress({
   const percent = Math.round((taken / steps) * 100);
 
   return (
-    <div className="border-line bg-surface flex flex-col gap-2 rounded-md border-3 px-4 py-3 shadow-md">
-      <div className="flex items-baseline justify-between gap-3 text-xs leading-4 font-extrabold tracking-[0.08em] uppercase">
+    <div className="border-line bg-surface flex flex-col gap-2 rounded-md border-2 px-4 py-3">
+      <div className="flex items-baseline justify-between gap-3 text-xs leading-4 font-bold">
         <span>{pass}</span>
         <span className="text-ink-muted font-mono tracking-normal normal-case tabular-nums">
           {done}/{total} positions
@@ -92,7 +92,7 @@ export function AnalysisProgress({
         aria-valuemax={100}
         aria-valuenow={percent}
         aria-valuetext={`${pass}: ${done} of ${total} positions`}
-        className="border-line bg-surface-alt h-4 overflow-hidden rounded-sm border-3"
+        className="border-line bg-surface-alt h-4 overflow-hidden rounded-sm border-2"
       >
         <div
           className="bg-accent h-full transition-[width]"

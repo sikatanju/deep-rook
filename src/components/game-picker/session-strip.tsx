@@ -56,7 +56,7 @@ export function SessionStrip({
       <div
         role="img"
         aria-label={label}
-        className="border-line bg-line mt-4 flex flex-wrap gap-y-5 border-3 shadow-md"
+        className="border-line bg-line mt-4 flex flex-wrap gap-y-5 border-2"
       >
         {shown.map((r, i) => (
           <span
@@ -89,7 +89,7 @@ export function SessionStrip({
 function Stat({ label, value }: { label: string; value: number | string }) {
   return (
     <span className="flex items-baseline gap-1.5">
-      <span className="text-ink-muted text-xs leading-4 font-extrabold tracking-[0.08em] uppercase">
+      <span className="text-ink-muted text-xs leading-4 font-bold">
         {label}
       </span>
       <b className="font-mono text-xl">{value}</b>

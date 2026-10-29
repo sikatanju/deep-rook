@@ -62,11 +62,7 @@ export function MoveList({
       >
         {move.san}
         {grade && CHIPPED.has(grade) && (
-          <GradeSticker
-            grade={grade}
-            iconOnly
-            className="scale-90 shadow-none"
-          />
+          <GradeSticker grade={grade} iconOnly className="scale-90" />
         )}
       </button>
     );

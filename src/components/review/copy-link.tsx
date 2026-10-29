@@ -66,7 +66,7 @@ export function CopyLink({ replay, side }: { replay: Replay; side: Side }) {
         className={cn(floating, 'pointer-events-none flex justify-end')}
       >
         {copied && (
-          <p className="border-line bg-surface rounded-sm border-3 px-3 py-2 font-extrabold shadow-md">
+          <p className="border-line bg-surface rounded-sm border-2 px-3 py-2 font-extrabold">
             Link copied
           </p>
         )}
@@ -75,7 +75,7 @@ export function CopyLink({ replay, side }: { replay: Replay; side: Side }) {
         <div
           className={cn(
             floating,
-            'border-line bg-surface flex flex-col gap-2 rounded-md border-3 p-4 shadow-lg',
+            'border-line bg-surface flex flex-col gap-2 rounded-md border-2 p-4',
           )}
         >
           <label htmlFor={id} className="font-bold">

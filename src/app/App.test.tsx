@@ -187,7 +187,6 @@ test('three straight losses get a coach word, and Review last loss stages the la
   stubLosingDay();
   const user = userEvent.setup();
   render(<App />);
-  expect(screen.getByText('Step 1 of 2')).toBeInTheDocument();
   await user.type(screen.getByLabelText('Chess.com username'), 'Me');
   await user.click(screen.getByRole('button', { name: 'Find games' }));
 
@@ -196,7 +195,6 @@ test('three straight losses get a coach word, and Review last loss stages the la
   await user.click(screen.getByRole('button', { name: 'Review last loss' }));
 
   expect(screen.getByText('Me vs Rival3')).toBeInTheDocument();
-  expect(screen.getByText('Step 2 of 2')).toBeInTheDocument();
   localStorage.clear();
 });
 

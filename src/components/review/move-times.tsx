@@ -41,7 +41,7 @@ export function MoveTimes({
 
   return (
     <div className="flex flex-col gap-2">
-      <div className="border-line bg-surface-alt border-3 shadow-sm">
+      <div className="border-line bg-surface-alt border-2">
         <svg
           viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
           preserveAspectRatio="none"

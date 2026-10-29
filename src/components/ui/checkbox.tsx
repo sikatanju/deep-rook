@@ -11,7 +11,7 @@ function Checkbox({
       type="checkbox"
       data-slot="checkbox"
       className={cn(
-        "border-line bg-surface checked:bg-primary checked:after:border-sticker-ink m-0 grid size-6 shrink-0 cursor-pointer appearance-none place-items-center rounded-sm border-3 shadow-sm checked:after:h-[5px] checked:after:w-2.5 checked:after:-translate-y-0.5 checked:after:-rotate-45 checked:after:border-b-3 checked:after:border-l-3 checked:after:content-[''] disabled:cursor-not-allowed disabled:opacity-55",
+        "border-line bg-surface checked:bg-primary checked:after:border-sticker-ink checked:after:border--2 checked:after:border--2 m-0 grid size-6 shrink-0 cursor-pointer appearance-none place-items-center rounded-sm border-2 checked:after:h-[5px] checked:after:w-2.5 checked:after:-translate-y-0.5 checked:after:-rotate-45 checked:after:content-[''] disabled:cursor-not-allowed disabled:opacity-55",
         className,
       )}
       {...props}

@@ -4,7 +4,7 @@ import { navigate } from '@/app/router';
 import { useStore } from '@/app/store';
 import { readSavedUsernames } from '@/components/game-picker/username-form';
 import { ResultStamp } from '@/components/game-picker/result-stamp';
-import { Highlight, PageHeader } from '@/components/layout/page-header';
+import { PageHeader } from '@/components/layout/page-header';
 import { Panel } from '@/components/panel';
 import { CoachBubble } from '@/components/review/coach-bubble';
 import { Button } from '@/components/ui/button';
@@ -117,12 +117,12 @@ function OpeningsTable({
 }) {
   if (openings.length === 0)
     return <p className="text-ink-muted">No openings named yet.</p>;
-  const head = 'px-2 py-1.5 text-xs font-extrabold tracking-[0.08em] uppercase';
+  const head = 'px-2 py-1.5 text-xs font-bold';
   return (
     <div className="overflow-x-auto">
       <table className="w-full text-left">
         <thead>
-          <tr className="border-line border-b-3">
+          <tr className="border-line border--2">
             <th scope="col" className={head}>
               Opening
             </th>
@@ -189,7 +189,7 @@ function RecentGames({
       {games.map((g) => (
         <li
           key={g.key}
-          className="border-line bg-surface grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 rounded-sm border-3 px-3 py-2.5 sm:grid-cols-[72px_minmax(0,1fr)_auto_auto_auto_auto]"
+          className="border-line bg-surface grid grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 rounded-sm border-2 px-3 py-2.5 sm:grid-cols-[72px_minmax(0,1fr)_auto_auto_auto_auto]"
         >
           <span>{g.result && <ResultStamp result={g.result} />}</span>
           <span className="truncate font-bold">
@@ -336,11 +336,7 @@ export function OverviewPage() {
     );
   }
 
-  const header = (
-    <PageHeader eyebrow="Across your reviewed games">
-      Your <Highlight>progress</Highlight>
-    </PageHeader>
-  );
+  const header = <PageHeader>Your progress</PageHeader>;
 
   if (data && records?.length === 0)
     return (
@@ -392,18 +388,16 @@ export function OverviewPage() {
       )}
       {(!data || data.games > 0) && (
         <div className="grid gap-8 lg:grid-cols-2 lg:items-start">
-          <Panel tag="Trend" title="Accuracy" subtitle={trendSubtitle(data)}>
+          <Panel title="Accuracy" subtitle={trendSubtitle(data)}>
             {data ? <AccuracyTrend games={data.trend} /> : <Pending />}
           </Panel>
           <Panel
-            tag="Moves"
             title="Grade mix"
             subtitle={`Every move you played in ${matchedGames(data)}.`}
           >
             {data ? <GradeMix totals={data.gradeTotals} /> : <Pending />}
           </Panel>
           <Panel
-            tag="Stages"
             title="Where mistakes happen"
             subtitle={`Mistakes, misses and blunders per 100 of your moves in ${matchedGames(data)}.`}
           >
@@ -421,15 +415,10 @@ export function OverviewPage() {
               <Pending />
             )}
           </Panel>
-          <Panel
-            tag="Clock"
-            title="Time trouble"
-            subtitle={clockSubtitle(data)}
-          >
+          <Panel title="Time trouble" subtitle={clockSubtitle(data)}>
             {data ? <TimeTrouble clock={data.clock} /> : <Pending />}
           </Panel>
           <Panel
-            tag="Openings"
             className="lg:col-span-2"
             title="Openings that cost you"
             subtitle="Lowest average accuracy first."
@@ -445,7 +434,7 @@ export function OverviewPage() {
           </Panel>
         </div>
       )}
-      <Panel tag="Saved" title="Recent games">
+      <Panel title="Recent games">
         {data ? (
           <RecentGames games={data.recent} onReview={reviewAgain} />
         ) : (

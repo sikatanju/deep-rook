@@ -3,7 +3,7 @@ import { BatchPanel } from '@/components/game-picker/batch-panel';
 import { GamePicker } from '@/components/game-picker/game-picker';
 import { PgnImport } from '@/components/game-picker/pgn-import';
 import { ReviewSetup } from '@/components/game-picker/review-setup';
-import { Highlight, PageHeader } from '@/components/layout/page-header';
+import { PageHeader } from '@/components/layout/page-header';
 import { CoachBubble } from '@/components/review/coach-bubble';
 import { Button } from '@/components/ui/button';
 import { useReviewedGames } from '@/hooks/use-reviewed-games';
@@ -68,9 +68,7 @@ export function GamesPage() {
   // lg the second column stretches to the list's height for the same reason.
   return (
     <>
-      <PageHeader eyebrow={`Step ${staged ? 2 : 1} of 2`}>
-        Pick a game to <Highlight>roast</Highlight>
-      </PageHeader>
+      <PageHeader>Pick a game to roast</PageHeader>
       <div className="flex flex-col gap-8 lg:grid lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:items-start">
         <GamePicker reviewed={reviewed} />
         <div className="contents lg:flex lg:flex-col lg:gap-8 lg:self-stretch">
