@@ -1,6 +1,6 @@
 import { runInNewContext } from 'node:vm';
 
-import { describe, expect, it, vi } from 'vitest';
+import { describe, expect, it, vi, type Mock } from 'vitest';
 
 import { renderServiceWorker } from './precache';
 import template from './sw.js?raw';
@@ -56,8 +56,14 @@ function startWorker(
   storage: ReturnType<typeof cacheStorage>,
 ) {
   const listeners = new Map<string, (event: unknown) => void>();
+  const windows: { postMessage: Mock; focus: Mock }[] = [];
   const self = {
     location: new URL(`${ORIGIN}/sw.js`),
+    registration: { scope: `${ORIGIN}/` },
+    clients: {
+      matchAll: vi.fn(async () => windows),
+      openWindow: vi.fn(async () => null),
+    },
     addEventListener: (type: string, fn: (event: unknown) => void) =>
       listeners.set(type, fn),
   };
@@ -80,10 +86,23 @@ function startWorker(
       Promise<Response> | undefined;
     return { intercepted: respondWith.mock.calls.length > 0, response };
   };
+  const click = async (data?: unknown) => {
+    const pending: Promise<unknown>[] = [];
+    const notification = { close: vi.fn(), data };
+    listeners.get('notificationclick')!({
+      notification,
+      waitUntil: (p: Promise<unknown>) => pending.push(p),
+    });
+    await Promise.all(pending);
+    return notification;
+  };
   return {
     install: () => lifecycle('install'),
     activate: () => lifecycle('activate'),
     request,
+    click,
+    windows,
+    clients: self.clients,
   };
 }
 
@@ -182,5 +201,33 @@ describe('activate', () => {
       'deeprook-v2',
       'someone-else',
     ]);
+  });
+});
+
+describe('notificationclick', () => {
+  it('brings an open window forward and tells it which screen to show', async () => {
+    const { worker } = await installed();
+    const open = { postMessage: vi.fn(), focus: vi.fn(async () => open) };
+    worker.windows.push(open);
+    const notification = await worker.click({ hash: '#/overview' });
+    expect(notification.close).toHaveBeenCalled();
+    expect(open.postMessage).toHaveBeenCalledWith({
+      type: 'open',
+      hash: '#/overview',
+    });
+    expect(open.focus).toHaveBeenCalled();
+    expect(worker.clients.openWindow).not.toHaveBeenCalled();
+  });
+
+  it('opens the app on that screen when no window is open', async () => {
+    const { worker } = await installed();
+    await worker.click({ hash: '#/games' });
+    expect(worker.clients.openWindow).toHaveBeenCalledWith(`${ORIGIN}/#/games`);
+  });
+
+  it('opens the front page when the notification names no screen', async () => {
+    const { worker } = await installed();
+    await worker.click();
+    expect(worker.clients.openWindow).toHaveBeenCalledWith(`${ORIGIN}/#/`);
   });
 });

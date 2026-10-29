@@ -18,6 +18,7 @@ import {
   type Analyzer,
 } from '@/lib/analysis/analyzer';
 import { createBatch, isActive, type Batch } from '@/lib/analysis/batch';
+import { watchBatch } from '@/lib/analysis/batch-alert';
 import {
   openIdbStore,
   watched,
@@ -38,6 +39,7 @@ import {
   type ProbeSnapshot,
 } from '@/lib/analysis/probe';
 import type { SpawnLane } from '@/lib/analysis/protocol';
+import { followNotificationClicks, notify } from '@/lib/notify';
 
 const AnalyzerContext = createContext<Analyzer | null>(null);
 const ProbeContext = createContext<Probe | null>(null);
@@ -88,6 +90,14 @@ export function AnalysisProvider({
   useEffect(() => () => analyzer.dispose(), [analyzer]);
   useEffect(() => () => probe.dispose(), [probe]);
   useEffect(() => () => batch.dispose(), [batch]);
+  useEffect(() => {
+    const stopWatching = watchBatch({ batch, doc: document, notify });
+    const stopFollowing = followNotificationClicks();
+    return () => {
+      stopWatching();
+      stopFollowing();
+    };
+  }, [batch]);
   useEffect(() => {
     const follow = () => {
       const paused = pauser.getSnapshot() !== null;

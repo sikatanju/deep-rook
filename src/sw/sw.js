@@ -50,3 +50,22 @@ self.addEventListener('fetch', (event) => {
       .then((hit) => hit ?? fetch(request)),
   );
 });
+
+// A click on a "reviews are ready" notification brings the app forward and has
+// the page go to the screen the notification names. The page owns routing, so
+// the worker only passes the hash along.
+self.addEventListener('notificationclick', (event) => {
+  event.notification.close();
+  const hash = event.notification.data?.hash ?? '#/';
+  event.waitUntil(
+    self.clients
+      .matchAll({ type: 'window', includeUncontrolled: true })
+      .then((windows) => {
+        const open = windows[0];
+        if (!open)
+          return self.clients.openWindow(self.registration.scope + hash);
+        open.postMessage({ type: 'open', hash });
+        return open.focus();
+      }),
+  );
+});
