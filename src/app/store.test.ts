@@ -66,8 +66,8 @@ describe('loadSettings', () => {
     localStorage.setItem('settings', '{"palette":"pop"}');
     expect(loadSettings().palette).toBe('pop');
     localStorage.clear();
-    document.cookie = `settings=${encodeURIComponent('{"palette":"mint"}')}; Path=/`;
-    expect(loadSettings().palette).toBe('mint');
+    document.cookie = `settings=${encodeURIComponent('{"palette":"newsprint"}')}; Path=/`;
+    expect(loadSettings().palette).toBe('newsprint');
   });
 
   test('a light OS, or none, starts on Pop Quiz', () => {
@@ -79,15 +79,15 @@ describe('loadSettings', () => {
   test('the old dark toggle becomes Arcade Night until a palette is saved', () => {
     localStorage.setItem('theme', 'dark');
     expect(loadSettings().palette).toBe('arcade');
-    localStorage.setItem('settings', '{"palette":"mint"}');
-    expect(loadSettings().palette).toBe('mint');
+    localStorage.setItem('settings', '{"palette":"newsprint"}');
+    expect(loadSettings().palette).toBe('newsprint');
   });
 
   test('a settings cookie wins over local storage', () => {
     localStorage.setItem(
       'settings',
       JSON.stringify({
-        palette: 'mint',
+        palette: 'newsprint',
         boardTheme: 'brown',
         pieceSet: 'kiwen',
       }),

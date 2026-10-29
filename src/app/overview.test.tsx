@@ -89,11 +89,9 @@ test('a saved review of the player shows their progress', async () => {
   expect(beside('Accuracy')).toHaveTextContent(
     'Your latest 1 game, oldest to newest.',
   );
-  expect(beside('Grade mix')).toHaveTextContent(
-    'Every move you played in the game matched to you.',
-  );
+  expect(beside('Grade mix')).toHaveTextContent('Every move you played.');
   expect(beside('Where mistakes happen')).toHaveTextContent(
-    'Mistakes, misses and blunders per 100 of your moves in the game matched to you.',
+    'Mistakes, misses and blunders per 100 of your moves.',
   );
   expect(beside('Time trouble')).toHaveTextContent(
     'None of the games matched to you have a clock.',

@@ -1,3 +1,5 @@
+import { ChevronRightIcon } from 'lucide-react';
+
 import { useStore } from '@/app/store';
 import { BatchPanel } from '@/components/game-picker/batch-panel';
 import { GamePicker } from '@/components/game-picker/game-picker';
@@ -6,7 +8,9 @@ import { ReviewSetup } from '@/components/game-picker/review-setup';
 import { PageHeader } from '@/components/layout/page-header';
 import { CoachBubble } from '@/components/review/coach-bubble';
 import { Button } from '@/components/ui/button';
+import { useBatch } from '@/hooks/use-game-analysis';
 import { useReviewedGames } from '@/hooks/use-reviewed-games';
+import { isActive } from '@/lib/analysis/batch';
 import { losingStreak } from '@/lib/chesscom/session';
 import type { Game } from '@/lib/chesscom/types';
 
@@ -62,6 +66,7 @@ export function GamesPage() {
   const store = useStore();
   const { staged } = store;
   const reviewed = useReviewedGames();
+  const batchRunning = isActive(useBatch().snapshot);
   const shown = shownGames(store);
   // A sticky element only moves inside its parent. Small screens stack the
   // cards in this flex column, so the setup card can follow the game list. At
@@ -73,11 +78,22 @@ export function GamesPage() {
         <GamePicker reviewed={reviewed} />
         <div className="contents lg:flex lg:flex-col lg:gap-8 lg:self-stretch">
           {staged && <ReviewSetup staged={staged} reviewed={reviewed} />}
-          {shown && shown[0].length > 0 && (
-            <BatchPanel games={shown[0]} reviewed={reviewed} />
-          )}
-          <PgnImport />
           <StreakCoach />
+          <details open={batchRunning || undefined} className="group">
+            <summary className="flex cursor-pointer items-center gap-2 rounded-sm font-bold [&::-webkit-details-marker]:hidden">
+              <ChevronRightIcon
+                aria-hidden
+                className="size-4 transition-transform group-open:rotate-90"
+              />
+              More ways to add or review games
+            </summary>
+            <div className="mt-4 flex flex-col gap-8">
+              {shown && shown[0].length > 0 && (
+                <BatchPanel games={shown[0]} reviewed={reviewed} />
+              )}
+              <PgnImport />
+            </div>
+          </details>
         </div>
       </div>
     </>

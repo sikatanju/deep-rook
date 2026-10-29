@@ -46,7 +46,7 @@ function SavedReviews() {
   return (
     <Panel
       title="Saved reviews"
-      subtitle="Finished reviews are kept in this browser, so reopening a game skips the engine and the Overview can show your progress. Clearing them also clears your drill history and the game a refresh would reopen. Palette, board, and pieces stay."
+      subtitle="Kept in this browser, so reopening a game skips the engine. Clearing them also clears your drill history."
     >
       {!available && (
         <p className="text-ink-muted">
@@ -148,7 +148,7 @@ export function SettingsPage() {
         <div className="flex flex-col gap-8">
           <Panel
             title="Review mode"
-            subtitle="The mode preselected when you start a review. The engine runs on your device, and deeper modes are stronger and take longer."
+            subtitle="Deeper modes are stronger and take longer. The engine runs on your device."
           >
             <LevelPicker
               name="analysis-level"

@@ -28,19 +28,7 @@ const { title } = Astro.props;
       // Keep the ids and the fallbacks (old toggle, then the OS dark setting)
       // in step with lib/palettes.ts and loadSettings in app/store.tsx.
       (() => {
-        const ids = [
-          'pop',
-          'mint',
-          'blueprint',
-          'retro',
-          'bubblegum',
-          'citrus',
-          'newsprint',
-          'arcade',
-          'lantern',
-          'tidepool',
-          'carbon',
-        ];
+        const ids = ['pop', 'newsprint', 'arcade'];
         let palette = 'pop';
         try {
           const prefix = 'settings=';
