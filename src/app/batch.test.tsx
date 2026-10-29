@@ -7,34 +7,45 @@ import { stored } from '@/lib/analysis/fixtures';
 import type { Job } from '@/lib/analysis/protocol';
 import { parseReplay } from '@/lib/chess/replay';
 
-// Every search answers 0.00 at once.
-vi.hoisted(() => {
+// Every search answers 0.00 at once, unless a test holds the answers back.
+const engine = vi.hoisted(() => {
+  const state = { holding: false, held: [] as (() => void)[], posted: 0 };
   class ScriptedWorker {
     onmessage: ((e: { data: unknown }) => void) | null = null;
     onerror: (() => void) | null = null;
     private dead = false;
     postMessage({ jobId }: Job) {
-      setTimeout(() => {
-        if (this.dead) return;
-        const line = { score: { kind: 'cp', cp: 0 }, pv: [], depth: 1 };
-        this.onmessage?.({ data: { kind: 'done', jobId, outcome: { line } } });
-      });
+      state.posted++;
+      const answer = () =>
+        setTimeout(() => {
+          if (this.dead) return;
+          const line = { score: { kind: 'cp', cp: 0 }, pv: [], depth: 1 };
+          this.onmessage?.({
+            data: { kind: 'done', jobId, outcome: { line } },
+          });
+        });
+      if (state.holding) state.held.push(answer);
+      else answer();
     }
     terminate() {
       this.dead = true;
     }
   }
   globalThis.Worker = ScriptedWorker as never;
+  return state;
 });
 
 import App from './App';
 
 afterEach(() => {
   document.cookie = 'settings=; Path=/; Max-Age=0';
+  vi.restoreAllMocks();
   vi.unstubAllGlobals();
   localStorage.clear();
   Reflect.deleteProperty(document, 'visibilityState');
   Reflect.deleteProperty(navigator, 'getBattery');
+  document.title = '';
+  Object.assign(engine, { holding: false, held: [], posted: 0 });
 });
 
 function showTab(state: 'visible' | 'hidden') {
@@ -243,4 +254,82 @@ test('a batch on a low battery says so and goes on after "Continue anyway"', asy
       { timeout: 5_000 },
     ),
   ).toBeInTheDocument();
+});
+
+function stubNotification(initial: NotificationPermission) {
+  const shown: { title: string; onclick?: () => void }[] = [];
+  class Fake {
+    static permission = initial;
+    static requestPermission = vi.fn(async () => {
+      Fake.permission = 'granted';
+      return 'granted' as const;
+    });
+    close = vi.fn();
+    onclick?: () => void;
+    constructor(public title: string) {
+      shown.push(this);
+    }
+  }
+  vi.stubGlobal('Notification', Fake);
+  return { Fake, shown };
+}
+
+test('notifications are asked for only after a batch starts, and only on a click', async () => {
+  const { Fake } = stubNotification('default');
+  const { user, panel, analyze } = await openBatchPanel();
+  expect(
+    screen.queryByRole('button', { name: 'Notify me when it finishes' }),
+  ).toBeNull();
+  expect(Fake.requestPermission).not.toHaveBeenCalled();
+
+  showTab('hidden');
+  await user.click(analyze);
+  await user.click(
+    await within(panel).findByRole('button', {
+      name: 'Notify me when it finishes',
+    }),
+  );
+  expect(Fake.requestPermission).toHaveBeenCalledTimes(1);
+  expect(
+    await within(panel).findByText(/You will get a notification/),
+  ).toBeVisible();
+});
+
+test('a blocked or missing Notification API offers nothing and breaks nothing', async () => {
+  stubNotification('denied');
+  const { user, panel, analyze } = await openBatchPanel();
+  showTab('hidden');
+  await user.click(analyze);
+  await within(panel).findByRole('button', { name: 'Stop' });
+  expect(
+    within(panel).queryByRole('button', { name: 'Notify me when it finishes' }),
+  ).toBeNull();
+});
+
+test('a batch that finishes in a hidden tab badges the title and notifies, and a click opens the Overview', async () => {
+  document.title = 'DeepRook';
+  const { shown } = stubNotification('granted');
+  vi.spyOn(window, 'focus').mockImplementation(() => {});
+  // Enough lanes for every position to be searching when the tab is hidden.
+  vi.spyOn(navigator, 'hardwareConcurrency', 'get').mockReturnValue(8);
+  const { user, panel, analyze } = await openBatchPanel();
+  await user.click(within(panel).getByRole('radio', { name: /Fast/ }));
+  engine.holding = true;
+  await user.click(analyze);
+  // The focus position is searched alone for a moment, then the rest follow.
+  await waitFor(() => expect(engine.posted).toBe(4));
+
+  showTab('hidden');
+  engine.holding = false;
+  engine.held.forEach((answer) => answer());
+
+  await waitFor(() => expect(document.title).toBe('(✓ 1) DeepRook'));
+  expect(shown).toHaveLength(1);
+  expect(shown[0]!.title).toBe('Your reviews are ready');
+
+  shown[0]!.onclick!();
+  expect(location.hash).toBe('#/overview');
+
+  showTab('visible');
+  expect(document.title).toBe('DeepRook');
 });

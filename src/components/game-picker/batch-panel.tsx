@@ -17,6 +17,7 @@ import {
 import { pickBatch } from '@/lib/analysis/batch-picks';
 import { ANALYSIS_LEVELS, satisfies } from '@/lib/analysis/levels';
 import type { Game } from '@/lib/chesscom/types';
+import { askPermission, permission } from '@/lib/notify';
 import { cn } from '@/lib/utils';
 
 const COUNTS = [5, 10, 20] as const;
@@ -119,6 +120,29 @@ function Progress({ snapshot }: { snapshot: ActiveBatch }) {
   );
 }
 
+/**
+ * The one place the browser is asked to allow notifications: after a batch has
+ * started, and only on a click. Nothing shows where they are unsupported or blocked.
+ */
+function NotifyOptIn() {
+  const [allowed, setAllowed] = useState(permission);
+  if (allowed === 'unsupported' || allowed === 'denied') return null;
+  if (allowed === 'granted')
+    return (
+      <p className="text-ink-muted">
+        You will get a notification when the reviews are ready, if this tab is
+        in the background.
+      </p>
+    );
+  return (
+    <div>
+      <Button size="sm" onClick={() => askPermission().then(setAllowed)}>
+        Notify me when it finishes
+      </Button>
+    </div>
+  );
+}
+
 /** What the last batch came to, once it is over. */
 function Outcome({ snapshot }: { snapshot: EndedBatch }) {
   const { phase, total, finished, failed } = snapshot;
@@ -182,6 +206,7 @@ export function BatchPanel({
       {isActive(snapshot) ? (
         <>
           <Progress snapshot={snapshot} />
+          <NotifyOptIn />
           <div>
             <Button onClick={cancel}>Stop</Button>
           </div>
