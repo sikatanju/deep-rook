@@ -347,6 +347,8 @@ test('? opens a list of the review keys, and Esc closes it and returns focus', a
     'First move↑Home',
     'Last move↓End',
     'Play or pause the gameSpace',
+    'Next mistakeN',
+    'Previous mistakeShift N',
     'Flip the boardF',
     'Leave a side lineEsc',
     'Show this list?',

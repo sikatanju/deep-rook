@@ -6,6 +6,7 @@ import {
   PauseIcon,
   PlayIcon,
   RotateCwIcon,
+  TriangleAlertIcon,
 } from 'lucide-react';
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 
@@ -32,7 +33,13 @@ import { explainMove } from '@/lib/analysis/explain';
 import { searchInputAt } from '@/lib/analysis/inputs';
 import { badgeLabel } from '@/lib/analysis/levels';
 import { sideOf } from '@/lib/analysis/overview';
-import { evalSeries, gameReport, MOMENT_GRADES } from '@/lib/analysis/report';
+import {
+  evalSeries,
+  gameReport,
+  MOMENT_GRADES,
+  nextMistake,
+  previousMistake,
+} from '@/lib/analysis/report';
 import {
   clampBoardSize,
   MAX_BOARD_SIZE,
@@ -162,6 +169,22 @@ function Viewer({ loaded }: { loaded: Loaded }) {
   );
 
   const { at, end, to } = stepper;
+  const analysis = useGameAnalysis(loaded, index);
+  const here = analysis?.positions[index];
+  const gameLine = here && here.status !== 'failed' ? here.line : null;
+  const grades = useMemo(
+    () => (analysis ? classifyMoves(replay, analysis.positions) : []),
+    [replay, analysis],
+  );
+  // The moves a walk through the mistakes counts: the reviewed player's when
+  // the game is one of theirs, else both sides'.
+  const mine = useMemo(() => {
+    const side = sideOf(replay.headers, readSavedUsernames());
+    return side ? { side, plies: replay.plies } : undefined;
+  }, [replay]);
+  const nextWrong = nextMistake(grades, index, mine);
+  const previousWrong = previousMistake(grades, index, mine);
+
   const help = useShortcuts([
     { keys: ['ArrowLeft'], label: 'Previous move', run: () => to(at - 1) },
     { keys: ['ArrowRight'], label: 'Next move', run: () => to(at + 1) },
@@ -177,6 +200,16 @@ function Viewer({ loaded }: { loaded: Loaded }) {
         setPlaying(index >= last || !running);
       },
     },
+    {
+      keys: ['n'],
+      label: 'Next mistake',
+      run: () => (nextWrong === null ? false : go(nextWrong)),
+    },
+    {
+      keys: ['N'],
+      label: 'Previous mistake',
+      run: () => (previousWrong === null ? false : go(previousWrong)),
+    },
     { keys: ['f'], label: 'Flip the board', run: () => setFlipped((f) => !f) },
     {
       keys: ['Escape'],
@@ -188,13 +221,6 @@ function Viewer({ loaded }: { loaded: Loaded }) {
     },
   ]);
 
-  const analysis = useGameAnalysis(loaded, index);
-  const here = analysis?.positions[index];
-  const gameLine = here && here.status !== 'failed' ? here.line : null;
-  const grades = useMemo(
-    () => (analysis ? classifyMoves(replay, analysis.positions) : []),
-    [replay, analysis],
-  );
   // The graph's series and the report derive from the same snapshot as the
   // grades, so all three stay mutually consistent while the engine streams.
   const series = useMemo(
@@ -596,6 +622,15 @@ function Viewer({ loaded }: { loaded: Loaded }) {
             onClick={() => setFlipped((f) => !f)}
           >
             <RotateCwIcon aria-hidden />
+          </Button>
+          <Button
+            size="sm"
+            disabled={nextWrong === null}
+            title="Next mistake (N), previous (Shift+N)"
+            onClick={() => nextWrong !== null && go(nextWrong)}
+          >
+            <TriangleAlertIcon aria-hidden />
+            {nextWrong === null ? 'No more mistakes' : 'Next mistake'}
           </Button>
           {help}
           <CopyLink replay={replay} side={flipped ? 'b' : 'w'} />

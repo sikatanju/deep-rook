@@ -225,14 +225,50 @@ export function analysisPhase(
   return blank ? 'first-light' : 'upgrade';
 }
 
-/** The next position index after `index` whose move is a mistake, miss or blunder. */
+/** Grades the next-mistake walk stops on: the moment grades, plus inaccuracies. */
+const WALK_GRADES = new Set<Classification>(['inaccuracy', ...MOMENT_GRADES]);
+
+/** Restricts a walk over the grades to one side's moves. */
+export type OnlySide = {
+  side: 'w' | 'b';
+  /** The game's plies, for who played each; `grades[p]` is `plies[p]`'s. */
+  plies: readonly { color: 'w' | 'b' }[];
+};
+
+const walkable = (
+  grades: readonly (Classification | null)[],
+  ply: number,
+  only?: OnlySide,
+) => {
+  const grade = grades[ply];
+  return (
+    !!grade &&
+    WALK_GRADES.has(grade) &&
+    (!only || only.plies[ply]?.color === only.side)
+  );
+};
+
+/**
+ * The next position index after `index` whose move is an inaccuracy, mistake,
+ * miss or blunder, or null. With `only`, just that side's moves count.
+ */
 export function nextMistake(
   grades: readonly (Classification | null)[],
   index: number,
+  only?: OnlySide,
 ): number | null {
-  for (let ply = index; ply < grades.length; ply++) {
-    const grade = grades[ply];
-    if (grade && MOMENT_GRADES.has(grade)) return ply + 1;
-  }
+  for (let ply = index; ply < grades.length; ply++)
+    if (walkable(grades, ply, only)) return ply + 1;
+  return null;
+}
+
+/** The position index of the closest such move before the one that led to `index`, or null. */
+export function previousMistake(
+  grades: readonly (Classification | null)[],
+  index: number,
+  only?: OnlySide,
+): number | null {
+  for (let ply = Math.min(index, grades.length) - 2; ply >= 0; ply--)
+    if (walkable(grades, ply, only)) return ply + 1;
   return null;
 }

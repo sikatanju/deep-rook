@@ -46,4 +46,9 @@ const KEY_NAMES: Record<string, string> = {
 
 /** How a `KeyboardEvent.key` reads on a keycap. */
 export const keyName = (key: string) =>
-  KEY_NAMES[key] ?? (key.length === 1 ? key.toUpperCase() : key);
+  KEY_NAMES[key] ??
+  (key.length !== 1
+    ? key
+    : key !== key.toLowerCase()
+      ? `Shift ${key}`
+      : key.toUpperCase());

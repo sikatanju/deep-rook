@@ -38,11 +38,12 @@ test('keys typed into a field, or with a modifier held, are not shortcuts', () =
 });
 
 test('names keys as they read on a keycap', () => {
-  expect(['ArrowLeft', ' ', 'Escape', 'f', 'Enter', '?'].map(keyName)).toEqual([
+  expect(['ArrowLeft', ' ', 'Escape', 'f', 'N', 'Enter', '?'].map(keyName)).toEqual([
     '←',
     'Space',
     'Esc',
     'F',
+    'Shift N',
     'Enter',
     '?',
   ]);
