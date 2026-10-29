@@ -6,6 +6,7 @@ import { fenAt, OPERA_GAME, parseReplay } from '@/lib/chess/replay';
 import { drillsOf } from './drill';
 import {
   drillHash,
+  drillLabel,
   filterDrills,
   isFiltered,
   NO_DRILL_FILTER,
@@ -124,16 +125,20 @@ test('filters combine: a drill must pass all of them', () => {
 
 test('the query sets the filter, and the filter writes back the same query', () => {
   const filter = readDrillFilter(
-    new URLSearchParams('grade=blunder&stage=opening&opening=Sicilian+Defense'),
+    new URLSearchParams(
+      'grade=blunder&stage=opening&opening=Sicilian+Defense&side=b&speed=blitz',
+    ),
   );
   expect(filter).toEqual({
     grade: 'blunder',
     stage: 'opening',
     opening: 'Sicilian Defense',
+    side: 'b',
+    speed: 'blitz',
   });
   expect(isFiltered(filter)).toBe(true);
   expect(drillHash(filter)).toBe(
-    '/drill?grade=blunder&stage=opening&opening=Sicilian+Defense',
+    '/drill?grade=blunder&stage=opening&opening=Sicilian+Defense&side=b&speed=blitz',
   );
   expect(
     readDrillFilter(new URLSearchParams(drillHash(filter).split('?')[1])),
@@ -142,7 +147,50 @@ test('the query sets the filter, and the filter writes back the same query', () 
 
 test('an unknown value in the query reads as any', () => {
   expect(
-    readDrillFilter(new URLSearchParams('grade=great&stage=late&opening=')),
+    readDrillFilter(
+      new URLSearchParams('grade=great&stage=late&opening=&side=x&speed=fast'),
+    ),
   ).toEqual(NO_DRILL_FILTER);
   expect(drillHash(NO_DRILL_FILTER)).toBe('/drill');
+});
+
+test('a side keeps only drills played as that colour', () => {
+  expect(only({ side: 'b' })).toEqual(ids([...opening, ...middlegame]));
+  expect(only({ side: 'w' })).toEqual(ids(endgame));
+});
+
+test('a speed keeps only drills from games at that speed', () => {
+  const blitz = drillsOf(
+    stored({
+      ...OPERA_SLIPS,
+      replay: parseReplay(
+        OPERA_GAME.replace('[Result', '[TimeControl "300+3"]\n[Result'),
+      ),
+    }),
+    [BLACK],
+  );
+  const mixed = [...blitz, ...endgame];
+  const keep = (speed: DrillFilter['speed']) =>
+    filterDrills(mixed, { ...NO_DRILL_FILTER, speed }, book);
+  expect(keep('blitz')).toEqual(blitz);
+  expect(keep('bullet')).toEqual([]);
+  expect(keep('all')).toEqual(mixed);
+});
+
+test('an opening matches however the Overview would spell it', () => {
+  expect(only({ opening: 'kings pawn game' })).toEqual(
+    ids([...opening, ...middlegame]),
+  );
+});
+
+test('a label says what the filter holds', () => {
+  const label = (patch: Partial<DrillFilter>, n: number) =>
+    drillLabel({ ...NO_DRILL_FILTER, ...patch }, n);
+  expect(label({ opening: 'Caro-Kann Defense' }, 6)).toBe(
+    '6 Caro-Kann Defense mistakes',
+  );
+  expect(label({ stage: 'middlegame' }, 1)).toBe('1 middlegame mistake');
+  expect(label({ grade: 'miss', stage: 'endgame' }, 2)).toBe(
+    '2 endgame misses',
+  );
 });

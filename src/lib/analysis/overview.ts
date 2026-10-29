@@ -144,7 +144,7 @@ export type Rate = Tally & {
  * Chess.com slugs drop the colons, apostrophes, hyphens and accents that
  * Lichess names keep, so one opening matches on its letters and digits only.
  */
-function openingKey(name: string): string {
+export function openingKey(name: string): string {
   return name
     .normalize('NFD')
     .replace(/\p{M}|'|’/gu, '')

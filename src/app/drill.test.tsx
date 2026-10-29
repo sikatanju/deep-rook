@@ -647,3 +647,49 @@ test('filters combine with the session size', async () => {
   expect(screen.getByText('Drill 1 of 5')).toBeInTheDocument();
   expect(screen.getByText('8 due')).toBeInTheDocument();
 });
+
+test('the side chips filter by the colour played, and the header says what is held', async () => {
+  const user = await openDrill();
+  await screen.findByText('Drill 1 of 2');
+  expect(
+    screen.getByRole('heading', { name: 'Drill your mistakes' }),
+  ).toBeInTheDocument();
+
+  await user.click(screen.getByRole('button', { name: 'Black' }));
+  expect(screen.getByText('Drill 1 of 2')).toBeInTheDocument();
+  expect(
+    screen.getByRole('heading', { name: 'Drill your 2 mistakes' }),
+  ).toBeInTheDocument();
+  expect(location.hash).toBe('#/drill?side=b');
+
+  await user.click(screen.getByRole('button', { name: 'White' }));
+  expect(screen.getByText('Nothing matches.')).toBeInTheDocument();
+  expect(
+    screen.getByRole('heading', { name: 'Drill your 0 mistakes' }),
+  ).toBeInTheDocument();
+});
+
+test('the speed chips list the speeds played and filter by one', async () => {
+  const store = memoryStore();
+  const replay = parseReplay(
+    OPERA_GAME.replace('[Result', '[TimeControl "300+3"]\n[Result'),
+  );
+  await store.save(stored({ ...OPERA_SLIPS, replay, level: 'fast' }));
+  localStorage.setItem('lastUsername', BLACK);
+  location.hash = '#/drill?speed=blitz&stage=opening&grade=mistake';
+  render(<App store={store} progress={memoryProgress()} />);
+
+  expect(await screen.findByText('Drill 1 of 1')).toBeInTheDocument();
+  expect(
+    screen.getByRole('heading', { name: 'Drill your 1 opening mistake' }),
+  ).toBeInTheDocument();
+  expect(
+    within(screen.getByRole('group', { name: 'Time control' }))
+      .getAllByRole('button')
+      .map((b) => b.textContent),
+  ).toEqual(['Any speed', 'Blitz']);
+  expect(pressed('Blitz')).toBe('true');
+
+  location.hash = '#/drill?speed=bullet';
+  expect(await screen.findByText('Nothing matches.')).toBeInTheDocument();
+});
