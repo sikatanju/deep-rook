@@ -87,7 +87,7 @@ export function drillsOf(
   book: OpeningBook | null = null,
 ): Drill[] {
   const { replay, lines } = record;
-  const me = sideOf(replay.headers, usernames);
+  const me = sideOf(replay.headers, usernames, replay.mine);
   if (!me) return [];
   const positions = positionsFromStored(lines);
   const grades = classifyMoves(replay, positions, book);

@@ -54,16 +54,19 @@ const RESULT_BY_TAG: Record<string, Record<'w' | 'b', Outcome>> = {
 const STAGE_IDS = Object.keys(STAGES) as Stage[];
 
 /**
- * The side one of `usernames` played, ignoring case and surrounding spaces:
- * the one "which side am I?" resolver, fed the saved site usernames plus the
- * extra names from settings (see `useMyNames`). Null when neither side
- * matches, and when both do: a game between two of my own accounts has no
- * single "me".
+ * The side I played: the one "which side am I?" resolver. A side the player
+ * chose for the game (`mine`, from `Replay.mine`) wins, null meaning "not me".
+ * Without one, the side of one of `usernames` (the saved site usernames plus
+ * the extra names from settings, see `useMyNames`), ignoring case and
+ * surrounding spaces. Null when neither side matches, and when both do: a game
+ * between two of my own accounts has no single "me".
  */
 export function sideOf(
   headers: Record<string, string>,
   usernames: readonly string[],
+  mine?: 'w' | 'b' | null,
 ): 'w' | 'b' | null {
+  if (mine !== undefined) return mine;
   const names = new Set(usernames.map((u) => u.trim().toLowerCase()));
   names.delete('');
   const white = names.has(headers.White?.trim().toLowerCase() ?? '');
@@ -85,7 +88,7 @@ export function summarize(
   const positions = positionsFromStored(record.lines);
   const grades = classifyMoves(replay, positions, book);
   const report = gameReport(replay, positions, grades);
-  const me = sideOf(headers, usernames);
+  const me = sideOf(headers, usernames, replay.mine);
 
   const stages = Object.fromEntries(
     STAGE_IDS.map((stage) => [stage, { mistakes: 0, plies: 0 }]),

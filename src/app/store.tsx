@@ -215,7 +215,16 @@ type Store = ReturnType<typeof useGamePicker> & {
   staged: Staged | null;
   loaded: Loaded | null;
   stageGame: (game: Game) => void;
-  stagePgn: (pgn: string, source: string) => void;
+  /**
+   * Stages a pasted PGN. `mine` is the side the player said they played, null
+   * for "not me" and absent when they said nothing; the review opens from
+   * `orientation`.
+   */
+  stagePgn: (
+    pgn: string,
+    source: string,
+    side?: { mine?: 'w' | 'b' | null; orientation?: 'w' | 'b' },
+  ) => void;
   /** Reviews the staged game at `level`, else the remembered mode, and opens the review page. */
   startReview: (level?: AnalysisLevel) => void;
   /**
@@ -282,12 +291,20 @@ export function AppProvider({
   );
 
   const stagePgn = useCallback(
-    (pgn: string, source: string) => {
+    (
+      pgn: string,
+      source: string,
+      {
+        mine,
+        orientation = mine ?? 'w',
+      }: Parameters<Store['stagePgn']>[2] = {},
+    ) => {
+      const replay = parseReplay(pgn);
       setStaged({
         id: nextId++,
-        replay: parseReplay(pgn),
+        replay: mine === undefined ? replay : { ...replay, mine },
         source,
-        orientation: 'w',
+        orientation,
       });
       selectGame(null);
     },

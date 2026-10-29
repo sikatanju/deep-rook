@@ -66,6 +66,23 @@ describe('summarize', () => {
     });
   });
 
+  test('a chosen side makes the game mine with no name, and overrides one', () => {
+    const replay = parseReplay(OPERA_GAME);
+    expect(
+      summarize(stored({ replay: { ...replay, mine: 'b' }, cps }), []),
+    ).toMatchObject({ me: 'b', result: 'loss' });
+    expect(
+      summarize(stored({ replay: { ...replay, mine: 'b' }, cps }), [
+        'Paul Morphy',
+      ]).me,
+    ).toBe('b');
+    expect(
+      summarize(stored({ replay: { ...replay, mine: null }, cps }), [
+        'Paul Morphy',
+      ]).me,
+    ).toBeNull();
+  });
+
   test('guesses no side without a matching name', () => {
     for (const names of [[], [''], ['  '], ['someone else']]) {
       expect(summarize(record, names)).toMatchObject({
@@ -403,5 +420,16 @@ describe('sideOf', () => {
     expect(sideOf(headers, [])).toBeNull();
     expect(sideOf(headers, ['', '   ', 'nobody'])).toBeNull();
     expect(sideOf(headers, ['Paul Morphy', 'Duke Karl'])).toBeNull();
+  });
+
+  test('an explicit side beats the names, and null says it is not mine', () => {
+    expect(sideOf(headers, ['Paul Morphy'], 'b')).toBe('b');
+    expect(sideOf(headers, [], 'w')).toBe('w');
+    expect(sideOf(headers, ['Paul Morphy', 'Duke Karl'], 'w')).toBe('w');
+    expect(sideOf(headers, ['Paul Morphy'], null)).toBeNull();
+  });
+
+  test('no side said still matches by name', () => {
+    expect(sideOf(headers, ['Paul Morphy'], undefined)).toBe('w');
   });
 });

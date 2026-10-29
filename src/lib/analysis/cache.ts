@@ -122,6 +122,7 @@ export function isReplay(value: unknown): value is Replay {
     isRecord(value) &&
     typeof value.start === 'string' &&
     isRecord(value.headers) &&
+    (value.mine === undefined || value.mine === null || isColor(value.mine)) &&
     Object.values(value.headers).every((h) => typeof h === 'string') &&
     Array.isArray(value.plies) &&
     value.plies.every(isPly)

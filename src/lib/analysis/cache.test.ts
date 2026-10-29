@@ -239,3 +239,21 @@ test('openIdbStore is null where there is no IndexedDB', () => {
     globalThis.indexedDB = real;
   }
 });
+
+test('a side the player chose round-trips, and a record without one stays valid', () => {
+  for (const mine of ['w', 'b', null] as const) {
+    const record = stored();
+    record.replay = { ...record.replay, mine };
+    expect(parseStored(structuredClone(record))).toEqual(record);
+  }
+  const plain = stored();
+  expect(parseStored(structuredClone(plain))?.replay.mine).toBeUndefined();
+});
+
+test('a chosen side that is not a side makes the record a miss', () => {
+  const raw = structuredClone(stored()) as unknown as {
+    replay: Record<string, unknown>;
+  };
+  raw.replay.mine = 'x';
+  expect(parseStored(raw)).toBeNull();
+});

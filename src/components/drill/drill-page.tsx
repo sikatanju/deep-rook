@@ -462,7 +462,9 @@ export function DrillPage() {
       </>
     );
 
-  if (!records.some((r) => sideOf(r.replay.headers, usernames)))
+  if (
+    !records.some((r) => sideOf(r.replay.headers, usernames, r.replay.mine))
+  )
     return (
       <>
         {header}

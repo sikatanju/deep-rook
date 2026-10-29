@@ -16,6 +16,12 @@ export type Ply = {
 
 export type Replay = {
   headers: Record<string, string>;
+  /**
+   * The side the player said they played ('w' or 'b'), or null for "not me".
+   * Absent when they said nothing, and then the player names decide (see
+   * `sideOf`).
+   */
+  mine?: 'w' | 'b' | null;
   start: string;
   plies: Ply[];
 };

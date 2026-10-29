@@ -219,7 +219,7 @@ function Viewer({ loaded }: { loaded: Loaded }) {
   // the game is one of theirs, else both sides'.
   const names = useMyNames();
   const mine = useMemo(() => {
-    const side = sideOf(replay.headers, names);
+    const side = sideOf(replay.headers, names, replay.mine);
     return side ? { side, plies: replay.plies } : undefined;
   }, [replay, names]);
   const nextWrong = nextMistake(grades, index, mine);
@@ -931,7 +931,9 @@ function ReviewLatest() {
   const { reviewReplay } = useStore();
   const { records } = useSavedReviews();
   const usernames = useMyNames();
-  const latest = records?.find((r) => sideOf(r.replay.headers, usernames));
+  const latest = records?.find((r) =>
+    sideOf(r.replay.headers, usernames, r.replay.mine),
+  );
   if (!latest) return null;
   const { White, Black } = latest.replay.headers;
   return (
@@ -940,7 +942,7 @@ function ReviewLatest() {
         reviewReplay(
           latest.replay,
           `${White ?? 'White'} vs ${Black ?? 'Black'}`,
-          sideOf(latest.replay.headers, usernames)!,
+          sideOf(latest.replay.headers, usernames, latest.replay.mine)!,
           latest.level,
         )
       }

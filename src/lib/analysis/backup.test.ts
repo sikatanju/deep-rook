@@ -83,3 +83,14 @@ test('a backup carries the extra names, and an older one leaves them alone', asy
     await importBackup(JSON.stringify(file), null, null, (s) => seen.push(s));
   expect(seen).toHaveLength(1);
 });
+
+test('a backup keeps the side chosen for a game', async () => {
+  const store = memoryStore();
+  const replay = { ...stored().replay, mine: 'b' as const };
+  await store.save(stored({ replay }));
+  const text = await exportBackup(store, null);
+
+  const fresh = memoryStore();
+  await importBackup(text, fresh, null);
+  expect((await fresh.list())[0]?.replay.mine).toBe('b');
+});

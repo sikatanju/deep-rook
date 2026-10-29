@@ -230,7 +230,11 @@ export function createAnalyzer({
             entry.line = mergeLine(entry.line, line);
             entry.settled = settle(entry.settled, record.level);
           });
-          target.saved = settle(target.saved, record.level);
+          // A side chosen anew is saved again, even at the level already there.
+          const sideChanged =
+            target.replay.mine !== undefined &&
+            target.replay.mine !== record.replay.mine;
+          if (!sideChanged) target.saved = settle(target.saved, record.level);
         }
         if (hit || target.loading) resume();
       });

@@ -12,6 +12,18 @@ import { cpLine, OPERA_SLIPS, stored } from './fixtures';
 const BLACK = 'Duke Karl / Count Isouard';
 
 describe('drillsOf', () => {
+  test('a chosen side makes the game mine with no name, and not mine under one', () => {
+    const slips = (mine?: 'w' | 'b' | null) =>
+      stored({
+        ...OPERA_SLIPS,
+        replay: { ...stored().replay, mine },
+      });
+    expect(drillsOf(slips('b'), []).map((d) => d.index)).toEqual([8, 14]);
+    expect(drillsOf(slips('w'), [BLACK])).toEqual([]);
+    expect(drillsOf(slips(null), [BLACK])).toEqual([]);
+    expect(drillsOf(slips(undefined), [BLACK])).toHaveLength(2);
+  });
+
   test('turns each of the user’s mistakes into a puzzle before the move', () => {
     const record = stored(OPERA_SLIPS);
     const drills = drillsOf(record, [BLACK]);
