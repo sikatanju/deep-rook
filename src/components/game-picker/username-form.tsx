@@ -4,6 +4,7 @@ import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 
 import type { Site } from '@/lib/chesscom/types';
+import { recordFirstCheck } from '@/lib/new-games';
 
 const STORAGE_KEYS: Record<Site, string> = {
   chesscom: 'lastUsername',
@@ -19,11 +20,11 @@ export function readSavedUsername(site: Site): string {
   }
 }
 
+export const SAVED_SITES = Object.keys(STORAGE_KEYS) as Site[];
+
 /** Every site's saved username, without the empty ones. */
 export function readSavedUsernames(): string[] {
-  return (Object.keys(STORAGE_KEYS) as Site[])
-    .map(readSavedUsername)
-    .filter(Boolean);
+  return SAVED_SITES.map(readSavedUsername).filter(Boolean);
 }
 
 export const SITE_NAMES: Record<Site, string> = {
@@ -50,6 +51,8 @@ export function UsernameForm({
     if (!username) return;
     try {
       localStorage.setItem(STORAGE_KEYS[site], username);
+      // A new username's first visit starts its new-games clock.
+      recordFirstCheck(site, username, Date.now());
     } catch {
       // storage unavailable, the username just is not remembered
     }

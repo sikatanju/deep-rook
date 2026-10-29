@@ -14,6 +14,7 @@ import { AppProvider } from '@/app/store';
 import { DrillPage } from '@/components/drill/drill-page';
 import { GamesPage } from '@/components/game-picker/games-page';
 import { NavRail } from '@/components/layout/nav-rail';
+import { NewGamesBanner } from '@/components/new-games-banner';
 import { OverviewPage } from '@/components/overview/overview-page';
 import { ReviewPage } from '@/components/review/review-page';
 import { SettingsPage } from '@/components/settings/settings-page';
@@ -127,6 +128,7 @@ function Shell() {
           {link.status === 'broken' && (
             <BrokenLink link={link} onDismiss={dismiss} />
           )}
+          <NewGamesBanner hidden={route === 'review'} />
           {link.status === 'opening' ? (
             <p role="status" className="text-ink-muted font-bold">
               Opening the shared game…

@@ -153,3 +153,9 @@ test('aborting during the 429 wait stops the retry', async () => {
   await vi.advanceTimersByTimeAsync(60_000);
   expect(fetchMock).toHaveBeenCalledTimes(1);
 });
+
+test('since asks only for games created after it', async () => {
+  fetchMock.mockResolvedValueOnce(reply(200, ndjson(BLITZ)));
+  await fetchGames(user, { since: 1700000000000 });
+  expect(sentUrl().searchParams.get('since')).toBe('1700000000000');
+});

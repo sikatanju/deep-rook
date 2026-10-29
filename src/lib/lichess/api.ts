@@ -57,12 +57,16 @@ export type GamesPage = {
 
 /**
  * One page of `user`'s standard games, newest first. `until` is a `next` from
- * an earlier page. Pages count dropped games too, so one can hold fewer than
+ * an earlier page. `since` (ms, a game's creation) leaves out older games. Pages count dropped games too, so one can hold fewer than
  * PAGE_SIZE games and still have more behind it.
  */
 export async function fetchGames(
   user: LichessUsername,
-  { until, signal }: { until?: number; signal?: AbortSignal } = {},
+  {
+    until,
+    since,
+    signal,
+  }: { until?: number; since?: number; signal?: AbortSignal } = {},
 ): Promise<GamesPage> {
   const params = new URLSearchParams({
     max: String(PAGE_SIZE),
@@ -72,6 +76,7 @@ export async function fetchGames(
     perfType: PERF_TYPES,
   });
   if (until !== undefined) params.set('until', String(until));
+  if (since !== undefined) params.set('since', String(since));
   const page = parseGames(
     await getText(`${BASE}/${encodeURIComponent(user)}?${params}`, signal),
   );
