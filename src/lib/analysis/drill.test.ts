@@ -1,8 +1,10 @@
 import { describe, expect, test } from 'vitest';
 
+import { classifyMoves } from './classify';
+import { positionsFromStored } from './game-analysis';
 import { fenAt } from '@/lib/chess/replay';
 
-import { drillQueue, drillsOf, judge, judgeAfter } from './drill';
+import { drillQueue, drillsOf, judge, judgeAfter, retryAt } from './drill';
 import { cpLine, OPERA_SLIPS, stored } from './fixtures';
 
 const BLACK = 'Duke Karl / Count Isouard';
@@ -153,5 +155,39 @@ describe('judge', () => {
       verdict: 'close',
       loss: 0,
     });
+  });
+});
+
+describe('retryAt', () => {
+  const record = stored(OPERA_SLIPS);
+  const positions = positionsFromStored(record.lines);
+  const grades = classifyMoves(record.replay, positions);
+  const at = (index: number, from = positions) =>
+    retryAt(record.replay, from, grades, index);
+
+  test('is the puzzle before a mistake, judged like a drill', () => {
+    const puzzle = at(8)!;
+    expect(puzzle).toMatchObject({
+      index: 8,
+      fen: fenAt(record.replay, 7),
+      color: 'b',
+      best: { uci: 'd6e5', san: 'dxe5' },
+      played: { uci: 'g4f3', san: 'Bxf3' },
+      grade: 'blunder',
+    });
+    expect(judge(puzzle, { from: 'd6', to: 'e5' })).toBe('best');
+    expect(judge(puzzle, { from: 'g4', to: 'f3' })).toBe('played');
+  });
+
+  test('is nothing for a move that was not a mistake', () => {
+    expect(at(7)).toBeNull();
+    expect(at(0)).toBeNull();
+  });
+
+  test('waits while the position before the move has no settled line', () => {
+    const searching = positions.map((p, i) =>
+      i === 7 ? { status: 'searching' as const, line: record.lines[i]! } : p,
+    );
+    expect(at(8, searching)).toBeNull();
   });
 });

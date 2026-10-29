@@ -20,7 +20,8 @@ import {
   drillQueue,
   drillReason,
   judge,
-  judgeAfter,
+  searched,
+  type Attempt,
   type Drill,
   type Verdict,
 } from '@/lib/analysis/drill';
@@ -42,10 +43,8 @@ import {
 } from '@/lib/analysis/drill-session';
 import { searchInputAt } from '@/lib/analysis/inputs';
 import { sideOf } from '@/lib/analysis/overview';
-import type { ProbeInput, ProbeSnapshot } from '@/lib/analysis/probe';
 import { branchFens, playMove } from '@/lib/chess/branch';
 import type { Move } from '@/lib/chess/play';
-import type { Ply } from '@/lib/chess/replay';
 import type { Sound } from '@/lib/sound';
 
 const SIDE = { w: 'White', b: 'Black' } as const;
@@ -86,25 +85,6 @@ function numberedLine(drill: Drill) {
       return text;
     })
     .join(' ');
-}
-
-type Judged = { verdict: Verdict; loss: number | null };
-
-/** A move tried on a drill: judged from the saved lines, or waiting on a search of the position it leads to. */
-type Attempt = { ply: Ply } & ({ judged: Judged } | { input: ProbeInput });
-
-/** The search's verdict on `input`; null while it runs. No engine means the move falls short. */
-function searched(
-  drill: Drill,
-  input: ProbeInput,
-  probe: ProbeSnapshot,
-): Judged | null {
-  if (probe.fen !== input.fen) return null;
-  if (probe.unavailable) return { verdict: 'other', loss: null };
-  if (!probe.done) return null;
-  return probe.line
-    ? judgeAfter(drill, probe.line)
-    : { verdict: 'other', loss: null };
 }
 
 /** One puzzle. Keyed by drill id, so the selection resets on each position. */

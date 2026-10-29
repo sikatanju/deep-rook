@@ -29,6 +29,15 @@ import {
   gradeSideMove,
   type Classification,
 } from '@/lib/analysis/classify';
+import {
+  drillReason,
+  judge,
+  retryAt,
+  searched,
+  type Attempt,
+  type Puzzle,
+  type Verdict,
+} from '@/lib/analysis/drill';
 import { explainMove } from '@/lib/analysis/explain';
 import { searchInputAt } from '@/lib/analysis/inputs';
 import { badgeLabel } from '@/lib/analysis/levels';
@@ -66,7 +75,7 @@ import {
   type Ply,
 } from '@/lib/chess/replay';
 import { formatScore, type Variation } from '@/lib/chess/score';
-import { soundFor } from '@/lib/sound';
+import { soundFor, type Sound } from '@/lib/sound';
 
 import { CoachBubble } from './coach-bubble';
 import { CopyLink } from './copy-link';
@@ -96,6 +105,24 @@ const COACH_LINE: Record<Classification, string> = {
 const moveLabel = (ply: Ply) =>
   `${ply.moveNumber}${ply.color === 'w' ? '.' : '…'} ${ply.san}`;
 
+const SIDE = { w: 'White', b: 'Black' } as const;
+
+const MISS_LINE: Record<'played' | 'other', string> = {
+  played: 'That is the move you played.',
+  other: "Not the engine's first choice.",
+};
+
+const solves = (v: Verdict) => v === 'best' || v === 'close';
+
+const verdictSound = (v: Verdict): Sound => (solves(v) ? 'correct' : 'wrong');
+
+/**
+ * A retry in progress: the puzzle before one of the player's mistakes, frozen
+ * as it was when the retry began, and what has been tried on it. Nothing here
+ * is saved.
+ */
+type Retry = { puzzle: Puzzle; attempt: Attempt | null; shown: boolean };
+
 function Viewer({ loaded }: { loaded: Loaded }) {
   const { replay, orientation } = loaded;
   const { settings, setSettings, setReviewIndex } = useStore();
@@ -120,10 +147,13 @@ function Viewer({ loaded }: { loaded: Loaded }) {
   // A side line the user is playing out of position `index`. Navigating the
   // game itself (goTo) always leaves it.
   const [branch, setBranch] = useState<Branch | null>(null);
+  // Navigating away from the position being retried ends the retry.
+  const [retry, setRetry] = useState<Retry | null>(null);
 
   const goTo = useCallback(
     (to: number) => {
       setBranch(null);
+      setRetry(null);
       setNav((prev) => {
         const next = Math.min(last, Math.max(0, to));
         if (next === prev.at) return prev;
@@ -238,19 +268,59 @@ function Viewer({ loaded }: { loaded: Loaded }) {
 
   // The side line's board is not a game position, so the probe searches it.
   // Back at the line's start it is the game position again, already analysed.
+  // A retry's move that the saved lines cannot judge is searched the same way;
+  // it and a side line are never on the board together.
+  const retrySearch =
+    retry?.attempt && 'input' in retry.attempt ? retry.attempt.input : null;
   const probeInput = useMemo(() => {
+    if (retrySearch) return retrySearch;
     if (!branch || branch.at === 0) return null;
     const fens = branchFens(replay, branch);
     return searchInputAt(fens, fens.length - 1);
-  }, [replay, branch]);
+  }, [replay, branch, retrySearch]);
   const probe = useProbe(probeInput);
   const probed = probeInput && probe.fen === probeInput.fen ? probe : null;
   const line = branch?.at ? (probed?.line ?? null) : gameLine;
+
+  // The retry counts while the board is still on the position before the move.
+  const retrying =
+    retry && !branch && retry.puzzle.index - 1 === index ? retry : null;
+  const attempt = retrying?.attempt;
+  const judged =
+    attempt &&
+    retrying &&
+    ('judged' in attempt
+      ? attempt.judged
+      : searched(retrying.puzzle, attempt.input, probe));
+  const verdict = judged?.verdict;
+  const phase = !retrying
+    ? null
+    : retrying.shown
+      ? 'shown'
+      : !attempt
+        ? 'asking'
+        : !judged
+          ? 'checking'
+          : solves(judged.verdict)
+            ? 'solved'
+            : 'wrong';
+  const open = phase === 'asking' || phase === 'wrong';
+  // The answer stays hidden until the player finds it or asks for it.
+  const hiding = open || phase === 'checking';
 
   const { headers, plies } = replay;
   const ply = index > 0 ? plies[index - 1] : undefined;
   const sidePly = branch?.at ? branch.plies[branch.at - 1] : undefined;
   const shownPly = branch ? sidePly : ply;
+
+  // A move of the reviewed player's that can be tried again.
+  const offer = useMemo(
+    () =>
+      analysis && ply && !branch && (!mine || mine.side === ply.color)
+        ? retryAt(replay, analysis.positions, grades, index)
+        : null,
+    [analysis, ply, branch, mine, replay, grades, index],
+  );
 
   // One sound per move that appears on the board. Keyed by position, so leaving
   // a side line back onto the same move stays quiet, and the first render too.
@@ -260,6 +330,11 @@ function Viewer({ loaded }: { loaded: Loaded }) {
     if (shownPly && shownPly.fen !== heard.current) sound(soundFor(shownPly));
     heard.current = shownPly?.fen;
   }, [shownPly, sound]);
+
+  // A retry's verdict sounds once it is in, whether the saved lines or a search gave it.
+  useEffect(() => {
+    if (verdict) sound(verdictSound(verdict));
+  }, [attempt, verdict, sound]);
 
   /** `variation`'s first move from `fen`, unless it is `played`. */
   const alternative = (
@@ -321,13 +396,41 @@ function Viewer({ loaded }: { loaded: Loaded }) {
       ? explainMove(sideGrade, sideFrom, sidePly, sideBefore, sideAfter)
       : null;
 
-  const input = useMoveInput(fen, (move: Move) => {
-    if (!branch && isGameMove(replay, index, move)) return go(index + 1);
-    const next = playMove(branch, replay, index, move);
+  const tryMove = (puzzle: Puzzle, move: Move) => {
+    const next = playMove(null, replay, puzzle.index - 1, move);
     if (!next) return;
-    setPlaying(false);
-    setBranch(next);
-  });
+    const ply = next.plies[0]!;
+    const said = judge(puzzle, move);
+    if (said) {
+      const loss = said === 'played' ? puzzle.loss : null;
+      setRetry({
+        puzzle,
+        shown: false,
+        attempt: { ply, judged: { verdict: said, loss } },
+      });
+      return;
+    }
+    const fens = branchFens(replay, next);
+    setRetry({
+      puzzle,
+      shown: false,
+      attempt: { ply, input: searchInputAt(fens, fens.length - 1) },
+    });
+  };
+
+  const input = useMoveInput(
+    fen,
+    (move: Move) => {
+      if (retrying && open) return tryMove(retrying.puzzle, move);
+      if (retrying) setRetry(null);
+      if (!branch && isGameMove(replay, index, move)) return go(index + 1);
+      const next = playMove(branch, replay, index, move);
+      if (!next) return;
+      setPlaying(false);
+      setBranch(next);
+    },
+    phase !== 'checking',
+  );
 
   const strip = (color: 'w' | 'b') => (
     <PlayerStrip
@@ -381,7 +484,7 @@ function Viewer({ loaded }: { loaded: Loaded }) {
   })();
 
   // The engine's plan from the board, each move a way to play it out.
-  const engineLine = line && (
+  const engineLine = line && !hiding && (
     <EngineLine
       fen={fen}
       pv={line.pv}
@@ -390,6 +493,7 @@ function Viewer({ loaded }: { loaded: Loaded }) {
         const next = playLine(branch, replay, index, line.pv.slice(0, count));
         if (!next) return;
         setPlaying(false);
+        setRetry(null);
         setBranch(next);
       }}
     />
@@ -451,6 +555,78 @@ function Viewer({ loaded }: { loaded: Loaded }) {
     </CoachBubble>
   );
 
+  const startRetry = (puzzle: Puzzle) => {
+    setPlaying(false);
+    goTo(puzzle.index - 1);
+    setRetry({ puzzle, attempt: null, shown: false });
+  };
+
+  const retryCoach = (() => {
+    if (!retrying || !phase) return null;
+    const { puzzle } = retrying;
+    const played = replay.plies[puzzle.index - 1]!;
+    const actions =
+      open || phase === 'checking' ? (
+        <>
+          <Button
+            size="sm"
+            onClick={() => setRetry({ ...retrying, shown: true })}
+          >
+            Show answer
+          </Button>
+          <Button size="sm" variant="ghost" onClick={() => go(puzzle.index)}>
+            Cancel
+          </Button>
+        </>
+      ) : (
+        <Button size="sm" variant="primary" onClick={() => go(puzzle.index)}>
+          Back to the review
+        </Button>
+      );
+    if (phase === 'checking')
+      return (
+        <CoachBubble title="Checking that move…" actions={actions}>
+          {`The engine is looking at ${attempt!.ply.san}.`}
+        </CoachBubble>
+      );
+    if (open) {
+      const missed =
+        judged?.verdict === 'played' || judged?.verdict === 'other'
+          ? judged.verdict
+          : null;
+      return (
+        <CoachBubble
+          title={missed ? MISS_LINE[missed] : 'Your move.'}
+          actions={actions}
+        >
+          {missed
+            ? `${judged!.loss === null ? '' : `${attempt!.ply.san} gives up ${judged!.loss.toFixed(1)} points of winning chances. `}The engine's move, or one nearly as good, solves it.`
+            : `${SIDE[puzzle.color]} to move. You played ${played.san} here. Find the engine's move, or one nearly as good.`}
+        </CoachBubble>
+      );
+    }
+    const close = phase === 'solved' && verdict === 'close';
+    const reason = drillReason(puzzle);
+    return (
+      <CoachBubble
+        grade={puzzle.grade}
+        move={moveLabel(played)}
+        best={{ san: puzzle.best.san }}
+        title={
+          close
+            ? 'Close enough.'
+            : phase === 'solved'
+              ? 'You found it.'
+              : "Here is the engine's move."
+        }
+        footer={engineLine}
+        actions={actions}
+      >
+        {`${close ? `${attempt!.ply.san} is nearly as good as the engine's ${puzzle.best.san}. ` : ''}You played ${puzzle.played.san}, which cost ${puzzle.loss.toFixed(1)} points of winning chances.${reason ? ` It ${reason}.` : ''}`}
+      </CoachBubble>
+    );
+  })();
+
   const labels = useMemo(
     () => [
       'Start',
@@ -503,21 +679,26 @@ function Viewer({ loaded }: { loaded: Loaded }) {
           style={size === null ? undefined : { width: size }}
         >
           <div className="col-start-2">{strip(top)}</div>
-          <EvalBar score={line?.score ?? null} flipped={flipped} />
+          <EvalBar
+            score={hiding ? null : (line?.score ?? null)}
+            flipped={flipped}
+          />
           <div className="relative">
             <Board
-              fen={fen}
+              fen={attempt && phase === 'checking' ? attempt.ply.fen : fen}
               flipped={flipped}
               theme={settings.boardTheme}
               pieceSet={settings.pieceSet}
               coordinates={settings.coordinates}
-              lastMove={shownPly}
+              lastMove={
+                attempt && phase === 'checking' ? attempt.ply : shownPly
+              }
               checkOn={
                 shownPly?.check ? (sideToMove === 'w' ? 'K' : 'k') : undefined
               }
-              arrow={line?.pv[0]}
-              second={line?.second?.pv[0]}
-              moving={branch ? null : moving}
+              arrow={hiding ? undefined : line?.pv[0]}
+              second={hiding ? undefined : line?.second?.pv[0]}
+              moving={branch || phase === 'checking' ? null : moving}
               grade={(branch ? sideGrade : grade) ?? null}
               play={input.play}
             />
@@ -637,7 +818,7 @@ function Viewer({ loaded }: { loaded: Loaded }) {
           <ExportPgn replay={replay} analysis={analysis} />
         </div>
         <div className="w-full max-w-2xl min-w-0 justify-self-center xl:col-start-2 xl:row-start-1 xl:mt-13 xl:max-w-none">
-          {sideCoach ?? (
+          {sideCoach ?? retryCoach ?? (
             <CoachBubble
               grade={grade ?? undefined}
               move={ply && grade ? moveLabel(ply) : undefined}
@@ -646,6 +827,13 @@ function Viewer({ loaded }: { loaded: Loaded }) {
               next={instead(before?.second)}
               title={coach.title}
               footer={engineLine}
+              actions={
+                offer && (
+                  <Button size="sm" onClick={() => startRetry(offer)}>
+                    Retry
+                  </Button>
+                )
+              }
             >
               {coach.body}
             </CoachBubble>
@@ -658,7 +846,7 @@ function Viewer({ loaded }: { loaded: Loaded }) {
           <div className="mt-3">
             <TypedMove
               fen={fen}
-              label="Type a move to try a line"
+              label={open ? 'Type your move' : 'Type a move to try a line'}
               onMove={input.submit}
             />
           </div>

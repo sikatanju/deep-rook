@@ -141,6 +141,7 @@ The Drill route (`#/drill`) turns saved reviews into practice. `drillsOf` takes 
 - **Close enough counts.** A move solves the drill when it gives up less than `CLOSE_ENOUGH` (5) points of win chance against the saved line, the excellent and good bands. `judge` settles what the saved lines can: the engine's move, the move played in the game, and the second line's move. The second line is the best of the other moves, so when it falls short every other move does too and no search is needed. Any other move goes to the probe, the drill session waits in `checking`, and `judgeAfter` grades the searched position. Without an engine, such a move falls short. Show answer and Skip still work while the engine looks, and its late verdict is ignored.
 - **Progress is kept** (`drill-progress.ts`, the `drills` store). Each answer moves the drill between Leitner boxes that rest it 0, 1, 3, 7, 21 or 60 days: a first-try solve moves it up a box, a solve after a wrong try drops it to box 1, a shown answer to box 0. A skip records nothing. `plan` puts due drills first, the most missed first, then drills never answered in queue order. Resting drills wait, and when nothing is due the page says when the next one comes back and offers to drill them anyway. That pass writes nothing, the way a skip does, and the page says so. The plan is read once per round, so the queue holds still while answers are saved. Clearing the saved reviews clears the progress too.
 - `drill-session.ts` is the answer flow as a reducer.
+- **Retry in the review** reuses the judging without the saving. `retryAt` builds a `Puzzle` (a Drill without its id, saved record and opponent) from the review's live lines for the player's mistake, miss or blunder at the viewed move, using only positions that are settled. The review page holds the retry in component state, judges with `judge` and `searched` (the probe's verdict, as in drills) and shares the one `useProbe` lane with side lines, which are never on the board together. Nothing is written to the drill progress or the saved review, and moving off the position ends the retry.
 
 ### Batch analysis (`src/lib/analysis/batch.ts`)
 
@@ -206,7 +207,7 @@ src/lib/analysis/inputs.ts       searchInputAt: a position plus its repetition h
 src/lib/analysis/probe.ts        createProbe: one lane for positions outside the game
 src/lib/analysis/overview.ts     summarize, overview (pure, over saved records)
 src/lib/analysis/export-pgn.ts   annotatedPgn, pgnFilename (pure, over one analysis)
-src/lib/analysis/drill.ts        drillsOf, drillQueue, judge, judgeAfter (pure, over saved records)
+src/lib/analysis/drill.ts        drillsOf, drillQueue (over saved records); retryAt (over the live review's settled lines); judge, judgeAfter, searched; Puzzle, Attempt, Judged (pure)
 src/lib/analysis/drill-session.ts  step: the drill answer flow as a reducer
 src/lib/analysis/drill-progress.ts  advance, plan (pure); openIdbProgress, memoryProgress
 src/lib/analysis/batch.ts        createBatch: games analyzed one by one, after the review on screen
