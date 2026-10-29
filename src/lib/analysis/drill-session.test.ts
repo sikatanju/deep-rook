@@ -17,6 +17,7 @@ function run(...actions: Action[]): Session {
 const best: Action = { type: 'answer', verdict: 'best' };
 const played: Action = { type: 'answer', verdict: 'played' };
 const other: Action = { type: 'answer', verdict: 'other' };
+const hint: Action = { type: 'hint' };
 const show: Action = { type: 'show' };
 const skip: Action = { type: 'skip' };
 const next: Action = { type: 'next' };
@@ -32,14 +33,45 @@ test('a first-try solve records first-try and waits for next', () => {
     at: 0,
     phase: 'solved',
     tries: 0,
+    hints: 0,
     results: ['first-try'],
   });
   expect(step(solved, next, TOTAL)).toEqual({
     at: 1,
     phase: 'asking',
     tries: 0,
+    hints: 0,
     results: ['first-try'],
   });
+});
+
+test('a solve after a hint is a retry, even with no wrong move', () => {
+  expect(run(hint, best)).toMatchObject({
+    phase: 'solved',
+    hints: 1,
+    results: ['retry'],
+  });
+  expect(run(hint, hint, best)).toMatchObject({ hints: 2 });
+});
+
+test('a drill offers two hints, only while it waits for a move', () => {
+  expect(run(hint, hint, hint).hints).toBe(2);
+  expect(run(played, hint)).toMatchObject({ phase: 'wrong', hints: 1 });
+  const solved = run(best);
+  expect(step(solved, hint, TOTAL)).toBe(solved);
+  const checking = run(check);
+  expect(step(checking, hint, TOTAL)).toBe(checking);
+});
+
+test('show and skip still work after a hint, and the next drill starts clean', () => {
+  expect(run(hint, show)).toMatchObject({ phase: 'shown', results: ['shown'] });
+  expect(run(hint, skip)).toMatchObject({
+    at: 1,
+    hints: 0,
+    results: ['skipped'],
+  });
+  expect(run(hint, best, next)).toMatchObject({ at: 1, hints: 0 });
+  expect(run(hint, show, next)).toMatchObject({ at: 1, hints: 0 });
 });
 
 test('wrong answers count tries, and a later solve is a retry', () => {
@@ -100,12 +132,14 @@ test('skip records skipped and moves straight on, from asking or wrong', () => {
     at: 1,
     phase: 'asking',
     tries: 0,
+    hints: 0,
     results: ['skipped'],
   });
   expect(run(other, skip)).toEqual({
     at: 1,
     phase: 'asking',
     tries: 0,
+    hints: 0,
     results: ['skipped'],
   });
 });

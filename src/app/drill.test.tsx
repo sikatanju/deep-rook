@@ -693,3 +693,81 @@ test('the speed chips list the speeds played and filter by one', async () => {
   location.hash = '#/drill?speed=bullet';
   expect(await screen.findByText('Nothing matches.')).toBeInTheDocument();
 });
+
+test('the first hint rings the piece to move, without the move or the arrow', async () => {
+  const user = await openDrill();
+  await screen.findByText('Drill 1 of 2');
+  expect(document.querySelector('[data-hint]')).toBeNull();
+
+  await user.click(screen.getByRole('button', { name: 'Hint' }));
+  expect(
+    document.querySelector('[data-square="d6"] [data-hint]'),
+  ).not.toBeNull();
+  expect(
+    screen.getByText('Hint: the highlighted piece is the one to move.'),
+  ).toBeInTheDocument();
+  expect(document.querySelector('[data-arrow]')).toBeNull();
+  expect(screen.queryByText('dxe5')).toBeNull();
+});
+
+test('a line with no theme has a single hint, and Show answer and Skip still work', async () => {
+  const user = await openDrill();
+  await screen.findByText('Drill 1 of 2');
+  await user.click(screen.getByRole('button', { name: 'Hint' }));
+  expect(screen.queryByRole('button', { name: /hint/i })).toBeNull();
+
+  await user.click(screen.getByRole('button', { name: 'Show answer' }));
+  expect(screen.getByText("Here is the engine's move.")).toBeInTheDocument();
+  expect(document.querySelector('[data-hint]')).toBeNull();
+  await user.click(screen.getByRole('button', { name: 'Next drill' }));
+
+  await user.click(screen.getByRole('button', { name: 'Hint' }));
+  await user.click(screen.getByRole('button', { name: 'Skip' }));
+  expect(await screen.findByText('That is every drill.')).toBeInTheDocument();
+});
+
+test('a second hint names the theme, never the move', async () => {
+  const store = memoryStore();
+  await store.save(
+    stored({
+      replay: parseReplay(`[White "Me"]
+[Black "Rival"]
+[SetUp "1"]
+[FEN "7k/P7/8/8/8/8/8/K7 w - - 0 1"]
+
+1. Kb2 Kg7 *`),
+      cps: [900, 100, 100],
+      pvs: { 0: ['a7a8q'] },
+    }),
+  );
+  localStorage.setItem('lastUsername', 'Me');
+  location.hash = '#/drill';
+  render(<App store={store} progress={memoryProgress()} />);
+  const user = userEvent.setup();
+  await screen.findByText('Drill 1 of 1');
+
+  await user.click(screen.getByRole('button', { name: 'Hint' }));
+  await user.click(screen.getByRole('button', { name: 'Another hint' }));
+  expect(
+    screen.getByText('Hint: There is material to win.'),
+  ).toBeInTheDocument();
+  expect(
+    document.querySelector('[data-square="a7"] [data-hint]'),
+  ).not.toBeNull();
+  expect(screen.queryByRole('button', { name: /hint/i })).toBeNull();
+  expect(screen.queryByText(/a8/)).toBeNull();
+});
+
+test('a drill solved after a hint counts as a retry and comes back sooner', async () => {
+  const progress = memoryProgress();
+  const user = await openDrill(BLACK, 1, progress);
+  await screen.findByText('Drill 1 of 2');
+  await user.click(screen.getByRole('button', { name: 'Hint' }));
+  await play(user, /^d6/, /^e5/);
+  expect(screen.getByText('You found it.')).toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: 'Next drill' }));
+  await user.click(screen.getByRole('button', { name: 'Skip' }));
+  expect(
+    await screen.findByText(/Solved first try 0, after retries 1/),
+  ).toBeInTheDocument();
+});

@@ -218,6 +218,7 @@ export function Board({
   checkOn,
   arrow,
   second,
+  hint,
   moving,
   grade,
   play,
@@ -234,6 +235,8 @@ export function Board({
   arrow?: string;
   /** A UCI move drawn fainter, under `arrow`: the engine's second choice. */
   second?: string;
+  /** A square to ring, e.g. the piece a hint says to move. */
+  hint?: string;
   /** The piece to slide, when the viewer arrived here by a single step. */
   moving?: MovingPiece | null;
   /** Grade of the ply that produced this position, stuck on `lastMove.to`. */
@@ -366,6 +369,12 @@ export function Board({
                 <span
                   data-selected={selected || undefined}
                   className="bg-board-move absolute inset-0"
+                />
+              )}
+              {square === hint && (
+                <span
+                  data-hint=""
+                  className="pointer-events-none absolute inset-0 z-[11] border-[0.9cqw] border-(--board-arrow)"
                 />
               )}
               {target && (

@@ -34,6 +34,7 @@ import {
   type Drill,
   type Verdict,
 } from '@/lib/analysis/drill';
+import { hintOf, hintsIn } from '@/lib/analysis/drill-hint';
 import { plan, type DrillProgress } from '@/lib/analysis/drill-progress';
 import {
   current,
@@ -123,10 +124,12 @@ function numberedLine(drill: Drill) {
 function DrillCard({
   drill,
   phase,
+  hints,
   dispatch,
 }: {
   drill: Drill;
   phase: Session['phase'];
+  hints: number;
   dispatch: (action: Action) => void;
 }) {
   const { settings, reviewReplay } = useStore();
@@ -185,9 +188,17 @@ function DrillCard({
     },
   ]);
 
+  const hint = useMemo(() => hintOf(drill), [drill]);
+  const hinting = open && hints > 0;
+
   const actions =
     open || phase === 'checking' ? (
       <>
+        {open && hints < hintsIn(hint) && (
+          <Button size="sm" onClick={() => dispatch({ type: 'hint' })}>
+            {hints === 0 ? 'Hint' : 'Another hint'}
+          </Button>
+        )}
         <Button size="sm" onClick={() => dispatch({ type: 'show' })}>
           Show answer
         </Button>
@@ -247,6 +258,13 @@ function DrillCard({
         {missed
           ? `${judged!.loss === null ? '' : `${attempt!.ply.san} gives up ${judged!.loss.toFixed(1)} points of winning chances. `}The engine's move, or one nearly as good, solves it.`
           : `Move ${drill.moveNumber}, your game vs ${drill.opponent}. ${SIDE[drill.color]} to move. Find the engine's move, or one nearly as good.`}
+        {hinting && (
+          <span className="mt-2 block font-bold">
+            {hints === 1
+              ? 'Hint: the highlighted piece is the one to move.'
+              : `Hint: ${hint.theme}`}
+          </span>
+        )}
       </CoachBubble>
     ) : (
       <CoachBubble
@@ -278,6 +296,7 @@ function DrillCard({
           coordinates={settings.coordinates}
           lastMove={trying ? attempt.ply : undefined}
           arrow={open || trying ? undefined : drill.best.uci}
+          hint={hinting ? hint.from : undefined}
           play={input.play}
         />
         {input.promoting && <PromotionPicker onPick={input.promote} />}
@@ -484,7 +503,10 @@ function DrillSession({
 
   const drill = queue[session.at]!;
   const unstarted =
-    session.at === 0 && session.phase === 'asking' && !session.results.length;
+    session.at === 0 &&
+    session.phase === 'asking' &&
+    session.hints === 0 &&
+    !session.results.length;
   return (
     <>
       {unstarted && controls}
@@ -495,6 +517,7 @@ function DrillSession({
         key={drill.id}
         drill={drill}
         phase={session.phase}
+        hints={session.hints}
         dispatch={dispatch}
       />
     </>
