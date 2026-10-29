@@ -33,6 +33,11 @@ import { badgeLabel } from '@/lib/analysis/levels';
 import { sideOf } from '@/lib/analysis/overview';
 import { evalSeries, gameReport, MOMENT_GRADES } from '@/lib/analysis/report';
 import {
+  clampBoardSize,
+  MAX_BOARD_SIZE,
+  MIN_BOARD_SIZE,
+} from '@/lib/board-size';
+import {
   branchFen,
   branchFens,
   isGameMove,
@@ -66,10 +71,6 @@ import { MoveTimes } from './move-times';
 import { PlayerStrip } from './player-strip';
 import { ReportCard } from './report-card';
 
-const MIN_SIZE = 280;
-const MAX_SIZE = 2200;
-const clampSize = (n: number) => Math.min(MAX_SIZE, Math.max(MIN_SIZE, n));
-
 function isTyping(target: EventTarget | null) {
   return (
     target instanceof HTMLElement &&
@@ -97,14 +98,21 @@ const moveLabel = (ply: Ply) =>
 
 function Viewer({ loaded }: { loaded: Loaded }) {
   const { replay, orientation } = loaded;
-  const { settings, setReviewIndex } = useStore();
+  const { settings, setSettings, setReviewIndex } = useStore();
   const last = replay.plies.length;
   const [index, setIndex] = useState(loaded.index);
   const [flipped, setFlipped] = useState(orientation === 'b');
   const [playing, setPlaying] = useState(false);
-  const [size, setSize] = useState<number | null>(null);
+  // Opens at the saved size; the setting is written when a resize ends, not on
+  // every pointer move.
+  const [size, setSize] = useState<number | null>(settings.boardSize);
   const column = useRef<HTMLDivElement>(null);
-  const resize = useRef<{ x: number; y: number; w: number } | null>(null);
+  const resize = useRef<{
+    x: number;
+    y: number;
+    w: number;
+    last?: number;
+  } | null>(null);
   // The position the viewer is coming from, held in the same state as the index
   // so a step is one atomic update: a later re-render (the engine streams in
   // constantly) must not be able to recompute the flight away.
@@ -472,7 +480,15 @@ function Viewer({ loaded }: { loaded: Loaded }) {
           // that its strips stay on screen, with the step buttons too until they move
           // beside it at xl. 2.5rem of the width is the eval bar and its gap; the
           // rem figure is everything else stacked above and below the board.
-          className="grid w-[min(100%,max(22rem,calc(100svh-11.5rem)))] grid-cols-[1.75rem_minmax(0,1fr)] gap-x-3 justify-self-center xl:col-start-1 xl:row-span-3 xl:row-start-1 xl:w-[min(100%,max(22rem,calc(100svh-6rem)))] xl:justify-self-start"
+          className={`grid w-[min(100%,max(22rem,calc(100svh-11.5rem)))] grid-cols-[1.75rem_minmax(0,1fr)] gap-x-3 justify-self-center xl:col-start-1 xl:row-span-3 xl:row-start-1 xl:w-[min(100%,max(22rem,calc(100svh-6rem)))] xl:justify-self-start ${
+            // A chosen size replaces the width with an inline one, so cap it by
+            // the same limits as the default width: a saved size too big for
+            // this window (a short one, say) shrinks to fit without the saved
+            // value being touched.
+            size === null
+              ? ''
+              : 'max-w-[min(100%,max(22rem,calc(100svh-11.5rem)))] xl:max-w-[min(100%,max(22rem,calc(100svh-6rem)))]'
+          }`}
           style={size === null ? undefined : { width: size }}
         >
           <div className="col-start-2">{strip(top)}</div>
@@ -498,12 +514,15 @@ function Viewer({ loaded }: { loaded: Loaded }) {
               role="slider"
               tabIndex={0}
               aria-label="Board size"
-              aria-valuemin={MIN_SIZE}
-              aria-valuemax={MAX_SIZE}
-              aria-valuenow={Math.round(size ?? MIN_SIZE)}
+              aria-valuemin={MIN_BOARD_SIZE}
+              aria-valuemax={MAX_BOARD_SIZE}
+              aria-valuenow={Math.round(size ?? MIN_BOARD_SIZE)}
               title="Drag to resize, double-click to reset"
               className="border-line bg-accent absolute -right-3 -bottom-3 z-20 size-6 cursor-nwse-resize touch-none rounded-sm border-3 shadow-sm"
-              onDoubleClick={() => setSize(null)}
+              onDoubleClick={() => {
+                setSize(null);
+                setSettings({ boardSize: null });
+              }}
               onPointerDown={(e) => {
                 const el = column.current;
                 if (!el) return;
@@ -518,9 +537,14 @@ function Viewer({ loaded }: { loaded: Loaded }) {
                 const r = resize.current;
                 if (!r) return;
                 const delta = (e.clientX - r.x + (e.clientY - r.y)) / 2;
-                setSize(clampSize(r.w + delta));
+                r.last = clampBoardSize(r.w + delta);
+                setSize(r.last);
               }}
-              onPointerUp={() => (resize.current = null)}
+              onPointerUp={() => {
+                const last = resize.current?.last;
+                resize.current = null;
+                if (last !== undefined) setSettings({ boardSize: last });
+              }}
               onKeyDown={(e) => {
                 const dir = {
                   ArrowRight: 1,
@@ -531,11 +555,11 @@ function Viewer({ loaded }: { loaded: Loaded }) {
                 if (!dir) return;
                 e.preventDefault();
                 e.stopPropagation();
-                setSize(
-                  clampSize(
-                    (column.current?.offsetWidth ?? MIN_SIZE) + dir * 24,
-                  ),
+                const next = clampBoardSize(
+                  (column.current?.offsetWidth ?? MIN_BOARD_SIZE) + dir * 24,
                 );
+                setSize(next);
+                setSettings({ boardSize: next });
               }}
             />
           </div>

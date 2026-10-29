@@ -32,7 +32,7 @@ const label = 'text-xs leading-4 font-extrabold tracking-[0.08em] uppercase';
 /** Two presses, so a stray click cannot wipe the saved reviews. */
 function SavedReviews() {
   const { available, records, clear } = useSavedReviews();
-  const { loaded, forgetOpenReview } = useStore();
+  const { loaded, forgetOpenReview, settings, setSettings } = useStore();
   const analyzer = useAnalyzer();
   const batch = useBatch();
   const [confirming, setConfirming] = useState(false);
@@ -88,7 +88,9 @@ function SavedReviews() {
             size="sm"
             disabled={count === 0}
             onClick={async () => {
-              const text = await exportBackup(reviews, drills);
+              const text = await exportBackup(reviews, drills, {
+                boardSize: settings.boardSize,
+              });
               const link = document.createElement('a');
               link.href = URL.createObjectURL(
                 new Blob([text], { type: 'application/json' }),
@@ -119,6 +121,7 @@ function SavedReviews() {
                   await file.text(),
                   reviews,
                   drills,
+                  setSettings,
                 );
                 setNote(
                   `Imported ${done.reviews} ${done.reviews === 1 ? 'review' : 'reviews'} and ${done.drills} drill ${done.drills === 1 ? 'record' : 'records'}.`,

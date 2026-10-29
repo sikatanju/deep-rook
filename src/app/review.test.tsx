@@ -1,8 +1,9 @@
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, fireEvent, render, screen } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { expect, test } from 'vitest';
 
 import App from './App';
+import { loadSettings } from './store';
 
 async function openOperaGame() {
   const user = userEvent.setup();
@@ -250,6 +251,49 @@ test('board can be resized with the slider handle and reset', async () => {
   expect(column).toHaveStyle({ width: '280px' });
   await user.dblClick(handle);
   expect(column.style.width).toBe('');
+});
+
+test('the size you drag the board to is saved and every review opens at it', async () => {
+  const user = await openOperaGame();
+  const handle = screen.getByRole('slider', { name: 'Board size' });
+  const column = () => handle.parentElement!.parentElement!;
+  fireEvent.pointerDown(handle, { clientX: 0, clientY: 0, pointerId: 1 });
+  fireEvent.pointerMove(handle, { clientX: 600, clientY: 600, pointerId: 1 });
+  // Mid-drag the size is not saved yet.
+  expect(column()).toHaveStyle({ width: '600px' });
+  expect(loadSettings().boardSize).toBeNull();
+  fireEvent.pointerUp(handle, { pointerId: 1 });
+  expect(loadSettings().boardSize).toBe(600);
+  cleanup();
+
+  // The next review, in a fresh mount, opens at the saved size.
+  location.hash = '#/games';
+  render(<App />);
+  await user.click(screen.getByRole('button', { name: 'Try the Opera Game' }));
+  await user.click(screen.getByRole('button', { name: 'Review game' }));
+  const next = screen.getByRole('slider', { name: 'Board size' });
+  const again = next.parentElement!.parentElement!;
+  expect(again).toHaveStyle({ width: '600px' });
+  // Too big for the window: the board is capped by the same width and height
+  // limits as the default size (jsdom has no layout, so the classes are what
+  // can be checked), and the saved size is untouched.
+  expect(again.className).toContain('max-w-[min(100%,max(22rem,calc(100svh-11.5rem)))]');
+  expect(again.className).toContain('xl:max-w-[min(100%,max(22rem,calc(100svh-6rem)))]');
+  expect(loadSettings().boardSize).toBe(600);
+
+  await user.dblClick(next);
+  expect(again.style.width).toBe('');
+  expect(again.className).not.toContain('max-w-[');
+  expect(loadSettings().boardSize).toBeNull();
+});
+
+test('the keyboard saves the size too, and a review with none saved uses the default', async () => {
+  const user = await openOperaGame();
+  const handle = screen.getByRole('slider', { name: 'Board size' });
+  expect(handle.parentElement!.parentElement!.style.width).toBe('');
+  handle.focus();
+  await user.keyboard('{ArrowRight}');
+  expect(loadSettings().boardSize).toBe(280);
 });
 
 test('a refresh reopens the game on the ply you left', async () => {

@@ -48,6 +48,13 @@ test('piece set is validated alone and defaults to Kiwen Suwi', () => {
   expect(parseSettings('{"pieceSet":"alpha"}').pieceSet).toBe('kiwen');
 });
 
+test('board size is validated alone and defaults to none', () => {
+  expect(parseSettings(null).boardSize).toBeNull();
+  expect(parseSettings('{"boardSize":640}').boardSize).toBe(640);
+  expect(parseSettings('{"boardSize":"640"}').boardSize).toBeNull();
+  expect(parseSettings('{"boardSize":50000}').boardSize).toBeNull();
+});
+
 describe('loadSettings', () => {
   afterEach(() => {
     localStorage.clear();

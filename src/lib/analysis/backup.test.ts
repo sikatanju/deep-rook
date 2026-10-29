@@ -53,3 +53,18 @@ test('an import never replaces a deeper review', async () => {
   await importBackup(await exportBackup(shallow, null), store, null);
   expect((await store.list())[0]!.level).toBe('balanced');
 });
+
+test('a backup carries the board size, and an older one leaves it alone', async () => {
+  const text = await exportBackup(null, null, { boardSize: 720 });
+  const seen: unknown[] = [];
+  await importBackup(text, null, null, (s) => seen.push(s));
+  expect(seen).toEqual([{ boardSize: 720 }]);
+
+  // No size chosen, a backup from before the setting, or a bad value: nothing to apply.
+  const none = JSON.parse(await exportBackup(null, null));
+  const old = { ...none, settings: undefined };
+  const bad = { ...none, settings: { boardSize: 99_999 } };
+  for (const file of [none, old, bad])
+    await importBackup(JSON.stringify(file), null, null, (s) => seen.push(s));
+  expect(seen).toHaveLength(1);
+});

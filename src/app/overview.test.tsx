@@ -9,6 +9,7 @@ import { stored } from '@/lib/analysis/fixtures';
 import { OPERA_GAME, parseReplay } from '@/lib/chess/replay';
 
 import App from './App';
+import { loadSettings } from './store';
 
 // White (Paul Morphy) blunders at ply 10 and slips at ply 24.
 const cps = [
@@ -238,6 +239,21 @@ test('Settings imports a backup file into the saved reviews', async () => {
     screen.getByText('Imported 1 review and 0 drill records.'),
   ).toBeInTheDocument();
   expect(screen.getByRole('button', { name: 'Export backup' })).toBeEnabled();
+});
+
+test('importing a backup restores its board size setting', async () => {
+  const user = userEvent.setup();
+  const backup = await exportBackup(await savedStore(), null, {
+    boardSize: 720,
+  });
+  location.hash = '#/settings';
+  render(<App store={memoryStore()} />);
+  await user.upload(
+    await screen.findByTestId('backup-file'),
+    new File([backup], 'backup.json', { type: 'application/json' }),
+  );
+  expect(await screen.findByText('1 saved review')).toBeInTheDocument();
+  expect(loadSettings().boardSize).toBe(720);
 });
 
 test('the empty Review page reopens your latest saved game', async () => {
