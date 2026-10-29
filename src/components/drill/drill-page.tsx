@@ -332,7 +332,7 @@ function SizePicker({
       {SIZES.map((size) => (
         <label
           key={size}
-          className="border-line bg-surface text-ink has-[:checked]:bg-primary has-[:checked]:text-sticker-ink has-[:focus-visible]:outline-focus cursor-pointer rounded-sm border-2 px-3 py-1.5 text-[13px] font-bold has-[:focus-visible]:outline-[3px] has-[:focus-visible]:outline-offset-2"
+          className="border-line bg-surface text-ink has-[:checked]:bg-primary has-[:checked]:text-primary-foreground has-[:focus-visible]:outline-focus cursor-pointer rounded-sm border-2 px-3 py-1.5 text-[13px] font-bold has-[:focus-visible]:outline-[3px] has-[:focus-visible]:outline-offset-2"
         >
           <input
             type="radio"

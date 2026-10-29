@@ -41,7 +41,7 @@ export function LevelPicker({
             key={level}
             title={ANALYSIS_LEVELS[level].blurb}
             className={cn(
-              'border-line bg-surface text-ink has-[:checked]:bg-primary has-[:checked]:text-sticker-ink has-[:focus-visible]:outline-focus hover:bg-surface-alt has-[:checked]:hover:bg-primary relative flex cursor-pointer flex-col gap-2 rounded-sm border-2 text-left has-[:focus-visible]:outline-[3px] has-[:focus-visible]:outline-offset-2',
+              'border-line bg-surface text-ink has-[:checked]:bg-primary has-[:checked]:text-primary-foreground has-[:focus-visible]:outline-focus hover:bg-surface-alt has-[:checked]:hover:bg-primary relative flex cursor-pointer flex-col gap-2 rounded-sm border-2 text-left has-[:focus-visible]:outline-[3px] has-[:focus-visible]:outline-offset-2',
               compact ? 'p-2.5' : 'p-4',
             )}
           >

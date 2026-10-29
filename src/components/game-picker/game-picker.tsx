@@ -52,7 +52,7 @@ function SiteSwitch({
           key={site}
           className={cn(
             'border-line bg-surface text-ink has-[:focus-visible]:outline-focus cursor-pointer rounded-sm border-2 px-3 py-1.5 font-bold has-[:focus-visible]:outline-[3px] has-[:focus-visible]:outline-offset-2',
-            value === site && 'bg-primary text-sticker-ink',
+            value === site && 'bg-primary text-primary-foreground',
           )}
         >
           <input

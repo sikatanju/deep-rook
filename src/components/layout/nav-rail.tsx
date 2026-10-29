@@ -33,7 +33,7 @@ export function NavRail<Id extends string>({
         {/* The rook glyph on a tile is a placeholder mark, not a drawn logo. */}
         <span
           aria-hidden
-          className="border-line bg-primary text-sticker-ink grid size-9 place-items-center rounded-sm border-2 text-[22px]"
+          className="border-line bg-primary text-primary-foreground grid size-9 place-items-center rounded-sm border-2 text-[22px]"
         >
           ♜
         </span>
@@ -49,7 +49,7 @@ export function NavRail<Id extends string>({
             href={`#/${id}`}
             aria-current={id === active ? 'page' : undefined}
             className={cn(
-              'text-ink hover:bg-surface-alt aria-[current=page]:bg-surface-alt relative flex flex-1 flex-col items-center gap-0.5 rounded-sm px-3 py-2 text-xs font-bold md:flex-none md:flex-row md:gap-3 md:py-2.5 md:text-[15px]',
+              'text-ink hover:bg-surface-alt aria-[current=page]:border-line aria-[current=page]:bg-primary aria-[current=page]:text-primary-foreground aria-[current=page]:hover:bg-primary relative flex flex-1 flex-col items-center gap-0.5 rounded-sm border-2 border-transparent px-2.5 py-1.5 text-xs font-bold md:flex-none md:flex-row md:gap-3 md:py-2 md:text-[15px]',
               pinned && 'md:mt-auto',
             )}
           >
@@ -59,7 +59,7 @@ export function NavRail<Id extends string>({
               <>
                 <span
                   aria-hidden
-                  className="border-line bg-primary text-sticker-ink rounded-pill absolute top-0 right-1 min-w-5 border-2 px-1 text-center font-mono text-[11px] leading-4 font-extrabold md:static md:ml-auto"
+                  className="border-line bg-primary text-primary-foreground rounded-pill absolute top-0 right-1 min-w-5 border-2 px-1 text-center font-mono text-[11px] leading-4 font-extrabold md:static md:ml-auto"
                 >
                   {badge}
                 </span>

@@ -17,7 +17,7 @@ export function PieceSetPicker({
           className={cn(
             'border-line bg-surface text-ink has-[:focus-visible]:outline-focus flex cursor-pointer flex-col items-center gap-1 rounded-sm border-2 p-2 font-bold has-[:focus-visible]:outline-[3px] has-[:focus-visible]:outline-offset-2',
             value === id &&
-              'bg-primary text-sticker-ink -translate-x-0.5 -translate-y-0.5',
+              'bg-primary text-primary-foreground -translate-x-0.5 -translate-y-0.5',
           )}
         >
           <input

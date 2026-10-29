@@ -57,7 +57,7 @@ export function MoveList({
         className={cn(
           'border-line flex cursor-pointer items-center justify-between gap-1.5 border-b border-dashed px-2 py-1 text-left font-mono text-sm font-bold',
           selected
-            ? 'bg-primary text-sticker-ink shadow-[inset_0_0_0_2px_var(--line)]'
+            ? 'bg-primary text-primary-foreground shadow-[inset_0_0_0_2px_var(--line)]'
             : 'hover:bg-surface-alt',
         )}
       >

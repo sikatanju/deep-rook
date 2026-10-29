@@ -44,7 +44,7 @@ function CountSwitch({
           className={cn(
             'border-line bg-surface text-ink has-[:focus-visible]:outline-focus cursor-pointer rounded-sm border-2 px-3 py-1 font-mono font-bold has-[:focus-visible]:outline-[3px] has-[:focus-visible]:outline-offset-2',
             value === count &&
-              'bg-primary text-sticker-ink -translate-x-0.5 -translate-y-0.5',
+              'bg-primary text-primary-foreground -translate-x-0.5 -translate-y-0.5',
           )}
         >
           <input
@@ -75,7 +75,7 @@ function LossesToggle({
       className={cn(
         'border-line bg-surface text-ink has-[:focus-visible]:outline-focus cursor-pointer rounded-sm border-3 px-3 py-1 font-bold shadow-sm has-[:focus-visible]:outline-[3px] has-[:focus-visible]:outline-offset-2',
         checked &&
-          'bg-primary text-sticker-ink -translate-x-0.5 -translate-y-0.5 shadow-md',
+          'bg-primary text-primary-foreground -translate-x-0.5 -translate-y-0.5 shadow-md',
       )}
     >
       <input

@@ -18,7 +18,14 @@ function palettes(): Map<string, string[]> {
 
 test('every palette declares the same variables', () => {
   const all = palettes();
-  expect([...all.keys()]).toEqual(['pop', 'newsprint', 'arcade']);
+  expect([...all.keys()]).toEqual([
+    'pop',
+    'newsprint',
+    'arcade',
+    'ivory',
+    'chalkboard',
+    'graphite',
+  ]);
   const pop = all.get('pop')!;
   expect(pop.length).toBeGreaterThan(30);
   for (const [id, names] of all) expect(names, id).toEqual(pop);

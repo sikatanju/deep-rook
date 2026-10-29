@@ -13,7 +13,7 @@ const buttonVariants = cva(
       variant: {
         default: '',
         primary:
-          'bg-primary text-sticker-ink hover:bg-primary active:translate-x-0.5 active:translate-y-0.5',
+          'bg-primary text-primary-foreground hover:bg-primary active:translate-x-0.5 active:translate-y-0.5',
         ghost: 'border-transparent bg-transparent',
         destructive: 'bg-loss text-sticker-ink hover:bg-loss',
       },

@@ -49,7 +49,7 @@ export function GameRow({
       className={cn(
         'border-line text-ink grid w-full cursor-pointer grid-cols-[auto_minmax(0,1fr)_auto] items-center gap-x-3 gap-y-1 rounded-sm border-2 px-3 py-2.5 text-left transition-[translate,box-shadow] duration-[80ms] ease-in-out hover:-translate-x-0.5 hover:-translate-y-0.5 active:translate-x-0 active:translate-y-0 sm:grid-cols-[72px_minmax(0,1fr)_auto_auto_auto]',
         selected
-          ? 'bg-primary text-sticker-ink'
+          ? 'bg-primary text-primary-foreground'
           : 'bg-surface hover:bg-surface-alt',
       )}
     >
@@ -87,7 +87,7 @@ export function GameRow({
         dateTime={dateTime}
         className={cn(
           'col-span-3 text-xs whitespace-nowrap sm:col-span-1',
-          selected ? 'text-sticker-ink' : 'text-ink-muted',
+          selected ? 'text-primary-foreground' : 'text-ink-muted',
         )}
       >
         {when}

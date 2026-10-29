@@ -20,6 +20,7 @@
   --ink-muted: #5a4e38;
   --line: #111111;
   --sticker-ink: #111111;
+  --primary-foreground: #111111;
   --primary: #ffd23f;
   --accent: #ff5fa2;
   --pop-3: #6fa8ff;
@@ -55,6 +56,7 @@
   --ink-muted: #4d4d4d;
   --line: #0a0a0a;
   --sticker-ink: #111111;
+  --primary-foreground: #111111;
   --primary: #ff3b1f;
   --accent: #ffe14d;
   --pop-3: #8fb8ff;
@@ -90,6 +92,7 @@
   --ink-muted: #bdb3d9;
   --line: #f5f0ff;
   --sticker-ink: #111111;
+  --primary-foreground: #111111;
   --primary: #c6ff3d;
   --accent: #ff4fd8;
   --pop-3: #3df0ff;
@@ -118,6 +121,116 @@
   color-scheme: dark;
 }
 
+[data-theme='ivory'] {
+  --ground: #f1e3bd;
+  --surface: #faf0d4;
+  --surface-alt: #e4d2a2;
+  --ink: #141414;
+  --ink-muted: #4f4838;
+  --line: #141414;
+  --sticker-ink: #111111;
+  --primary-foreground: #f1e3bd;
+  --primary: #141414;
+  --accent: #9a948a;
+  --pop-3: #bdb8ab;
+  --pop-4: #8f8b80;
+  --win: #7fb77e;
+  --loss: #d9534f;
+  --draw: #cdbf99;
+  --focus: #2f5bff;
+  --board-light: #efdcae;
+  --board-dark: #8c7650;
+  --board-move: #e8c547cc;
+  --board-arrow: #000000;
+  --eval-white: #faf0d4;
+  --eval-black: #141414;
+  --grade-brilliant: #3df0ff;
+  --grade-great: #6fa8ff;
+  --grade-best: #4fe3a6;
+  --grade-excellent: #a8eb7a;
+  --grade-good: #d8e8c8;
+  --grade-inaccuracy: #ffe14d;
+  --grade-mistake: #ffa94d;
+  --grade-miss: #ff8ac4;
+  --grade-blunder: #ff5c5c;
+  --grade-book: #c9a46a;
+  --shadow-ink: #141414;
+}
+
+[data-theme='chalkboard'] {
+  --ground: #1c2724;
+  --surface: #26332f;
+  --surface-alt: #30403b;
+  --ink: #eeece2;
+  --ink-muted: #a9b5ad;
+  --line: #8fa098;
+  --sticker-ink: #111111;
+  --primary-foreground: #111111;
+  --primary: #f2d35c;
+  --accent: #ff9a82;
+  --pop-3: #8cc7ff;
+  --pop-4: #9be3b7;
+  --win: #8be0a8;
+  --loss: #ff7a7a;
+  --draw: #8a978f;
+  --focus: #7fd1ff;
+  --board-light: #e6e2cf;
+  --board-dark: #5f8575;
+  --board-move: #f2d35cb3;
+  --board-arrow: #000000;
+  --eval-white: #eeece2;
+  --eval-black: #0d1311;
+  --grade-brilliant: #3df0ff;
+  --grade-great: #6fa8ff;
+  --grade-best: #4fe3a6;
+  --grade-excellent: #a8eb7a;
+  --grade-good: #d8e8c8;
+  --grade-inaccuracy: #ffe14d;
+  --grade-mistake: #ffa94d;
+  --grade-miss: #ff8ac4;
+  --grade-blunder: #ff5c5c;
+  --grade-book: #c9a46a;
+  --shadow-ink: #090e0c;
+  color-scheme: dark;
+}
+
+[data-theme='graphite'] {
+  --ground: #151517;
+  --surface: #202023;
+  --surface-alt: #2a2a2e;
+  --ink: #efe9dc;
+  --ink-muted: #a8a396;
+  --line: #8d897f;
+  --sticker-ink: #111111;
+  --primary-foreground: #141414;
+  --primary: #efe3c8;
+  --accent: #d6b36a;
+  --pop-3: #8a9bb3;
+  --pop-4: #9bb08d;
+  --win: #86c48a;
+  --loss: #f07167;
+  --draw: #77746c;
+  --focus: #6ec1ff;
+  --board-light: #d9d2c0;
+  --board-dark: #6b6a66;
+  --board-move: #efe3c8b3;
+  --board-arrow: #000000;
+  --eval-white: #efe9dc;
+  --eval-black: #0a0a0b;
+  --grade-brilliant: #3df0ff;
+  --grade-great: #6fa8ff;
+  --grade-best: #4fe3a6;
+  --grade-excellent: #a8eb7a;
+  --grade-good: #d8e8c8;
+  --grade-inaccuracy: #ffe14d;
+  --grade-mistake: #ffa94d;
+  --grade-miss: #ff8ac4;
+  --grade-blunder: #ff5c5c;
+  --grade-book: #c9a46a;
+  --shadow-ink: #0a0a0b;
+  color-scheme: dark;
+}
+
 /* Derived once, from whichever palette is active. */
 :root {
   --sh-sm: 2px 2px 0 0 var(--shadow-ink);
@@ -132,7 +245,6 @@
   --card-foreground: var(--ink);
   --popover: var(--surface);
   --popover-foreground: var(--ink);
-  --primary-foreground: var(--sticker-ink);
   --secondary: var(--surface-alt);
   --secondary-foreground: var(--ink);
   --muted: var(--surface-alt);

@@ -61,7 +61,7 @@ export function PlayerStrip({
         <span
           className={cn(
             'border-line rounded-sm border-2 px-2 py-1 font-mono text-sm font-bold tabular-nums',
-            toMove ? 'bg-primary text-sticker-ink' : 'bg-surface-alt',
+            toMove ? 'bg-primary text-primary-foreground' : 'bg-surface-alt',
           )}
         >
           {formatClock(clock)}
