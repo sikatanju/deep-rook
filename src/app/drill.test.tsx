@@ -10,7 +10,7 @@ import {
 } from '@/lib/analysis/drill-progress';
 import { dayOf } from '@/lib/analysis/drill-streak';
 import { OPERA_SLIPS, stored } from '@/lib/analysis/fixtures';
-import { parseReplay } from '@/lib/chess/replay';
+import { OPERA_GAME, parseReplay } from '@/lib/chess/replay';
 
 import App from './App';
 
@@ -22,11 +22,12 @@ async function openDrill(
   username: string | null = BLACK,
   records = 1,
   progress: ProgressStore | null = memoryProgress(),
+  hash = '#/drill',
 ) {
   const store = memoryStore();
   if (records) await store.save(stored({ ...OPERA_SLIPS, level: 'fast' }));
   if (username) localStorage.setItem('lastUsername', username);
-  location.hash = '#/drill';
+  location.hash = hash;
   const view = render(<App store={store} progress={progress} />);
   return Object.assign(userEvent.setup(), { view, store, progress });
 }
@@ -89,7 +90,10 @@ test('the first drill asks for a move without giving the answer away', async () 
   // The bishop still stands on g4: the position is before the mistake.
   expect(square('g4, black bishop')).toBeInTheDocument();
   expect(screen.queryByText(/Bxf3/)).toBeNull();
-  expect(screen.queryByText(/blunder/i)).toBeNull();
+  // The grade filter's chip names it, but nothing says this drill is one.
+  expect(
+    screen.queryAllByText(/blunder/i).filter((el) => !el.closest('button')),
+  ).toEqual([]);
   expect(document.querySelector('[data-grade]')).toBeNull();
   expect(document.querySelector('[data-arrow]')).toBeNull();
 });
@@ -459,4 +463,187 @@ test('? lists the drill keys, and Esc closes the list', async () => {
 
   await user.click(screen.getByRole('button', { name: 'Keyboard shortcuts' }));
   expect(screen.getByRole('dialog')).toBeInTheDocument();
+});
+
+// Four move orders of the Opera game reach the same positions under a
+// different key each, so eight drills are due.
+async function openBigDrill() {
+  const store = memoryStore();
+  const openings = [
+    '1. e4 e5 2. Nf3 d6',
+    '1. Nf3 d6 2. e4 e5',
+    '1. e4 d6 2. Nf3 e5',
+    '1. Nf3 e5 2. e4 d6',
+  ];
+  for (const opening of openings) {
+    const replay = parseReplay(
+      OPERA_GAME.replace('1. e4 e5 2. Nf3 d6', opening),
+    );
+    await store.save(stored({ ...OPERA_SLIPS, replay, level: 'fast' }));
+  }
+  localStorage.setItem('lastUsername', BLACK);
+  location.hash = '#/drill';
+  render(<App store={store} progress={memoryProgress()} />);
+  return userEvent.setup();
+}
+
+const choose = (user: ReturnType<typeof userEvent.setup>, size: string) =>
+  user.click(screen.getByRole('radio', { name: size }));
+
+test('a capped session takes the top of the queue, and the choice is remembered', async () => {
+  const user = await openBigDrill();
+  expect(await screen.findByText('Drill 1 of 8')).toBeInTheDocument();
+  expect(screen.getByText('8 due')).toBeInTheDocument();
+
+  await choose(user, '5');
+  expect(screen.getByText('Drill 1 of 5')).toBeInTheDocument();
+  // The costliest first: Black's four blunders, then a mistake.
+  expect(screen.getByText(/^Move 4,/)).toBeInTheDocument();
+  expect(localStorage.getItem('drillSize')).toBe('5');
+
+  await choose(user, '10');
+  expect(screen.getByText('Drill 1 of 8')).toBeInTheDocument();
+  await choose(user, '5');
+
+  // Once a drill is answered the size is settled.
+  await play(user, /^d6/, /^e5/);
+  expect(screen.queryByRole('radio', { name: '10' })).toBeNull();
+});
+
+test('a saved size applies on the next visit, and a short queue is taken whole', async () => {
+  localStorage.setItem('drillSize', '10');
+  await openDrill();
+  expect(await screen.findByText('Drill 1 of 2')).toBeInTheDocument();
+  expect(screen.getByRole('radio', { name: '10' })).toBeChecked();
+  expect(screen.getByText('2 due')).toBeInTheDocument();
+});
+
+test('a capped session ends with a summary, and Keep going takes the next drills', async () => {
+  const user = await openBigDrill();
+  await screen.findByText('Drill 1 of 8');
+  await choose(user, '5');
+
+  for (let i = 0; i < 4; i++) {
+    await play(user, /^d6/, /^e5/);
+    await user.click(screen.getByRole('button', { name: 'Next drill' }));
+  }
+  await play(user, /^b8/, /^c6/);
+  await user.click(screen.getByRole('button', { name: 'Next drill' }));
+
+  expect(screen.getByText('That is your session.')).toBeInTheDocument();
+  expect(
+    screen.getByText('Solved first try 5, after retries 0, shown 0, skipped 0'),
+  ).toBeInTheDocument();
+  expect(screen.getByText('1 day in a row')).toBeInTheDocument();
+
+  await user.click(screen.getByRole('button', { name: 'Keep going' }));
+  expect(await screen.findByText('Drill 1 of 3')).toBeInTheDocument();
+  expect(screen.getByText('3 due')).toBeInTheDocument();
+});
+
+const pressed = (name: string) =>
+  screen.getByRole('button', { name }).getAttribute('aria-pressed');
+
+test('the grade chips narrow the queue and update the due count', async () => {
+  const user = await openDrill();
+  await screen.findByText('Drill 1 of 2');
+  expect(screen.getByText('2 due')).toBeInTheDocument();
+
+  await user.click(screen.getByRole('button', { name: 'Mistake' }));
+  expect(screen.getByText('Drill 1 of 1')).toBeInTheDocument();
+  expect(screen.getByText('1 due')).toBeInTheDocument();
+  expect(screen.getByText(/^Move 7,/)).toBeInTheDocument();
+  expect(pressed('Mistake')).toBe('true');
+  expect(location.hash).toBe('#/drill?grade=mistake');
+
+  await user.click(screen.getByRole('button', { name: 'Blunder' }));
+  expect(screen.getByText(/^Move 4,/)).toBeInTheDocument();
+
+  await user.click(screen.getByRole('button', { name: 'Any grade' }));
+  expect(screen.getByText('Drill 1 of 2')).toBeInTheDocument();
+  expect(location.hash).toBe('#/drill');
+});
+
+test('the stage chips and the opening list combine with the grade', async () => {
+  const user = await openDrill();
+  await screen.findByText('Drill 1 of 2');
+
+  // Both slips come early in the game.
+  await user.click(screen.getByRole('button', { name: 'Opening' }));
+  expect(screen.getByText('Drill 1 of 2')).toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: 'Blunder' }));
+  expect(screen.getByText('Drill 1 of 1')).toBeInTheDocument();
+  expect(location.hash).toBe('#/drill?grade=blunder&stage=opening');
+
+  await user.click(screen.getByRole('button', { name: 'Endgame' }));
+  expect(screen.getByText('Nothing matches.')).toBeInTheDocument();
+});
+
+test('the opening list names the openings played and filters by one', async () => {
+  const user = await openDrill();
+  await screen.findByText('Drill 1 of 2');
+  const list = screen.getByRole('combobox', { name: 'Opening' });
+  const names = within(list)
+    .getAllByRole('option')
+    .map((o) => o.textContent!);
+  expect(names[0]).toBe('Any opening');
+  expect(names).toHaveLength(2);
+
+  await user.selectOptions(list, names[1]!);
+  expect(screen.getByText('Drill 1 of 2')).toBeInTheDocument();
+  expect(location.hash).toContain('opening=');
+
+  await user.click(screen.getByRole('button', { name: 'Mistake' }));
+  expect(screen.getByText('Drill 1 of 1')).toBeInTheDocument();
+});
+
+test('a query on the drill route sets the filters', async () => {
+  await openDrill(
+    BLACK,
+    1,
+    memoryProgress(),
+    '#/drill?grade=blunder&stage=opening',
+  );
+  expect(await screen.findByText('Drill 1 of 1')).toBeInTheDocument();
+  expect(screen.getByText(/^Move 4,/)).toBeInTheDocument();
+  expect(pressed('Blunder')).toBe('true');
+  expect(pressed('Opening')).toBe('true');
+  expect(pressed('Any grade')).toBe('false');
+
+  // A link from another page changes it while the page is open.
+  location.hash = '#/drill?grade=mistake';
+  expect(await screen.findByText(/^Move 7,/)).toBeInTheDocument();
+  expect(pressed('Mistake')).toBe('true');
+});
+
+test('a filter nothing matches says so, and Clear filters brings the queue back', async () => {
+  const user = await openDrill(
+    BLACK,
+    1,
+    memoryProgress(),
+    '#/drill?opening=Sicilian%20Defense',
+  );
+  expect(await screen.findByText('Nothing matches.')).toBeInTheDocument();
+  expect(
+    screen.getByText('No due drills match these filters.'),
+  ).toBeInTheDocument();
+  expect(screen.queryByRole('group', { name: /Chess board/ })).toBeNull();
+
+  await user.click(screen.getByRole('button', { name: 'Clear filters' }));
+  expect(await screen.findByText('Drill 1 of 2')).toBeInTheDocument();
+  expect(location.hash).toBe('#/drill');
+});
+
+test('filters combine with the session size', async () => {
+  const user = await openBigDrill();
+  await screen.findByText('Drill 1 of 8');
+  await user.click(screen.getByRole('button', { name: 'Mistake' }));
+  expect(screen.getByText('Drill 1 of 4')).toBeInTheDocument();
+  expect(screen.getByText('4 due')).toBeInTheDocument();
+
+  await choose(user, '5');
+  expect(screen.getByText('Drill 1 of 4')).toBeInTheDocument();
+  await user.click(screen.getByRole('button', { name: 'Any grade' }));
+  expect(screen.getByText('Drill 1 of 5')).toBeInTheDocument();
+  expect(screen.getByText('8 due')).toBeInTheDocument();
 });
