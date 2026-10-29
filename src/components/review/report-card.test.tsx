@@ -171,9 +171,9 @@ test('key moments are list buttons that jump after the move', async () => {
   expect(onJump).toHaveBeenCalledWith(31);
 });
 
-test('the caption reports settled progress', () => {
+test('the card carries no progress caption; the progress bar owns that', () => {
   render(
     <ReportCard report={report({ settled: 3, total: 34 })} onJump={() => {}} />,
   );
-  expect(screen.getByText('3/34 positions')).toBeInTheDocument();
+  expect(screen.queryByText(/positions/)).toBeNull();
 });

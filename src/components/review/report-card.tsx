@@ -176,12 +176,6 @@ export function ReportCard({
           )}
         </div>
       </details>
-
-      {report && (
-        <p className="border-line text-ink-muted border-t-2 px-4 py-2 font-mono text-xs">
-          {report.settled}/{report.total} positions
-        </p>
-      )}
     </section>
   );
 }
