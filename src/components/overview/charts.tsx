@@ -20,9 +20,20 @@ const date = new Intl.DateTimeFormat(undefined, {
 
 const stat = 'font-mono text-sm font-bold tabular-nums';
 
+/** Rating points keep this far from the top and bottom of the chart. */
+const RATING_MARGIN = 14;
+
+type Trend = Overview['trend'][number];
+
+/** One game's tooltip: both figures, so the bar and its rating dot read the same. */
+const tip = (g: Trend) =>
+  `${date.format(g.analyzedAt)}: accuracy ${g.accuracy.toFixed(1)}${g.rating === null ? '' : `, rating ${g.rating}`}`;
+
 /**
- * One bar per game, oldest left, height = accuracy. The name and the caption
- * say the same thing the bars show, and each bar's title gives its figure.
+ * One bar per game, oldest left, height = accuracy, with the player's rating
+ * as a line over the bars on a scale of its own. A game with no rating leaves
+ * a gap in the line. The name and the caption say the same thing the chart
+ * shows, and each bar's title gives its figures.
  */
 export function AccuracyTrend({ games }: { games: Overview['trend'] }) {
   if (games.length === 0)
@@ -31,6 +42,32 @@ export function AccuracyTrend({ games }: { games: Overview['trend'] }) {
   const bar = slot * BAR_SHARE;
   const latest = games.at(-1)!.accuracy;
   const average = games.reduce((n, g) => n + g.accuracy, 0) / games.length;
+
+  const ratings = games.flatMap((g) => (g.rating === null ? [] : [g.rating]));
+  const low = Math.min(...ratings);
+  const high = Math.max(...ratings);
+  const yOf = (rating: number) =>
+    high === low
+      ? HEIGHT / 2
+      : HEIGHT -
+        RATING_MARGIN -
+        ((rating - low) / (high - low)) * (HEIGHT - 2 * RATING_MARGIN);
+  const points = games.map((g, i) => ({
+    game: g,
+    x: i * slot + slot / 2,
+    y: g.rating === null ? null : yOf(g.rating),
+  }));
+  // Runs of rated games; an unrated one ends the run, so the line has a gap.
+  const runs: string[][] = [[]];
+  for (const { x, y } of points) {
+    if (y === null) runs.push([]);
+    else runs.at(-1)!.push(`${x} ${y}`);
+  }
+  const lines = runs
+    .filter((run) => run.length > 1)
+    .map((run) => 'M' + run.join('L'));
+  const latestRating = ratings.length ? ratings.at(-1)! : null;
+
   return (
     <div className="flex flex-col gap-3">
       <div className="border-line bg-surface-alt border-3 shadow-sm">
@@ -38,7 +75,7 @@ export function AccuracyTrend({ games }: { games: Overview['trend'] }) {
           viewBox={`0 0 ${WIDTH} ${HEIGHT}`}
           preserveAspectRatio="none"
           role="img"
-          aria-label={`Accuracy over your last ${games.length} ${games.length === 1 ? 'game' : 'games'}, oldest to newest, latest ${latest.toFixed(1)}`}
+          aria-label={`Accuracy over your last ${games.length} ${games.length === 1 ? 'game' : 'games'}, oldest to newest, latest ${latest.toFixed(1)}${latestRating === null ? '' : `, with your rating, latest ${latestRating}`}`}
           className="block h-40 w-full"
         >
           <line
@@ -63,8 +100,41 @@ export function AccuracyTrend({ games }: { games: Overview['trend'] }) {
               strokeWidth={2}
               vectorEffect="non-scaling-stroke"
             >
-              <title>{`${date.format(g.analyzedAt)}: ${g.accuracy.toFixed(1)}`}</title>
+              <title>{tip(g)}</title>
             </rect>
+          ))}
+          {/* An ink path under an accent one keeps the line readable over the bars. */}
+          {[
+            { stroke: 'var(--line)', width: 7, top: false },
+            { stroke: 'var(--accent)', width: 3, top: true },
+          ].map(({ stroke, width, top }) => (
+            <g
+              key={stroke}
+              fill="none"
+              stroke={stroke}
+              strokeWidth={width}
+              strokeLinecap="round"
+              strokeLinejoin="round"
+            >
+              {lines.map((d) => (
+                <path key={d} d={d} vectorEffect="non-scaling-stroke" />
+              ))}
+              {/* A zero-length round-capped path is a dot that stays round under the stretched viewBox. */}
+              {points.map(
+                ({ game, x, y }) =>
+                  y !== null && (
+                    <path
+                      key={game.key}
+                      data-rating={top ? game.rating : undefined}
+                      d={`M${x} ${y}h0`}
+                      strokeWidth={width + 6}
+                      vectorEffect="non-scaling-stroke"
+                    >
+                      <title>{tip(game)}</title>
+                    </path>
+                  ),
+              )}
+            </g>
           ))}
         </svg>
       </div>
@@ -73,6 +143,15 @@ export function AccuracyTrend({ games }: { games: Overview['trend'] }) {
         <span className={stat}>{average.toFixed(1)}</span> over{' '}
         <span className={stat}>{games.length}</span>{' '}
         {games.length === 1 ? 'game' : 'games'}.
+        {latestRating !== null && (
+          <>
+            {' '}
+            The line is your rating, latest{' '}
+            <span className={stat}>{latestRating}</span>, from{' '}
+            <span className={stat}>{low}</span> to{' '}
+            <span className={stat}>{high}</span>.
+          </>
+        )}
       </p>
     </div>
   );

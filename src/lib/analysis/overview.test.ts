@@ -5,11 +5,14 @@ import { OPERA_GAME, parseReplay } from '@/lib/chess/replay';
 
 import { CLASSIFICATIONS, type Classification } from './classify';
 import {
+  NO_FILTER,
   TREND_LIMIT,
   filterGames,
   overview,
+  ratingOf,
   sideOf,
   summarize,
+  type Filter,
   type GameSummary,
 } from './overview';
 import { stored } from './fixtures';
@@ -322,6 +325,56 @@ describe('overview', () => {
     expect(overview(summaries, 3).trend.map((t) => t.accuracy)).toEqual([
       72, 73, 74,
     ]);
+  });
+
+  test('the trend carries my rating, from my side, and a gap where a game has none', () => {
+    const rated = (me: 'w' | 'b', white: string | null, black: string | null) =>
+      game({
+        me,
+        white: { name: 'me', rating: white },
+        black: { name: 'you', rating: black },
+      });
+    const o = overview([
+      rated('w', '1500', '1800'),
+      rated('b', '1500', '1800'),
+      rated('w', null, '1800'),
+      rated('b', '1500', '?'),
+      rated('w', '0', '1800'),
+      rated('w', '1620', null),
+    ]);
+    expect(o.trend.map((t) => t.rating)).toEqual([
+      1500,
+      1800,
+      null,
+      null,
+      null,
+      1620,
+    ]);
+  });
+
+  test('a rating is read from my side only when I am known', () => {
+    const sides = {
+      white: { name: 'me', rating: '1500' },
+      black: { name: 'you', rating: '1800' },
+    };
+    expect(ratingOf({ me: 'w', ...sides })).toBe(1500);
+    expect(ratingOf({ me: 'b', ...sides })).toBe(1800);
+    expect(ratingOf({ me: null, ...sides })).toBeNull();
+  });
+
+  test('the speed filter picks which games the rating line covers', () => {
+    const summaries = [
+      game({ timeClass: 'blitz', white: { name: 'me', rating: '1500' } }),
+      game({ timeClass: 'rapid', white: { name: 'me', rating: '1900' } }),
+      game({ timeClass: 'blitz', white: { name: 'me', rating: '1520' } }),
+    ];
+    const ratings = (speed: Filter['speed']) =>
+      overview(filterGames(summaries, { ...NO_FILTER, speed })).trend.map(
+        (t) => t.rating,
+      );
+    expect(ratings('blitz')).toEqual([1500, 1520]);
+    expect(ratings('rapid')).toEqual([1900]);
+    expect(ratings('all')).toEqual([1500, 1900, 1520]);
   });
 
   test('ranks the openings that cost the most accuracy first', () => {
