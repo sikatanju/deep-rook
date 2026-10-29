@@ -1,5 +1,7 @@
 import { useEffect, useRef, useState } from 'react';
 
+import { PauseNote } from '@/components/review/pause-note';
+import { usePause } from '@/hooks/use-game-analysis';
 import type { GameAnalysis } from '@/lib/analysis/game-analysis';
 import {
   formatRemaining,
@@ -19,7 +21,7 @@ const TICK_MS = 1000;
  * The time left at the rate seen since the job began, worked out once a
  * second, and whether a bar was ever shown.
  */
-function useRun(progress: Progress | null) {
+function useRun(progress: Progress | null, waiting: boolean) {
   const [left, setLeft] = useState<number | null>(null);
   const [worked, setWorked] = useState(false);
   if (progress && !worked) setWorked(true);
@@ -28,7 +30,8 @@ function useRun(progress: Progress | null) {
   useEffect(() => {
     latest.current = progress;
   });
-  const active = progress !== null;
+  // A pause is no time spent: the rate starts over when the work does.
+  const active = progress !== null && !waiting;
 
   useEffect(() => {
     if (!active) return;
@@ -59,7 +62,8 @@ export function AnalysisProgress({
   analysis: Pick<GameAnalysis, 'positions' | 'level' | 'unavailable'>;
 }) {
   const progress = analysis.unavailable ? null : progressOf(analysis);
-  const { left, worked } = useRun(progress);
+  const { reason } = usePause();
+  const { left, worked } = useRun(progress, reason !== null);
 
   if (!progress) {
     return (
@@ -95,6 +99,7 @@ export function AnalysisProgress({
           style={{ width: `${percent}%` }}
         />
       </div>
+      <PauseNote />
       <p role="status" className="sr-only">
         {`Analysis ${Math.floor(percent / ANNOUNCE_EVERY) * ANNOUNCE_EVERY}% done.`}
       </p>

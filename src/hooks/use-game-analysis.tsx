@@ -30,6 +30,7 @@ import {
 } from '@/lib/analysis/drill-progress';
 import type { GameAnalysis } from '@/lib/analysis/game-analysis';
 import type { AnalysisLevel } from '@/lib/analysis/levels';
+import { createPauser, type Pauser } from '@/lib/analysis/pause';
 import {
   createProbe,
   type Probe,
@@ -43,6 +44,7 @@ const ProbeContext = createContext<Probe | null>(null);
 const BatchContext = createContext<Batch | null>(null);
 const StoreContext = createContext<WatchedStore | null>(null);
 const ProgressContext = createContext<ProgressStore | null>(null);
+const PauseContext = createContext<Pauser | null>(null);
 
 /**
  * Mounted once above the pages, so analysis survives route changes. `level`
@@ -74,24 +76,37 @@ export function AnalysisProvider({
     createAnalyzer({ level, spawn, store: saved }),
   );
   const [probe] = useState(() => createProbe({ level, spawn }));
-  const [batch] = useState(() =>
-    createBatch({
-      analyzer: createAnalyzer({ level, spawn, store: saved }),
-      foreground: analyzer,
-    }),
+  const [batchAnalyzer] = useState(() =>
+    createAnalyzer({ level, spawn, store: saved }),
   );
+  const [batch] = useState(() =>
+    createBatch({ analyzer: batchAnalyzer, foreground: analyzer }),
+  );
+  const [pauser] = useState(createPauser);
   useEffect(() => analyzer.setLevel(level), [analyzer, level]);
   useEffect(() => probe.setLevel(level), [probe, level]);
   useEffect(() => () => analyzer.dispose(), [analyzer]);
   useEffect(() => () => probe.dispose(), [probe]);
   useEffect(() => () => batch.dispose(), [batch]);
+  useEffect(() => {
+    const follow = () => {
+      const paused = pauser.getSnapshot() !== null;
+      analyzer.setPaused(paused);
+      batchAnalyzer.setPaused(paused);
+    };
+    const unsubscribe = pauser.subscribe(follow);
+    follow();
+    return unsubscribe;
+  }, [pauser, analyzer, batchAnalyzer]);
   return (
     <StoreContext.Provider value={saved}>
       <ProgressContext.Provider value={drills}>
         <AnalyzerContext.Provider value={analyzer}>
           <ProbeContext.Provider value={probe}>
             <BatchContext.Provider value={batch}>
-              {children}
+              <PauseContext.Provider value={pauser}>
+                {children}
+              </PauseContext.Provider>
             </BatchContext.Provider>
           </ProbeContext.Provider>
         </AnalyzerContext.Provider>
@@ -170,4 +185,15 @@ export function useBatchGame(): string | null {
     const now = batch.getSnapshot();
     return isActive(now) ? now.current.id : null;
   });
+}
+
+/**
+ * Why analysis is waiting (the tab is hidden, or the battery is low), and the
+ * way to carry on regardless of the battery.
+ */
+export function usePause() {
+  const pauser = useContext(PauseContext);
+  if (!pauser) throw new Error('usePause must be used within AnalysisProvider');
+  const reason = useSyncExternalStore(pauser.subscribe, pauser.getSnapshot);
+  return { reason, continueAnyway: pauser.continueAnyway };
 }
