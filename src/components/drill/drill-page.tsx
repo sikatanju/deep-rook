@@ -1,7 +1,14 @@
 import { FlameIcon } from 'lucide-react';
-import { useEffect, useMemo, useReducer, useRef, useState } from 'react';
+import {
+  useEffect,
+  useMemo,
+  useReducer,
+  useRef,
+  useState,
+  type ReactNode,
+} from 'react';
 
-import { navigate } from '@/app/router';
+import { navigate, useParams } from '@/app/router';
 import { useStore } from '@/app/store';
 import { Board } from '@/components/board/board';
 import { PromotionPicker } from '@/components/board/promotion-picker';
@@ -11,6 +18,7 @@ import { Panel } from '@/components/panel';
 import { CoachBubble } from '@/components/review/coach-bubble';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
+import { useOpeningBook } from '@/hooks/use-opening-book';
 import { useDrillProgress, useProbe } from '@/hooks/use-game-analysis';
 import { useMoveInput } from '@/hooks/use-move-input';
 import { useSound } from '@/hooks/use-sound';
@@ -30,6 +38,23 @@ import {
   saveStreak,
 } from '@/lib/analysis/drill-streak';
 import {
+  DRILL_GRADES,
+  DRILL_STAGES,
+  drillHash,
+  filterDrills,
+  NO_DRILL_FILTER,
+  openingOfDrill,
+  readDrillFilter,
+  type DrillFilter,
+} from '@/lib/analysis/drill-filter';
+import {
+  loadSize,
+  saveSize,
+  SIZES,
+  take,
+  type Size,
+} from '@/lib/analysis/drill-size';
+import {
   finished,
   start,
   step,
@@ -44,6 +69,7 @@ import type { ProbeInput, ProbeSnapshot } from '@/lib/analysis/probe';
 import { branchFens, playMove } from '@/lib/chess/branch';
 import { moveFromSan, type Move } from '@/lib/chess/play';
 import type { Ply } from '@/lib/chess/replay';
+import { STAGES } from '@/lib/chess/stage';
 import type { Sound } from '@/lib/sound';
 
 const SIDE = { w: 'White', b: 'Black' } as const;
@@ -328,13 +354,119 @@ function DrillCard({
   );
 }
 
+/** 5 / 10 / All, with how many drills are waiting. */
+function SizePicker({
+  value,
+  onChange,
+  available,
+  practice,
+}: {
+  value: Size;
+  onChange: (size: Size) => void;
+  available: number;
+  practice: boolean;
+}) {
+  return (
+    <fieldset className="m-0 flex min-w-0 flex-wrap items-center gap-3 border-0 p-0">
+      <legend className="sr-only">Session size</legend>
+      <span className="font-bold" aria-hidden>
+        Session
+      </span>
+      {SIZES.map((size) => (
+        <label
+          key={size}
+          className="border-line bg-surface text-ink has-[:checked]:bg-primary has-[:checked]:text-sticker-ink has-[:focus-visible]:outline-focus cursor-pointer rounded-sm border-3 px-3 py-1.5 text-[13px] font-extrabold uppercase has-[:focus-visible]:outline-[3px] has-[:focus-visible]:outline-offset-2"
+        >
+          <input
+            type="radio"
+            name="drill-size"
+            className="sr-only"
+            checked={value === size}
+            onChange={() => onChange(size)}
+          />
+          {size === 'all' ? 'All' : size}
+        </label>
+      ))}
+      <span className="text-ink-muted">
+        {available} {practice ? 'resting' : 'due'}
+      </span>
+    </fieldset>
+  );
+}
+
+const GRADE_NAMES = { mistake: 'Mistake', miss: 'Miss', blunder: 'Blunder' };
+
+/** Grade and stage chips and an opening list, to work on one weakness at a time. */
+function DrillFilters({
+  filter,
+  openings,
+  onChange,
+}: {
+  filter: DrillFilter;
+  /** Every opening a drill comes from, sorted. */
+  openings: readonly string[];
+  onChange: (filter: DrillFilter) => void;
+}) {
+  const chip = (active: boolean, name: string, patch: Partial<DrillFilter>) => (
+    <Button
+      key={name}
+      size="sm"
+      variant={active ? 'primary' : 'default'}
+      aria-pressed={active}
+      onClick={() => onChange({ ...filter, ...patch })}
+    >
+      {name}
+    </Button>
+  );
+  return (
+    <div className="flex flex-wrap items-center gap-x-8 gap-y-3">
+      <div role="group" aria-label="Grade" className="flex flex-wrap gap-2">
+        {chip(filter.grade === 'all', 'Any grade', { grade: 'all' })}
+        {DRILL_GRADES.map((g) =>
+          chip(filter.grade === g, GRADE_NAMES[g], { grade: g }),
+        )}
+      </div>
+      <div role="group" aria-label="Stage" className="flex flex-wrap gap-2">
+        {chip(filter.stage === 'all', 'Any stage', { stage: 'all' })}
+        {DRILL_STAGES.map((st) =>
+          chip(filter.stage === st, STAGES[st].label, { stage: st }),
+        )}
+      </div>
+      <label className="flex items-center gap-2 font-bold">
+        Opening
+        <select
+          value={filter.opening ?? ''}
+          onChange={(e) =>
+            onChange({ ...filter, opening: e.target.value || null })
+          }
+          className="border-line bg-surface-alt text-ink max-w-64 rounded-sm border-3 px-2 py-1.5 font-bold"
+        >
+          <option value="">Any opening</option>
+          {openings.map((name) => (
+            <option key={name} value={name}>
+              {name}
+            </option>
+          ))}
+        </select>
+      </label>
+    </div>
+  );
+}
+
 function DrillSession({
   queue,
+  available,
+  controls,
   onResult,
   practice,
   onRestart,
 }: {
+  /** The drills of this sitting: the top of the plan, up to `size`. */
   queue: readonly Drill[];
+  /** How many drills the plan holds, of which `queue` is the top. */
+  available: number;
+  /** The size and filter pickers, shown until the first answer. */
+  controls: ReactNode;
   /** null where nothing can be saved, and during a practice pass. */
   onResult: ((drill: Drill, result: Result) => void) | null;
   /** A pass over resting drills. Answers are not recorded. */
@@ -357,8 +489,13 @@ function DrillSession({
 
   if (finished(session, total)) {
     const counts = summary(session);
+    const capped = total < available;
     return (
-      <Panel tag="Done" title="That is every drill." className="max-w-xl">
+      <Panel
+        tag="Done"
+        title={capped ? 'That is your session.' : 'That is every drill.'}
+        className="max-w-xl"
+      >
         <p>
           Solved first try {counts['first-try']}, after retries {counts.retry},
           shown {counts.shown}, skipped {counts.skipped}
@@ -377,7 +514,7 @@ function DrillSession({
         )}
         <div>
           <Button variant="primary" onClick={onRestart}>
-            Start over
+            {capped && onResult ? 'Keep going' : 'Start over'}
           </Button>
         </div>
       </Panel>
@@ -385,8 +522,11 @@ function DrillSession({
   }
 
   const drill = queue[session.at]!;
+  const unstarted =
+    session.at === 0 && session.phase === 'asking' && !session.results.length;
   return (
     <>
+      {unstarted && controls}
       <p className="font-mono font-bold tabular-nums">
         Drill {session.at + 1} of {total}
       </p>
@@ -439,6 +579,10 @@ export function DrillPage() {
   const usernames = useMemo(() => readSavedUsernames(), []);
   const [round, setRound] = useState(0);
   const [practice, setPractice] = useState(false);
+  const [size, setSize] = useState(loadSize);
+  const book = useOpeningBook();
+  const params = useParams();
+  const filter = useMemo(() => readDrillFilter(params), [params]);
   const { progress, onResult: record } = useProgressAt(round);
   const [streak, setStreak] = useState(loadStreak);
   // The day shown moves on at an answer, not at midnight on a page left open.
@@ -464,6 +608,14 @@ export function DrillPage() {
       plan(drillQueue(records, usernames), progress.byId, progress.now),
     [records, usernames, progress],
   );
+  const openings = useMemo(() => {
+    const names = new Set(filter.opening === null ? [] : [filter.opening]);
+    for (const drill of [...(planned?.due ?? []), ...(planned?.later ?? [])]) {
+      const name = openingOfDrill(drill, book ?? null);
+      if (name) names.add(name);
+    }
+    return [...names].sort();
+  }, [planned, book, filter.opening]);
 
   const header = (
     <PageHeader eyebrow="From your saved reviews">
@@ -489,7 +641,7 @@ export function DrillPage() {
     </Button>
   );
 
-  if (!records || !planned)
+  if (!records || !planned || book === undefined)
     return (
       <>
         {header}
@@ -544,7 +696,12 @@ export function DrillPage() {
       </>
     );
 
-  const queue = practice ? planned.later : planned.due;
+  const waiting = filterDrills(
+    practice ? planned.later : planned.due,
+    filter,
+    book,
+  );
+  const queue = take(waiting, size);
   if (planned.due.length === 0 && !practice) {
     const next = progress!.byId.get(planned.later[0]!.id)!.due;
     return (
@@ -572,6 +729,35 @@ export function DrillPage() {
     );
   }
 
+  const setFilter = (next: DrillFilter) =>
+    location.replace(`#${drillHash(next)}`);
+  const filters = (
+    <DrillFilters filter={filter} openings={openings} onChange={setFilter} />
+  );
+
+  if (waiting.length === 0)
+    return (
+      <>
+        {header}
+        {streakNote}
+        {filters}
+        <CoachBubble
+          title="Nothing matches."
+          actions={
+            <Button
+              size="sm"
+              variant="primary"
+              onClick={() => setFilter(NO_DRILL_FILTER)}
+            >
+              Clear filters
+            </Button>
+          }
+        >
+          {`No ${practice ? 'resting' : 'due'} drills match these filters.`}
+        </CoachBubble>
+      </>
+    );
+
   return (
     <>
       {header}
@@ -579,6 +765,21 @@ export function DrillPage() {
       <DrillSession
         key={`${round}:${queue.map((d) => d.id).join()}`}
         queue={queue}
+        available={waiting.length}
+        controls={
+          <>
+            {filters}
+            <SizePicker
+              value={size}
+              onChange={(next) => {
+                saveSize(next);
+                setSize(next);
+              }}
+              available={waiting.length}
+              practice={practice}
+            />
+          </>
+        }
         onResult={practice ? null : onResult}
         practice={practice}
         onRestart={() => {

@@ -1,4 +1,4 @@
-import { useSyncExternalStore } from 'react';
+import { useMemo, useSyncExternalStore } from 'react';
 
 export const ROUTES = [
   'games',
@@ -32,6 +32,16 @@ function subscribe(onChange: () => void) {
 
 export function useRoute(): Route {
   return useSyncExternalStore(subscribe, read, () => 'games');
+}
+
+/** The current route's query. Changes with the hash, so a page can keep state in it. */
+export function useParams(): URLSearchParams {
+  const hash = useSyncExternalStore(
+    subscribe,
+    () => location.hash,
+    () => '',
+  );
+  return useMemo(() => parseHash(hash).params, [hash]);
 }
 
 export function navigate(route: Route) {
