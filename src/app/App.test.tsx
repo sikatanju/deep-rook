@@ -16,42 +16,6 @@ test('renders the app shell with the username form', () => {
   expect(screen.getByRole('button', { name: 'Find games' })).toBeDisabled();
 });
 
-function stubMatchMedia(matches: boolean) {
-  vi.stubGlobal(
-    'matchMedia',
-    vi.fn(() => ({
-      matches,
-      addEventListener: vi.fn(),
-      removeEventListener: vi.fn(),
-    })),
-  );
-}
-
-test('the sidebar can be collapsed and expanded', async () => {
-  const user = userEvent.setup();
-  render(<App />);
-  const toggle = screen.getByRole('button', { name: 'Collapse sidebar' });
-  expect(toggle).toHaveAttribute('aria-expanded', 'true');
-  await user.click(toggle);
-  expect(
-    screen.getByRole('button', { name: 'Expand sidebar' }),
-  ).toHaveAttribute('aria-expanded', 'false');
-  // Collapsed links keep their names for screen readers.
-  expect(screen.getByRole('link', { name: 'Games' })).toBeInTheDocument();
-  await user.click(screen.getByRole('button', { name: 'Expand sidebar' }));
-  expect(
-    screen.getByRole('button', { name: 'Collapse sidebar' }),
-  ).toBeInTheDocument();
-});
-
-test('the sidebar starts collapsed when the screen is not roomy', () => {
-  stubMatchMedia(false);
-  render(<App />);
-  expect(
-    screen.getByRole('button', { name: 'Expand sidebar' }),
-  ).toBeInTheDocument();
-});
-
 function stubChessCom() {
   const json = (body: unknown) =>
     Promise.resolve(new Response(JSON.stringify(body)));

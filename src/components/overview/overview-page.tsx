@@ -53,24 +53,12 @@ function trendSubtitle(data: Overview | false | null) {
   return `Your latest ${games(data.trend.length)}, oldest to newest.`;
 }
 
-function matchedGames(data: Overview | false | null) {
-  if (!data) return 'every game matched to you';
-  return data.games === 1
-    ? 'the game matched to you'
-    : `all ${data.games} games matched to you`;
-}
-
 function clockSubtitle(data: Overview | false | null) {
   const rule =
-    'Mistakes, misses and blunders per 100 of your moves, with time to think and with under a tenth of your starting time left (10 seconds at least)';
-  if (!data) return `${rule}, in every matched game with a clock.`;
-  if (data.clock.games === 0)
-    return `${rule}. None of the games matched to you have a clock.`;
-  const which =
-    data.clock.games === 1
-      ? 'the matched game with a clock'
-      : `all ${data.clock.games} matched games with a clock`;
-  return `${rule}, in ${which}.`;
+    'Mistakes per 100 moves with time to think, against the last tenth of your clock';
+  if (data && data.clock.games === 0)
+    return 'None of the games matched to you have a clock.';
+  return `${rule}.`;
 }
 
 /** Holds a panel's height while the saved reviews are read. */
@@ -381,35 +369,57 @@ export function OverviewPage() {
       )}
       {(!data || data.games > 0) && (
         <div className="grid gap-8 lg:grid-cols-2 lg:items-start">
-          <Panel title="Accuracy" subtitle={trendSubtitle(data)}>
+          <Panel
+            className="lg:col-span-2"
+            title="Accuracy"
+            subtitle={trendSubtitle(data)}
+          >
             {data ? <AccuracyTrend games={data.trend} /> : <Pending />}
           </Panel>
-          <Panel
-            title="Grade mix"
-            subtitle={`Every move you played in ${matchedGames(data)}.`}
-          >
-            {data ? <GradeMix totals={data.gradeTotals} /> : <Pending />}
-          </Panel>
-          <Panel
-            title="Where mistakes happen"
-            subtitle={`Mistakes, misses and blunders per 100 of your moves in ${matchedGames(data)}.`}
-          >
-            {data ? (
-              <StageBars
-                stages={data.stages}
-                action={(stage) =>
-                  drillLink(
-                    { stage },
-                    `${STAGES[stage].label.toLowerCase()} mistakes`,
-                  )
-                }
-              />
-            ) : (
-              <Pending />
-            )}
-          </Panel>
-          <Panel title="Time trouble" subtitle={clockSubtitle(data)}>
-            {data ? <TimeTrouble clock={data.clock} /> : <Pending />}
+          <Panel title="Breakdown" className="lg:col-span-2">
+            <div className="grid gap-8 lg:grid-cols-2">
+              <section className="flex flex-col gap-4">
+                <div>
+                  <h3 className="font-display text-xl font-extrabold">
+                    Grade mix
+                  </h3>
+                  <p className="text-ink-muted">Every move you played.</p>
+                </div>
+                {data ? <GradeMix totals={data.gradeTotals} /> : <Pending />}
+              </section>
+              <section className="flex flex-col gap-4">
+                <div>
+                  <h3 className="font-display text-xl font-extrabold">
+                    Where mistakes happen
+                  </h3>
+                  <p className="text-ink-muted">
+                    Mistakes, misses and blunders per 100 of your moves.
+                  </p>
+                </div>
+                {data ? (
+                  <StageBars
+                    stages={data.stages}
+                    action={(stage) =>
+                      drillLink(
+                        { stage },
+                        `${STAGES[stage].label.toLowerCase()} mistakes`,
+                      )
+                    }
+                  />
+                ) : (
+                  <Pending />
+                )}
+              </section>
+              <section className="flex flex-col gap-4 lg:col-span-2">
+                <div>
+                  <h3 className="font-display text-xl font-extrabold">
+                    Time trouble
+                  </h3>
+                  <p className="text-ink-muted">{clockSubtitle(data)}</p>
+                </div>
+                {data ? <TimeTrouble clock={data.clock} /> : <Pending />}
+              </section>
+            </div>
           </Panel>
           <Panel
             className="lg:col-span-2"

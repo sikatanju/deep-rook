@@ -200,7 +200,7 @@ export function BatchPanel({
   return (
     <Panel
       title="Review in bulk"
-      subtitle="Analyze your latest games one after another and save each one, so the Overview and the drills have more to work with."
+      subtitle="Analyze your latest games one after another and save each one."
     >
       {isActive(snapshot) ? (
         <>

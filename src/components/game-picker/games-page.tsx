@@ -1,3 +1,4 @@
+import { ChevronRightIcon } from 'lucide-react';
 import { useState } from 'react';
 
 import { useStore } from '@/app/store';
@@ -8,7 +9,9 @@ import { ReviewSetup } from '@/components/game-picker/review-setup';
 import { PageHeader } from '@/components/layout/page-header';
 import { CoachBubble } from '@/components/review/coach-bubble';
 import { Button } from '@/components/ui/button';
+import { useBatch } from '@/hooks/use-game-analysis';
 import { useReviewedGames } from '@/hooks/use-reviewed-games';
+import { isActive } from '@/lib/analysis/batch';
 import {
   filterListed,
   isFiltering,
@@ -70,6 +73,7 @@ export function GamesPage() {
   const store = useStore();
   const { staged } = store;
   const reviewed = useReviewedGames();
+  const batchRunning = isActive(useBatch().snapshot);
   const shown = shownGames(store);
   // Both the list and the batch read it, so the batch takes what the list shows.
   const [filter, setFilter] = useState<ListFilter>(NO_LIST_FILTER);
@@ -84,15 +88,26 @@ export function GamesPage() {
         <GamePicker reviewed={reviewed} filter={filter} onFilter={setFilter} />
         <div className="contents lg:flex lg:flex-col lg:gap-8 lg:self-stretch">
           {staged && <ReviewSetup staged={staged} reviewed={reviewed} />}
-          {shown && passing && shown[0].length > 0 && (
-            <BatchPanel
-              games={passing}
-              filtered={isFiltering(filter)}
-              reviewed={reviewed}
-            />
-          )}
-          <PgnImport />
           <StreakCoach />
+          <details open={batchRunning || undefined} className="group">
+            <summary className="flex cursor-pointer items-center gap-2 rounded-sm font-bold [&::-webkit-details-marker]:hidden">
+              <ChevronRightIcon
+                aria-hidden
+                className="size-4 transition-transform group-open:rotate-90"
+              />
+              More ways to add or review games
+            </summary>
+            <div className="mt-4 flex flex-col gap-8">
+              {shown && passing && shown[0].length > 0 && (
+                <BatchPanel
+                  games={passing}
+                  filtered={isFiltering(filter)}
+                  reviewed={reviewed}
+                />
+              )}
+              <PgnImport />
+            </div>
+          </details>
         </div>
       </div>
     </>
