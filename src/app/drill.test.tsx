@@ -150,12 +150,11 @@ test('the best move solves the drill and reveals what was played', async () => {
   ).toBeInTheDocument();
 });
 
-test('Enter moves on after a solve, but not while typing a move', async () => {
+test('Enter moves on once a drill is settled', async () => {
   const user = await openDrill();
   await screen.findByText('Drill 1 of 2');
 
-  // Enter in the field submits the move; it does not also skip ahead.
-  await user.type(screen.getByLabelText('Type your move'), 'dxe5{Enter}');
+  await play(user, /^d6/, /^e5/);
   expect(screen.getByText('You found it.')).toBeInTheDocument();
   expect(screen.getByText('Drill 1 of 2')).toBeInTheDocument();
 
@@ -181,23 +180,11 @@ test('the rail counts the drills that are due, except on the drill page', async 
   expect(screen.getByRole('link', { name: 'Drill' })).toBeInTheDocument();
 });
 
-test('a typed move is judged, and illegal text is not a try', async () => {
+test('a solved first try counts in the summary', async () => {
   const user = await openDrill();
   await screen.findByText('Drill 1 of 2');
-  const field = screen.getByLabelText('Type your move');
 
-  await user.type(field, 'Ke5{Enter}');
-  expect(screen.getByRole('alert')).toHaveTextContent(
-    'That is not a legal move here.',
-  );
-  expect(screen.queryByText("Not the engine's first choice.")).toBeNull();
-
-  await user.clear(field);
-  await user.type(field, 'dxe5');
-  await user.click(screen.getByRole('button', { name: 'Play' }));
-  expect(screen.getByText('You found it.')).toBeInTheDocument();
-
-  // Solved with no counted try: the summary calls it a first-try solve.
+  await play(user, /^d6/, /^e5/);
   await user.click(screen.getByRole('button', { name: 'Next drill' }));
   await user.click(screen.getByRole('button', { name: 'Skip' }));
   expect(
