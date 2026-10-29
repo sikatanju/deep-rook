@@ -3,6 +3,7 @@ import { ChevronDownIcon } from 'lucide-react';
 import { GradeSticker } from '@/components/review/grade-sticker';
 import { CLASSIFICATIONS, type Classification } from '@/lib/analysis/classify';
 import type { GameReport, PlayerReport } from '@/lib/analysis/report';
+import type { Opening } from '@/lib/chess/openings';
 import { cn } from '@/lib/utils';
 
 /** The nothing-graded half: every slot the streaming report will fill in. */
@@ -35,6 +36,7 @@ export function ReportCard({
   report,
   onJump,
   level,
+  opening,
   white: whoWhite,
   black: whoBlack,
 }: {
@@ -42,6 +44,8 @@ export function ReportCard({
   onJump: (index: number) => void;
   /** The review badge, e.g. "Balanced review" or "Fast review, depth 9". */
   level?: string;
+  /** The game's opening from the Lichess table; absent when it names none. */
+  opening?: Opening | null;
   white?: Who;
   black?: Who;
 }) {
@@ -119,6 +123,16 @@ export function ReportCard({
           </span>
         )}
       </header>
+
+      {opening && (
+        <p
+          data-opening={opening.eco}
+          className="border-line border-b-3 px-4 py-2 text-sm leading-5 font-bold"
+        >
+          <span className="text-ink-muted mr-2 font-mono">{opening.eco}</span>
+          {opening.name}
+        </p>
+      )}
 
       <div className="border-line [&>*+*]:border-line grid grid-cols-2 border-b-3 [&>*+*]:border-l-3">
         {player('w', 'White', whoWhite, white)}

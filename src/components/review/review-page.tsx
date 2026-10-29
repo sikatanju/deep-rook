@@ -21,6 +21,7 @@ import { Button } from '@/components/ui/button';
 import { readSavedUsernames } from '@/components/game-picker/username-form';
 import { useGameAnalysis, useProbe } from '@/hooks/use-game-analysis';
 import { useMoveInput } from '@/hooks/use-move-input';
+import { useOpening } from '@/hooks/use-opening-book';
 import { useSavedReviews } from '@/hooks/use-saved-reviews';
 import { useShortcuts } from '@/hooks/use-shortcuts';
 import { useSound } from '@/hooks/use-sound';
@@ -262,6 +263,7 @@ function Viewer({ loaded }: { loaded: Loaded }) {
     [replay, analysis, grades],
   );
   const clocks = useMemo(() => moveClocks(replay), [replay]);
+  const opening = useOpening(replay);
   const grade = grades[index - 1];
   const moving = movingPiece(replay, nav.at, nav.from);
   const prior = analysis?.positions[index - 1];
@@ -894,6 +896,7 @@ function Viewer({ loaded }: { loaded: Loaded }) {
         <ReportCard
           report={report}
           onJump={go}
+          opening={opening}
           level={badgeLabel(
             loaded.level,
             here?.status === 'done' ? here.line : null,

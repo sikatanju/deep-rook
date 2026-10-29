@@ -1,4 +1,4 @@
-import { cleanup, render, screen } from '@testing-library/react';
+import { cleanup, render, screen, waitFor } from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { afterEach, expect, test, vi } from 'vitest';
 
@@ -107,4 +107,11 @@ test('the shortcut list names both keys', async () => {
     .map((li) => li.textContent)
     .filter((t) => /mistake/.test(t ?? ''));
   expect(rows).toEqual(['Next mistakeN', 'Previous mistakeShift N']);
+});
+
+test('the report card names the opening once the table has loaded', async () => {
+  await openOperaGame();
+  const card = screen.getByRole('region', { name: 'Game report' });
+  await waitFor(() => expect(card).toHaveTextContent('Philidor Defense'));
+  expect(card).toHaveTextContent('C41');
 });

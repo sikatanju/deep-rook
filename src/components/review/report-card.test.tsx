@@ -177,3 +177,21 @@ test('the caption reports settled progress', () => {
   );
   expect(screen.getByText('3/34 positions')).toBeInTheDocument();
 });
+
+test('shows the ECO code and opening name when there is one', () => {
+  render(
+    <ReportCard
+      report={null}
+      onJump={() => {}}
+      opening={{ eco: 'B90', name: 'Sicilian Defense: Najdorf Variation' }}
+    />,
+  );
+  const line = document.querySelector('[data-opening="B90"]');
+  expect(line).toHaveTextContent('B90');
+  expect(line).toHaveTextContent('Sicilian Defense: Najdorf Variation');
+});
+
+test('shows no opening line without one', () => {
+  render(<ReportCard report={null} onJump={() => {}} opening={null} />);
+  expect(document.querySelector('[data-opening]')).toBeNull();
+});
