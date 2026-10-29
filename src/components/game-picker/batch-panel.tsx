@@ -6,12 +6,14 @@ import { LevelPicker } from '@/components/level-picker';
 import { Panel } from '@/components/panel';
 import { Button } from '@/components/ui/button';
 import { useBatch } from '@/hooks/use-game-analysis';
+import { useMyNames } from '@/hooks/use-my-names';
 import type { ReviewedGames } from '@/hooks/use-reviewed-games';
 import {
   isActive,
   type ActiveBatch,
   type EndedBatch,
 } from '@/lib/analysis/batch';
+import { pickBatch } from '@/lib/analysis/batch-picks';
 import { ANALYSIS_LEVELS, satisfies } from '@/lib/analysis/levels';
 import type { Game } from '@/lib/chesscom/types';
 import { cn } from '@/lib/utils';
@@ -55,6 +57,33 @@ function CountSwitch({
         </label>
       ))}
     </fieldset>
+  );
+}
+
+/** Whether to take only the games the player lost, as a checkbox styled like a chip. */
+function LossesToggle({
+  checked,
+  onChange,
+}: {
+  checked: boolean;
+  onChange: (on: boolean) => void;
+}) {
+  return (
+    <label
+      className={cn(
+        'border-line bg-surface text-ink has-[:focus-visible]:outline-focus cursor-pointer rounded-sm border-3 px-3 py-1 font-bold shadow-sm has-[:focus-visible]:outline-[3px] has-[:focus-visible]:outline-offset-2',
+        checked &&
+          'bg-primary text-sticker-ink -translate-x-0.5 -translate-y-0.5 shadow-md',
+      )}
+    >
+      <input
+        type="checkbox"
+        className="sr-only"
+        checked={checked}
+        onChange={(e) => onChange(e.target.checked)}
+      />
+      Losses only
+    </label>
   );
 }
 
@@ -128,8 +157,10 @@ export function BatchPanel({
   const { settings, setSettings } = useStore();
   const { snapshot, start, cancel } = useBatch();
   const [count, setCount] = useState<number>(COUNTS[1]);
+  const names = useMyNames();
   const level = settings.analysisLevel;
-  const latest = listed.slice(0, count);
+  const lossesOnly = settings.batchLossesOnly;
+  const { games: latest, losses } = pickBatch(listed, count, lossesOnly, names);
   const todo = latest.filter(
     (g) => !satisfies(reviewed?.byLink.get(g.url) ?? null, level),
   );
@@ -150,7 +181,13 @@ export function BatchPanel({
       ) : (
         <>
           {snapshot.phase !== 'idle' && <Outcome snapshot={snapshot} />}
-          <CountSwitch value={count} onChange={setCount} />
+          <div className="flex flex-wrap items-center gap-x-6 gap-y-3">
+            <CountSwitch value={count} onChange={setCount} />
+            <LossesToggle
+              checked={lossesOnly}
+              onChange={(batchLossesOnly) => setSettings({ batchLossesOnly })}
+            />
+          </div>
           <LevelPicker
             compact
             name="batch-mode"
@@ -158,11 +195,20 @@ export function BatchPanel({
             onChange={(analysisLevel) => setSettings({ analysisLevel })}
           />
           <p aria-live="polite" className="text-ink-muted">
+            {losses !== null && losses < count && (
+              <>
+                {losses === 0
+                  ? 'No losses found among your listed games.'
+                  : `Found ${losses === 1 ? '1 loss' : `${losses} losses`} among your listed games, fewer than ${count}.`}{' '}
+              </>
+            )}
             {reviewed === null
               ? 'Checking your saved reviews…'
-              : todo.length === 0
-                ? `All ${games(latest.length)} are reviewed at ${ANALYSIS_LEVELS[level].label} already.`
-                : `${games(todo.length)} to analyze. ${latest.length - todo.length} already reviewed at this mode. ${ANALYSIS_LEVELS[level].blurb}`}
+              : latest.length === 0
+                ? ''
+                : todo.length === 0
+                  ? `All ${games(latest.length)} are reviewed at ${ANALYSIS_LEVELS[level].label} already.`
+                  : `${games(todo.length)} to analyze. ${latest.length - todo.length} already reviewed at this mode. ${ANALYSIS_LEVELS[level].blurb}`}
           </p>
           <div>
             <Button

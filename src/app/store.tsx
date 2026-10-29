@@ -62,6 +62,8 @@ export type Settings = {
   boardSize: number | null;
   /** Other names the player plays under; they count as mine like a saved username. */
   extraNames: string[];
+  /** The Games page's batch review takes only the games the player lost. */
+  batchLossesOnly: boolean;
 };
 
 const DEFAULT_SETTINGS: Settings = {
@@ -74,6 +76,7 @@ const DEFAULT_SETTINGS: Settings = {
   analysisLevel: DEFAULT_LEVEL,
   boardSize: null,
   extraNames: [],
+  batchLossesOnly: false,
 };
 
 const SETTINGS_KEY = 'settings';
@@ -126,6 +129,7 @@ export function parseSettings(raw: string | null): Settings {
     analysisLevel,
     boardSize,
     extraNames,
+    batchLossesOnly,
   } = data;
   return {
     palette: isPaletteId(palette) ? palette : d.palette,
@@ -148,6 +152,8 @@ export function parseSettings(raw: string | null): Settings {
       : d.analysisLevel,
     boardSize: parseBoardSize(boardSize),
     extraNames: parseExtraNames(extraNames),
+    batchLossesOnly:
+      typeof batchLossesOnly === 'boolean' ? batchLossesOnly : d.batchLossesOnly,
   };
 }
 

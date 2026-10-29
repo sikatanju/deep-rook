@@ -30,6 +30,7 @@ vi.hoisted(() => {
 import App from './App';
 
 afterEach(() => {
+  document.cookie = 'settings=; Path=/; Max-Age=0';
   vi.unstubAllGlobals();
   localStorage.clear();
 });
@@ -41,7 +42,7 @@ const MOVES: Record<number, string> = {
 const pgn = (n: number) =>
   `[White "Me"]\n[Black "Rival${n}"]\n[Link "https://www.chess.com/game/live/${n}"]\n\n${MOVES[n]} *`;
 
-function stubThreeGames() {
+function stubThreeGames(lost: number[] = []) {
   const json = (body: unknown) =>
     Promise.resolve(new Response(JSON.stringify(body)));
   const game = (n: number) => ({
@@ -52,8 +53,16 @@ function stubThreeGames() {
     time_class: 'blitz',
     rules: 'chess',
     rated: true,
-    white: { username: 'Me', rating: 1500, result: 'win' },
-    black: { username: `Rival${n}`, rating: 1490, result: 'resigned' },
+    white: {
+      username: 'Me',
+      rating: 1500,
+      result: lost.includes(n) ? 'resigned' : 'win',
+    },
+    black: {
+      username: `Rival${n}`,
+      rating: 1490,
+      result: lost.includes(n) ? 'win' : 'resigned',
+    },
   });
   vi.stubGlobal(
     'fetch',
@@ -121,4 +130,40 @@ test('a staged game reviewed at this mode opens as it was', async () => {
   expect(screen.getByText('3 moves, reviewed at Deep')).toBeInTheDocument();
   await user.click(screen.getByRole('button', { name: 'Open review' }));
   expect(await screen.findByText('Deep review')).toBeInTheDocument();
+});
+
+test('losses only takes just the games lost, says how many it found and is remembered', async () => {
+  stubThreeGames([3]);
+  const user = userEvent.setup();
+  const { unmount } = render(<App store={memoryStore()} />);
+  await user.type(screen.getByLabelText('Chess.com username'), 'Me');
+  await user.click(screen.getByRole('button', { name: 'Find games' }));
+
+  const find = async () =>
+    (await screen.findByRole('heading', { name: 'Review in bulk' }))
+      .parentElement!.parentElement!;
+  const panel = await find();
+  expect(
+    await within(panel).findByRole('button', { name: 'Analyze 2 games' }),
+  ).toBeInTheDocument();
+
+  await user.click(
+    within(panel).getByRole('checkbox', { name: 'Losses only' }),
+  );
+  expect(
+    await within(panel).findByRole('button', { name: 'Analyze 1 game' }),
+  ).toBeInTheDocument();
+  expect(
+    within(panel).getByText(
+      /Found 1 loss among your listed games, fewer than 10\./,
+    ),
+  ).toBeInTheDocument();
+
+  unmount();
+  render(<App store={memoryStore()} />);
+  await user.type(screen.getByLabelText('Chess.com username'), 'Me');
+  await user.click(screen.getByRole('button', { name: 'Find games' }));
+  expect(
+    within(await find()).getByRole('checkbox', { name: 'Losses only' }),
+  ).toBeChecked();
 });

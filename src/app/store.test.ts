@@ -126,3 +126,9 @@ describe('loadSettings', () => {
     expect(loadSettings().palette).toBe('pop');
   });
 });
+
+test('the batch losses-only choice is off by default and a non-boolean falls back to it', () => {
+  expect(parseSettings(null).batchLossesOnly).toBe(false);
+  expect(parseSettings('{"batchLossesOnly":true}').batchLossesOnly).toBe(true);
+  expect(parseSettings('{"batchLossesOnly":1}').batchLossesOnly).toBe(false);
+});
