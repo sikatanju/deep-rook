@@ -21,6 +21,7 @@ import { readSavedUsernames } from '@/components/game-picker/username-form';
 import { useGameAnalysis, useProbe } from '@/hooks/use-game-analysis';
 import { useMoveInput } from '@/hooks/use-move-input';
 import { useSavedReviews } from '@/hooks/use-saved-reviews';
+import { useShortcuts } from '@/hooks/use-shortcuts';
 import { useSound } from '@/hooks/use-sound';
 import {
   classifyMoves,
@@ -70,14 +71,6 @@ import { MoveList } from './move-list';
 import { MoveTimes } from './move-times';
 import { PlayerStrip } from './player-strip';
 import { ReportCard } from './report-card';
-
-function isTyping(target: EventTarget | null) {
-  return (
-    target instanceof HTMLElement &&
-    (target.isContentEditable ||
-      /^(INPUT|TEXTAREA|SELECT)$/.test(target.tagName))
-  );
-}
 
 /** The coach's one-liner per grade: cheeky, never mean, under 45 characters. */
 const COACH_LINE: Record<Classification, string> = {
@@ -168,40 +161,32 @@ function Viewer({ loaded }: { loaded: Loaded }) {
     [branch, index, last, go],
   );
 
-  useEffect(() => {
-    function onKey(e: KeyboardEvent) {
-      if (isTyping(e.target) || e.metaKey || e.ctrlKey || e.altKey) return;
-      if (e.key === 'Escape' && branch) {
-        e.preventDefault();
-        setBranch(null);
-        return;
-      }
-      if (e.key === ' ') {
-        if (e.target instanceof HTMLButtonElement) return;
-        e.preventDefault();
+  const { at, end, to } = stepper;
+  const help = useShortcuts([
+    { keys: ['ArrowLeft'], label: 'Previous move', run: () => to(at - 1) },
+    { keys: ['ArrowRight'], label: 'Next move', run: () => to(at + 1) },
+    { keys: ['ArrowUp', 'Home'], label: 'First move', run: () => to(0) },
+    { keys: ['ArrowDown', 'End'], label: 'Last move', run: () => to(end) },
+    {
+      keys: [' '],
+      label: 'Play or pause the game',
+      run: (e) => {
+        if (e.target instanceof HTMLButtonElement) return false;
         if (branch) return;
         if (index >= last) goTo(0);
         setPlaying(index >= last || !running);
-        return;
-      }
-      const { at, end, to } = stepper;
-      const keys: Record<string, () => void> = {
-        ArrowLeft: () => to(at - 1),
-        ArrowRight: () => to(at + 1),
-        ArrowUp: () => to(0),
-        ArrowDown: () => to(end),
-        Home: () => to(0),
-        End: () => to(end),
-        f: () => setFlipped((f) => !f),
-      };
-      const action = keys[e.key];
-      if (!action) return;
-      e.preventDefault();
-      action();
-    }
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [goTo, index, last, running, branch, stepper]);
+      },
+    },
+    { keys: ['f'], label: 'Flip the board', run: () => setFlipped((f) => !f) },
+    {
+      keys: ['Escape'],
+      label: 'Leave a side line',
+      run: () => {
+        if (!branch) return false;
+        setBranch(null);
+      },
+    },
+  ]);
 
   const analysis = useGameAnalysis(loaded, index);
   const here = analysis?.positions[index];
@@ -612,6 +597,7 @@ function Viewer({ loaded }: { loaded: Loaded }) {
           >
             <RotateCwIcon aria-hidden />
           </Button>
+          {help}
           <CopyLink replay={replay} side={flipped ? 'b' : 'w'} />
           <ExportPgn replay={replay} analysis={analysis} />
         </div>

@@ -1,4 +1,10 @@
-import { cleanup, fireEvent, render, screen } from '@testing-library/react';
+import {
+  cleanup,
+  fireEvent,
+  render,
+  screen,
+  within,
+} from '@testing-library/react';
 import userEvent from '@testing-library/user-event';
 import { expect, test } from 'vitest';
 
@@ -325,4 +331,66 @@ test('the game, its side, its level and its ply are saved as the review opens', 
     orientation: 'w',
     index: 0,
   });
+});
+
+const shortcuts = () =>
+  within(screen.getByRole('dialog', { name: 'Keyboard shortcuts' }));
+
+test('? opens a list of the review keys, and Esc closes it and returns focus', async () => {
+  const user = await openOperaGame();
+  await user.keyboard('?');
+  const list = shortcuts();
+  // Every key the page handles is listed, and nothing else.
+  expect(list.getAllByRole('listitem').map((li) => li.textContent)).toEqual([
+    'Previous move←',
+    'Next move→',
+    'First move↑Home',
+    'Last move↓End',
+    'Play or pause the gameSpace',
+    'Flip the boardF',
+    'Leave a side lineEsc',
+    'Show this list?',
+  ]);
+
+  // The page's keys are off while it is open.
+  await user.keyboard('{End}');
+  // (Found by its text: the open dialog hides the page from the accessibility tree.)
+  const next = screen
+    .getAllByText('Next move')
+    .map((n) => n.closest('button'))
+    .find(Boolean);
+  expect(next).toBeEnabled();
+  await user.keyboard('{Escape}');
+  expect(screen.queryByRole('dialog')).toBeNull();
+  expect(
+    screen.getByRole('button', { name: 'Keyboard shortcuts' }),
+  ).toHaveFocus();
+  // The Esc that closed it did not also act on the page, and the keys work again.
+  await user.keyboard('{End}');
+  expect(screen.getByRole('button', { name: 'Next move' })).toBeDisabled();
+});
+
+test('the keyboard button opens the list, and clicking outside closes it', async () => {
+  const user = await openOperaGame();
+  await user.click(screen.getByRole('button', { name: 'Keyboard shortcuts' }));
+  const dialog = screen.getByRole('dialog', { name: 'Keyboard shortcuts' });
+  // Focus is held inside while it is open.
+  await user.tab();
+  expect(dialog).toContainElement(document.activeElement as HTMLElement);
+  await user.tab();
+  expect(dialog).toContainElement(document.activeElement as HTMLElement);
+
+  await user.click(dialog.previousElementSibling!);
+  expect(screen.queryByRole('dialog')).toBeNull();
+  expect(
+    screen.getByRole('button', { name: 'Keyboard shortcuts' }),
+  ).toHaveFocus();
+});
+
+test('? typed into the move field does not open the list', async () => {
+  const user = await openOperaGame();
+  const field = screen.getByLabelText('Type a move to try a line');
+  await user.type(field, '?');
+  expect(field).toHaveValue('?');
+  expect(screen.queryByRole('dialog')).toBeNull();
 });

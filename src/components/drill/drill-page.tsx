@@ -13,6 +13,7 @@ import { CoachBubble } from '@/components/review/coach-bubble';
 import { Button } from '@/components/ui/button';
 import { useDrillProgress, useProbe } from '@/hooks/use-game-analysis';
 import { useMoveInput } from '@/hooks/use-move-input';
+import { useShortcuts } from '@/hooks/use-shortcuts';
 import { useSound } from '@/hooks/use-sound';
 import { useSavedReviews } from '@/hooks/use-saved-reviews';
 import {
@@ -159,18 +160,18 @@ function DrillCard({
 
   // Enter moves on once the drill is settled, unless it is a control's own key.
   const settled = !open && phase !== 'checking';
-  useEffect(() => {
-    if (!settled) return;
-    function onKey(e: KeyboardEvent) {
-      if (e.key !== 'Enter' || e.repeat) return;
-      if (e.metaKey || e.ctrlKey || e.altKey) return;
-      if (e.target instanceof Element && e.target.closest(CONTROLS)) return;
-      e.preventDefault();
-      dispatch({ type: 'next' });
-    }
-    window.addEventListener('keydown', onKey);
-    return () => window.removeEventListener('keydown', onKey);
-  }, [settled, dispatch]);
+  const help = useShortcuts([
+    {
+      keys: ['Enter'],
+      label: 'Next drill, once this one is settled',
+      run: (e) => {
+        if (!settled || e.repeat) return false;
+        if (e.target instanceof Element && e.target.closest(CONTROLS))
+          return false;
+        dispatch({ type: 'next' });
+      },
+    },
+  ]);
 
   const actions =
     open || phase === 'checking' ? (
@@ -280,6 +281,7 @@ function DrillCard({
             />
           </Panel>
         )}
+        <div>{help}</div>
       </div>
     </div>
   );

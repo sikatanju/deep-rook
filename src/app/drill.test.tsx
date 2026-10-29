@@ -442,3 +442,21 @@ test('a pawn dragged to the last rank asks for the piece, as a click does', asyn
   await user.click(within(picker).getByRole('button', { name: 'Queen' }));
   expect(await screen.findByText('You found it.')).toBeInTheDocument();
 });
+
+test('? lists the drill keys, and Esc closes the list', async () => {
+  const user = await openDrill();
+  await screen.findByText('Drill 1 of 2');
+  await user.keyboard('?');
+  const list = within(
+    screen.getByRole('dialog', { name: 'Keyboard shortcuts' }),
+  );
+  expect(list.getAllByRole('listitem').map((li) => li.textContent)).toEqual([
+    'Next drill, once this one is settledEnter',
+    'Show this list?',
+  ]);
+  await user.keyboard('{Escape}');
+  expect(screen.queryByRole('dialog')).toBeNull();
+
+  await user.click(screen.getByRole('button', { name: 'Keyboard shortcuts' }));
+  expect(screen.getByRole('dialog')).toBeInTheDocument();
+});
