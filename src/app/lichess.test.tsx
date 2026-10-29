@@ -32,7 +32,12 @@ async function searchLichess(name = 'thibault') {
   return user;
 }
 
-const rows = () => screen.queryAllByRole('button', { pressed: false });
+// The filter chips above the list are toggle buttons too; they sit in groups.
+const toggles = (pressed: boolean) =>
+  screen
+    .queryAllByRole('button', { pressed })
+    .filter((b) => !b.closest('[role=group]'));
+const rows = () => toggles(false);
 
 test('a Lichess game stages like a Chess.com one, from the searched side', async () => {
   stubLichess(ndjson(BLITZ, DRAW));
@@ -148,7 +153,7 @@ test('three straight Lichess losses get the coach too', async () => {
   const coach = await screen.findByRole('region', { name: 'Coach' });
   expect(coach).toHaveTextContent('3 losses in a row');
   await user.click(screen.getByRole('button', { name: 'Review last loss' }));
-  expect(screen.getByRole('button', { pressed: true })).toBeInTheDocument();
+  expect(toggles(true)).toHaveLength(1);
   expect(screen.getByText('krevermann vs thibault')).toBeInTheDocument();
 });
 

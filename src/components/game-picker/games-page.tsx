@@ -1,3 +1,5 @@
+import { useState } from 'react';
+
 import { useStore } from '@/app/store';
 import { BatchPanel } from '@/components/game-picker/batch-panel';
 import { GamePicker } from '@/components/game-picker/game-picker';
@@ -7,6 +9,12 @@ import { Highlight, PageHeader } from '@/components/layout/page-header';
 import { CoachBubble } from '@/components/review/coach-bubble';
 import { Button } from '@/components/ui/button';
 import { useReviewedGames } from '@/hooks/use-reviewed-games';
+import {
+  filterListed,
+  isFiltering,
+  NO_LIST_FILTER,
+  type ListFilter,
+} from '@/lib/chesscom/list-filter';
 import { losingStreak } from '@/lib/chesscom/session';
 import type { Game } from '@/lib/chesscom/types';
 
@@ -63,6 +71,9 @@ export function GamesPage() {
   const { staged } = store;
   const reviewed = useReviewedGames();
   const shown = shownGames(store);
+  // Both the list and the batch read it, so the batch takes what the list shows.
+  const [filter, setFilter] = useState<ListFilter>(NO_LIST_FILTER);
+  const passing = shown && filterListed(shown[0], filter, shown[1]);
   // A sticky element only moves inside its parent. Small screens stack the
   // cards in this flex column, so the setup card can follow the game list. At
   // lg the second column stretches to the list's height for the same reason.
@@ -72,11 +83,15 @@ export function GamesPage() {
         Pick a game to <Highlight>roast</Highlight>
       </PageHeader>
       <div className="flex flex-col gap-8 lg:grid lg:grid-cols-[minmax(0,3fr)_minmax(0,2fr)] lg:items-start">
-        <GamePicker reviewed={reviewed} />
+        <GamePicker reviewed={reviewed} filter={filter} onFilter={setFilter} />
         <div className="contents lg:flex lg:flex-col lg:gap-8 lg:self-stretch">
           {staged && <ReviewSetup staged={staged} reviewed={reviewed} />}
-          {shown && shown[0].length > 0 && (
-            <BatchPanel games={shown[0]} reviewed={reviewed} />
+          {shown && passing && shown[0].length > 0 && (
+            <BatchPanel
+              games={passing}
+              filtered={isFiltering(filter)}
+              reviewed={reviewed}
+            />
           )}
           <PgnImport />
           <StreakCoach />

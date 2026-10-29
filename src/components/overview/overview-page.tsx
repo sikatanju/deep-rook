@@ -7,11 +7,13 @@ import { Highlight, PageHeader } from '@/components/layout/page-header';
 import { Panel } from '@/components/panel';
 import { CoachBubble } from '@/components/review/coach-bubble';
 import { Button } from '@/components/ui/button';
+import { cap, FilterChips } from '@/components/ui/filter-chips';
 import { useMyNames } from '@/hooks/use-my-names';
 import { useOpeningBook } from '@/hooks/use-opening-book';
 import { useSavedReviews } from '@/hooks/use-saved-reviews';
 import type { StoredAnalysis } from '@/lib/analysis/cache';
 import { ANALYSIS_LEVELS } from '@/lib/analysis/levels';
+import { SPEEDS } from '@/lib/chesscom/list-filter';
 import type { TimeClass } from '@/lib/chesscom/types';
 import {
   filterGames,
@@ -179,13 +181,10 @@ function RecentGames({
   );
 }
 
-const SPEEDS = ['bullet', 'blitz', 'rapid', 'classical', 'daily'] as const;
 const SIDES = [
-  { id: 'all', name: 'Either side' },
   { id: 'w', name: 'White' },
   { id: 'b', name: 'Black' },
 ] as const;
-const cap = (s: string) => s[0]!.toUpperCase() + s.slice(1);
 
 function Filters({
   filter,
@@ -196,30 +195,22 @@ function Filters({
   speeds: readonly TimeClass[];
   onChange: (filter: Filter) => void;
 }) {
-  const chip = (active: boolean, name: string, patch: Partial<Filter>) => (
-    <Button
-      key={name}
-      size="sm"
-      variant={active ? 'primary' : 'default'}
-      aria-pressed={active}
-      onClick={() => onChange({ ...filter, ...patch })}
-    >
-      {name}
-    </Button>
-  );
   return (
     <div className="flex flex-wrap gap-x-8 gap-y-3">
-      <div
-        role="group"
-        aria-label="Time control"
-        className="flex flex-wrap gap-2"
-      >
-        {chip(filter.speed === 'all', 'Any speed', { speed: 'all' })}
-        {speeds.map((s) => chip(filter.speed === s, cap(s), { speed: s }))}
-      </div>
-      <div role="group" aria-label="Side" className="flex flex-wrap gap-2">
-        {SIDES.map((s) => chip(filter.side === s.id, s.name, { side: s.id }))}
-      </div>
+      <FilterChips
+        label="Time control"
+        any={{ id: 'all', name: 'Any speed' }}
+        options={speeds.map((s) => ({ id: s, name: cap(s) }))}
+        value={filter.speed}
+        onChange={(speed) => onChange({ ...filter, speed })}
+      />
+      <FilterChips
+        label="Side"
+        any={{ id: 'all', name: 'Either side' }}
+        options={SIDES}
+        value={filter.side}
+        onChange={(side) => onChange({ ...filter, side })}
+      />
     </div>
   );
 }

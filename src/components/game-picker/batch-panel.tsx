@@ -148,10 +148,13 @@ function Outcome({ snapshot }: { snapshot: EndedBatch }) {
  */
 export function BatchPanel({
   games: listed,
+  filtered = false,
   reviewed,
 }: {
-  /** Newest first. */
+  /** Newest first, already narrowed by the list's filters. */
   games: readonly Game[];
+  /** The list's filters are narrowing `games`. */
+  filtered?: boolean;
   reviewed: ReviewedGames | null;
 }) {
   const { settings, setSettings } = useStore();
@@ -160,6 +163,9 @@ export function BatchPanel({
   const names = useMyNames();
   const level = settings.analysisLevel;
   const lossesOnly = settings.batchLossesOnly;
+  const among = filtered
+    ? 'the games that pass the filters'
+    : 'your listed games';
   const { games: latest, losses } = pickBatch(listed, count, lossesOnly, names);
   const todo = latest.filter(
     (g) => !satisfies(reviewed?.byLink.get(g.url) ?? null, level),
@@ -198,8 +204,8 @@ export function BatchPanel({
             {losses !== null && losses < count && (
               <>
                 {losses === 0
-                  ? 'No losses found among your listed games.'
-                  : `Found ${losses === 1 ? '1 loss' : `${losses} losses`} among your listed games, fewer than ${count}.`}{' '}
+                  ? `No losses found among ${among}.`
+                  : `Found ${losses === 1 ? '1 loss' : `${losses} losses`} among ${among}, fewer than ${count}.`}{' '}
               </>
             )}
             {reviewed === null

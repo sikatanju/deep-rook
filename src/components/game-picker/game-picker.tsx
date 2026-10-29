@@ -14,6 +14,7 @@ import { useBatchGame } from '@/hooks/use-game-analysis';
 import type { ReviewedGames } from '@/hooks/use-reviewed-games';
 import { errorMessages } from '@/lib/chesscom/errors';
 import { outcomeFor } from '@/lib/chesscom/session';
+import type { ListFilter } from '@/lib/chesscom/list-filter';
 import type { Game, MonthKey, Site } from '@/lib/chesscom/types';
 import { lichessErrorMessages } from '@/lib/lichess/errors';
 import { cn } from '@/lib/utils';
@@ -78,11 +79,13 @@ function Alert({ children }: { children: string }) {
 }
 
 type ListProps = {
+  filter: ListFilter;
+  onFilter: (filter: ListFilter) => void;
   onStage: (game: Game) => void;
   markOf: (game: Game) => RowMark | undefined;
 };
 
-function ChessComGames({ onStage, markOf }: ListProps) {
+function ChessComGames({ filter, onFilter, onStage, markOf }: ListProps) {
   const { state, search, selectMonth } = useStore();
   return (
     <>
@@ -131,6 +134,8 @@ function ChessComGames({ onStage, markOf }: ListProps) {
               <GameList
                 games={state.games.games}
                 username={state.profile.username}
+                filter={filter}
+                onFilter={onFilter}
                 selectedId={state.selected?.id}
                 markOf={markOf}
                 onSelect={onStage}
@@ -144,7 +149,7 @@ function ChessComGames({ onStage, markOf }: ListProps) {
   );
 }
 
-function LichessGames({ onStage, markOf }: ListProps) {
+function LichessGames({ filter, onFilter, onStage, markOf }: ListProps) {
   const {
     lichess: { state, search, loadOlder },
   } = useStore();
@@ -172,6 +177,8 @@ function LichessGames({ onStage, markOf }: ListProps) {
             <GameList
               games={state.games}
               username={state.username}
+              filter={filter}
+              onFilter={onFilter}
               selectedId={state.selected?.id}
               markOf={markOf}
               onSelect={onStage}
@@ -198,7 +205,15 @@ function LichessGames({ onStage, markOf }: ListProps) {
   );
 }
 
-export function GamePicker({ reviewed }: { reviewed: ReviewedGames | null }) {
+export function GamePicker({
+  reviewed,
+  filter,
+  onFilter,
+}: {
+  reviewed: ReviewedGames | null;
+  filter: ListFilter;
+  onFilter: (filter: ListFilter) => void;
+}) {
   const { site, setSite, stageGame } = useStore();
   const [openError, setOpenError] = useState<string | null>(null);
   const analyzing = useBatchGame();
@@ -232,9 +247,19 @@ export function GamePicker({ reviewed }: { reviewed: ReviewedGames | null }) {
         }}
       />
       {site === 'chesscom' ? (
-        <ChessComGames onStage={stage} markOf={markOf} />
+        <ChessComGames
+          filter={filter}
+          onFilter={onFilter}
+          onStage={stage}
+          markOf={markOf}
+        />
       ) : (
-        <LichessGames onStage={stage} markOf={markOf} />
+        <LichessGames
+          filter={filter}
+          onFilter={onFilter}
+          onStage={stage}
+          markOf={markOf}
+        />
       )}
       {openError && <Alert>{openError}</Alert>}
     </Panel>
